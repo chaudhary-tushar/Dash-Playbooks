@@ -1,0 +1,45 @@
+
+services:
+  flutter-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BUILD_TARGET: web
+    image: flutter-audiobook-player:dev
+    container_name: flutter-audiobook-dev
+    platform: linux/amd64
+    stdin_open: true
+    tty: true
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - ./.volumes/pub-cache:/root/.pub-cache
+      - ./.volumes/flutter-bin:/opt/flutter/bin
+      - ./.volumes/android-sdk:/opt/android-sdk-linux
+    ports:
+      - "3000:3000"  # Development server
+      - "8000:8000"  # Web server for testing
+      - "8080:8080"  # Android debug bridge
+      - "9090:9090"  # Flutter DevTools
+    environment:
+      - FLUTTER_ROOT=/opt/flutter
+      - ANDROID_HOME=/opt/android-sdk-linux
+      - ANDROID_SDK_ROOT=/opt/android-sdk-linux
+      - PUB_CACHE=/root/.pub-cache
+    command: /usr/bin/bash
+
+  # Optional: Web server for built artifacts
+  web-server:
+    image: python:3.11-slim
+    container_name: flutter-audiobook-web
+    working_dir: /app
+    volumes:
+      - ./output:/app
+    ports:
+      - "8001:8000"
+    command: python3 -m http.server 8000
+    profiles:
+      - webserver
+
+
