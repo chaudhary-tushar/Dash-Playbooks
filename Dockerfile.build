@@ -1,0 +1,28 @@
+FROM flutter-audiobook-player:dev
+
+WORKDIR /app
+
+# Copy pubspec files
+COPY pubspec.yaml .
+
+# Get dependencies
+RUN flutter pub get
+
+# Copy the rest of the application
+COPY . .
+
+# Build the application based on target
+ARG BUILD_TARGET=web
+ENV BUILD_TARGET=${BUILD_TARGET}
+
+RUN if [ "$BUILD_TARGET" = "web" ]; then \
+        flutter build web --release; \
+    elif [ "$BUILD_TARGET" = "linux" ]; then \
+        flutter build linux --release; \
+    elif [ "$BUILD_TARGET" = "android" ]; then \
+        flutter build apk --release; \
+    fi
+
+EXPOSE 3000
+
+CMD ["bash"]

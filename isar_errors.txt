@@ -1,0 +1,19 @@
+Isar DB Configuration and Schema Analysis Report
+
+Based on the analysis of the codebase, the following files have been identified with potential issues regarding the Isar database configuration and schema definitions.
+
+1. File: lib/data/datasources/local/audiobook_local_datasource.dart
+   - Problem: Incomplete Schema Registration.
+   - Details: The `Isar.open` call in this file only registers the `AudiobookModel` and `PlaybackSessionModel` schemas. The `UserProfileModel` and `LibraryModel` schemas are not included. This will cause runtime errors when trying to access or store `UserProfileModel` or `LibraryModel` objects in the database. All collection schemas must be provided during database initialization.
+
+2. File: lib/data/models/user_profile_model.dart
+   - Problem: Schema Defined but Not Registered.
+   - Details: This file defines the `UserProfileModel` with an `@collection` annotation, marking it as an Isar collection. However, its schema (`UserProfileModelSchema`) is not passed to the `Isar.open` call, making it unusable with the current Isar instance.
+
+3. File: lib/data/datasources/local/isar_schema.dart
+   - Problem: Unused / Dead Code and Schema Duplication.
+   - Details: This file contains what appears to be a more complete and centralized set of Isar schema definitions, including `fromDomain`/`toDomain` methods which are missing from the models in `lib/data/models/`. However, this file is not used anywhere in the project. The schemas from this file are not imported or used during Isar initialization. This creates a significant source of confusion and code duplication. The project should have a single source of truth for Isar schemas.
+
+4. Files: lib/data/models/audiobook_model.dart, lib/data/models/playback_session_model.dart
+   - Problem: Incomplete Model Implementation.
+   - Details: These are the actively used Isar models, but they are less complete than their counterparts in the unused `isar_schema.dart`. They are missing `fromDomain`/`toDomain` conversion methods, which suggests a potential architectural gap between the data layer and the domain layer.

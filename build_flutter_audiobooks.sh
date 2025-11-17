@@ -79,21 +79,12 @@ mkdir -p "$OUTPUT_DIR"
 # Function to build Docker image
 build_image() {
     echo "Building Docker image: $IMAGE_NAME"
-    
-    # Check if Dockerfile exists, create it if needed
-    if [[ ! -f "Dockerfile" && ! -f "Dockerfile.build" ]]; then
-        echo "Creating Dockerfile for Flutter build..."
-        cat > Dockerfile << 'EOF'
-FROM cirrusci/flutter:latest
 
-# Install additional dependencies for Linux builds
-RUN apt-get update && apt-get install -y \
-    clang \
-    cmake \
-    ninja-build \
-    libgtk-3-dev \
-    liblzma-dev \
-    libstdc++-10-dev
+    # Check if Dockerfile.build exists, create it if needed
+    if [[ ! -f "Dockerfile.build" ]]; then
+        echo "Creating Dockerfile.build for Flutter build..."
+        cat > Dockerfile.build << 'EOF'
+FROM flutter-audiobook-player:dev
 
 WORKDIR /app
 
@@ -127,11 +118,11 @@ CMD ["bash"]
 EOF
     fi
 
-    # Build the Docker image
+    # Build the Docker image based on the target
     docker build \
         --build-arg BUILD_TARGET="$BUILD_TYPE" \
         --tag "$IMAGE_NAME" \
-        --file Dockerfile . || {
+        --file Dockerfile.build . || {
         echo "Error: Docker image build failed"
         exit 1
     }
@@ -143,9 +134,9 @@ build_and_extract_artifacts() {
 
     # Run container to perform build
     container_id=$(docker create "$IMAGE_NAME" bash)
-    
+
     echo "Container created: $container_id"
-    
+
     # Copy build artifacts from container
     if [[ "$BUILD_TYPE" == "web" ]]; then
         docker cp "$container_id:/app/build/web/." "$OUTPUT_DIR/"
@@ -160,7 +151,7 @@ build_and_extract_artifacts() {
         echo "Android APK copied to: $OUTPUT_DIR/app-release.apk"
         echo "To install on device: adb install $OUTPUT_DIR/app-release.apk"
     fi
-    
+
     # Clean up
     docker rm -v "$container_id" > /dev/null
 }

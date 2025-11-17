@@ -1,0 +1,76 @@
+Isar DB Resolution Plan
+
+This file outlines the steps to resolve the Isar database configuration and schema issues identified in `isar_errors.txt`.
+
+The core of the problem is a mix of incomplete schema registration and duplicated, conflicting schema definitions. The recommended approach is to centralize the schema definitions and ensure the database is initialized correctly.
+
+---
+### Step 1: Consolidate Isar Schema Definitions
+
+The file `lib/data/datasources/local/isar_schema.dart` contains more complete models but is currently unused. The models in `lib/data/models/` are used but are incomplete. You should make `isar_schema.dart` the single source of truth.
+
+**Action:**
+1.  Delete the individual model files that define Isar collections:
+    -   `rm lib/data/models/audiobook_model.dart`
+    -   `rm lib/data/models/playback_session_model.dart`
+    -   `rm lib/data/models/user_profile_model.dart`
+
+2.  Move the centralized schema file to the models directory for better organization:
+    -   `mv lib/data/datasources/local/isar_schema.dart lib/data/models/isar_models.dart`
+
+3.  Update any files that were importing the old models to import from the new consolidated file (`lib/data/models/isar_models.dart`). You will need to search your codebase for the old imports and replace them.
+
+---
+### Step 2: Update Isar Initialization
+
+The Isar instance must be initialized with all the required schemas.
+
+**Action:**
+1.  **Modify `lib/data/datasources/local/audiobook_local_datasource.dart`:**
+    -   Import the schemas from your new consolidated model file.
+    -   Update the `Isar.open` call to include all schemas.
+
+    **Current Code (Problematic):**
+    ```dart
+    final isar = await Isar.open(
+      [AudiobookModelSchema, PlaybackSessionModelSchema],
+      name: 'audiobook_db',
+    );
+    ```
+
+    **Proposed Change:**
+    ```dart
+    // Import the consolidated models file
+    import 'package:flutter_audiobooks/data/models/isar_models.dart';
+
+    // ... inside the initialization logic ...
+
+    final isar = await Isar.open(
+      [
+        AudiobookModelSchema,
+        PlaybackSessionModelSchema,
+        UserProfileModelSchema,
+        LibraryModelSchema
+      ],
+      name: 'audiobook_db',
+    );
+    ```
+
+---
+### Step 3: Regenerate Isar Code
+
+After modifying your Isar collection files, you must run the build runner to update the generated files (`.g.dart`).
+
+**Action:**
+1.  Run the following command in your terminal at the project root:
+    ```bash
+    flutter pub run build_runner build --delete-conflicting-outputs
+    ```
+
+---
+### Summary of Changes:
+
+By following these steps, you will:
+-   Have a single, clear source for your Isar data models.
+-   Eliminate duplicated and dead code.
+-   Ensure your Isar database is correctly initialized with all necessary schemas, preventing runtime errors.

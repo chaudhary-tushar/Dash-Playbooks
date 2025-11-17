@@ -1,50 +1,18 @@
 #!/bin/bash
-# Setup script for Flutter Audiobook Player development environment
 
-set -e
+# Setup script for Flutter dev container
 
-echo "=========================================="
-echo "Setting up Flutter Audiobook Player"
-echo "=========================================="
+# Ensure Flutter is in the PATH
+export PATH="$PATH:/opt/flutter/bin:/opt/flutter/bin/cache/dart-sdk/bin"
 
-cd /workspace
-
-# Check Flutter installation
-echo "Checking Flutter installation..."
-flutter --version
-flutter doctor
-
-# Get dependencies
-echo "Getting pub dependencies..."
-flutter pub get
-
-# Generate code (Isar, etc.)
-echo "Running build_runner..."
-flutter pub run build_runner build --delete-conflicting-outputs
-
-# Enable web platform
-echo "Enabling web platform..."
+# Enable Flutter web and Linux desktop support
 flutter config --enable-web
-
-# Enable Linux desktop
-echo "Enabling Linux desktop..."
 flutter config --enable-linux-desktop
 
-# Install global packages
-echo "Installing global packages..."
-flutter pub global activate build_runner
-flutter pub global activate devtools
+# Get Flutter dependencies
+flutter pub get
 
-echo "=========================================="
-echo "Setup Complete!"
-echo "=========================================="
-echo ""
-echo "Available commands:"
-echo "  flutter run                   - Run app on available device/emulator"
-echo "  flutter run -d web            - Run web version"
-echo "  flutter build web --release   - Build web release"
-echo "  flutter build linux --release - Build Linux release"
-echo "  flutter build apk --release   - Build Android APK"
-echo "  flutter test                  - Run tests"
-echo "  flutter pub run build_runner build --delete-conflicting-outputs - Regenerate code"
-echo ""
+# Activate build_runner for code generation
+dart pub global activate build_runner
+
+echo "Dev container setup complete!"

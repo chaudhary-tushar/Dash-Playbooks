@@ -29,6 +29,11 @@ class AudiobookPlayerApp extends StatelessWidget {
       supportedLocales: const [
         Locale('en', 'US'),
       ],
+      initialRoute: '/splash', // Set initial route to the splash screen
+      routes: <String, Widget Function(BuildContext)>{
+        '/splash': (BuildContext context) => const SplashScreen(),
+        '/main': (BuildContext context) => const MainScreen(), // Define the main screen route
+      },
       home: SplashScreen(),
       debugShowCheckedModeBanner: false,
     );

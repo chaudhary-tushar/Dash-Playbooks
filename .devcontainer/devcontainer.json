@@ -1,13 +1,13 @@
 {
     "name": "Flutter Audiobook Player",
     "build": {
-        "dockerfile": "../Dockerfile",
+        "dockerfile": "Dockerfile",
         "context": "..",
         "args": {
             "BUILD_TARGET": "web"
         }
     },
-    "remoteUser": "root",
+    "remoteUser": "vscode",
     "forwardPorts": [3000, 8000, 8080, 9090],
     "features": {
         "ghcr.io/devcontainers/features/git:1": {},
@@ -78,7 +78,7 @@
     "mounts": [
         "source=${localWorkspaceFolder}/.volumes/ssh,target=/root/.ssh,type=bind,consistency=cached",
         "source=${localWorkspaceFolder}/.volumes/pub-cache,target=/root/.pub-cache,type=bind,consistency=cached",
-        "source=${localWorkspaceFolder}/.volumes/flutter-bin,target=/opt/flutter/bin,type=bind,consistency=cached",
+        "source=${localWorkspaceFolder}/.volumes/flutter-bin,target=/opt/flutter,type=bind,consistency=cached",
         "source=${localWorkspaceFolder}/.volumes/android-sdk,target=/opt/android-sdk-linux,type=bind,consistency=cached",
         "source=${localWorkspaceFolder}/.volumes/gradle,target=/root/.gradle,type=bind,consistency=cached"
     ],
@@ -95,9 +95,7 @@
         "PUB_CACHE": "/root/.pub-cache",
         "GRADLE_USER_HOME": "/root/.gradle"
     },
-    "postCreateCommand": "${containerWorkspaceFolder}/.devcontainer/setup.sh",
-    "postStartCommand": "${containerWorkspaceFolder}/.devcontainer/post-start.sh",
-    "onCreateCommand": "${containerWorkspaceFolder}/.devcontainer/on-create.sh",
+    "postCreateCommand": "flutter config --enable-web && flutter config --enable-linux-desktop",
     "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
     "workspaceFolder": "/workspace",
     "remoteEnv": {

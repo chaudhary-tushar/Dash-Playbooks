@@ -1,21 +1,14 @@
 #!/bin/bash
-# On-create script - runs after container is created but before initialization
 
-set -e
+# On-create script for Flutter dev container
 
-echo "Initializing Flutter development environment..."
+# Ensure Flutter is in the PATH
+export PATH="$PATH:/opt/flutter/bin:/opt/flutter/bin/cache/dart-sdk/bin"
 
-# Wait for package managers to be ready
-sleep 2
+# Get Flutter dependencies
+flutter pub get
 
-# Ensure Flutter is properly configured
-if ! command -v flutter &> /dev/null; then
-    echo "Flutter not found in PATH, checking /opt/flutter..."
-    export PATH="/opt/flutter/bin:$PATH"
-fi
+# Run build runner to generate code
+flutter pub run build_runner build --delete-conflicting-outputs
 
-# Pre-cache common dependencies
-flutter config --enable-web --no-analytics
-flutter config --enable-linux-desktop
-
-echo "Flutter environment initialized"
+echo "Dev container on-create complete!"

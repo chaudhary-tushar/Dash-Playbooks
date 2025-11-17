@@ -1,0 +1,405 @@
+# Isar Database Resolution Tasks - Flutter Audiobook Player
+
+## Overview
+This document outlines actionable tasks to resolve Isar database configuration and schema issues identified in the Flutter Audiobook Player project. Based on Context7 Isar documentation and the issues found in isar_errors.txt.
+
+---
+
+## PHASE 1: ANALYSIS & PREPARATION
+
+### Task 1.1: Review Current Isar Schema Files
+**Description:** Examine and document all current Isar schema definitions
+**Scope:**
+- Review `lib/data/datasources/local/isar_schema.dart` - contains complete schemas with `fromDomain`/`toDomain` methods
+- Review `lib/data/models/audiobook_model.dart` - actively used model
+- Review `lib/data/models/playback_session_model.dart` - actively used model
+- Review `lib/data/models/user_profile_model.dart` - defined but not registered
+- Review `lib/data/datasources/local/audiobook_local_datasource.dart` - database initialization code
+
+**Acceptance Criteria:**
+- Document which models are currently used in initialization
+- Identify missing schema registrations
+- List which models have `fromDomain`/`toDomain` methods
+- Document code duplication between isar_schema.dart and model files
+
+**Reference Documentation:**
+Per Context7 Isar docs: Collections must be registered with schema definitions during `Isar.openAsync()` initialization. Missing schemas cause runtime errors when accessing those collections.
+
+---
+
+### Task 1.2: Search for All Isar Model Imports
+**Description:** Identify all files importing the scattered Isar models
+**Commands to Execute:**
+```bash
+grep -r "from.*audiobook_model" lib/
+grep -r "from.*playback_session_model" lib/
+grep -r "from.*user_profile_model" lib/
+grep -r "from.*isar_schema" lib/
+```
+
+**Acceptance Criteria:**
+- Complete list of all imports of model files
+- Identify which files depend on each model
+- Note whether usage is for collection access or model instantiation
+
+---
+
+## PHASE 2: CONSOLIDATION
+
+### Task 2.1: Consolidate Schema Definitions
+**Description:** Make `lib/data/datasources/local/isar_schema.dart` the single source of truth
+**Actions:**
+1. Copy complete content from `isar_schema.dart` to new file `lib/data/models/isar_models.dart`
+2. Ensure all schemas are present in `isar_models.dart`:
+   - AudiobookModel with schema
+   - PlaybackSessionModel with schema
+   - UserProfileModel with schema
+   - LibraryModel with schema (if exists)
+3. Verify all models include:
+   - `@collection` annotation
+   - `part` statement for code generation
+   - `Id id` field or equivalent primary key
+   - `fromDomain()` and `toDomain()` methods
+4. Remove old model files:
+   - `lib/data/models/audiobook_model.dart`
+   - `lib/data/models/playback_session_model.dart`
+   - `lib/data/models/user_profile_model.dart`
+
+**Reference Documentation:**
+Per Context7 Isar docs: Collections must use `@collection` annotation, require an `Id` field, and can optionally use `@embedded` for nested objects.
+
+**Acceptance Criteria:**
+- New `isar_models.dart` file created with all schemas
+- All schemas include `@collection` annotation
+- All models have complete field definitions
+- Old duplicate files are deleted
+- No syntax errors in consolidated file
+
+---
+
+### Task 2.2: Update All Isar Model Imports
+**Description:** Replace all old imports with new consolidated import
+**Search & Replace Across Codebase:**
+```bash
+Find: import '.*audiobook_model.dart'
+Replace: import 'package:flutter_audiobooks/data/models/isar_models.dart'
+
+Find: import '.*playback_session_model.dart'
+Replace: import 'package:flutter_audiobooks/data/models/isar_models.dart'
+
+Find: import '.*user_profile_model.dart'
+Replace: import 'package:flutter_audiobooks/data/models/isar_models.dart'
+
+Find: import '.*isar_schema.dart'
+Replace: import 'package:flutter_audiobooks/data/models/isar_models.dart'
+```
+
+**Files to Update:**
+- `lib/data/datasources/local/audiobook_local_datasource.dart`
+- `lib/domain/repositories/audiobook_repository.dart`
+- `lib/data/repositories/audiobook_repository_impl.dart`
+- Any other files using these models (verify with grep from Task 1.2)
+
+**Acceptance Criteria:**
+- All old imports are replaced
+- All imports reference `lib/data/models/isar_models.dart`
+- No orphaned imports remain
+- Code compiles without import errors
+
+---
+
+## PHASE 3: DATABASE INITIALIZATION
+
+### Task 3.1: Update Isar Database Initialization
+**Description:** Register all schemas in `Isar.openAsync()` call
+**File:** `lib/data/datasources/local/audiobook_local_datasource.dart`
+
+**Current Problem:**
+Only AudiobookModel and PlaybackSessionModel are registered, missing UserProfileModel and LibraryModel
+
+**Required Changes:**
+```dart
+// Import consolidated models
+import 'package:flutter_audiobooks/data/models/isar_models.dart';
+
+// Inside database initialization function:
+final isar = await Isar.openAsync(
+  schemas: [
+    AudiobookModelSchema,
+    PlaybackSessionModelSchema,
+    UserProfileModelSchema,
+    LibraryModelSchema  // Add if this schema exists
+  ],
+  directory: dir.path,
+  name: 'audiobook_db',
+);
+```
+
+**Reference Documentation:**
+Per Context7 Isar docs: All collection schemas must be passed to `Isar.openAsync()` in the schemas array. Missing schemas prevent database access to those collections and cause runtime errors.
+
+**Acceptance Criteria:**
+- All 4 schemas included in `Isar.openAsync()` schemas array
+- Import statement points to consolidated models file
+- Database initialization code is syntactically correct
+- No runtime errors when opening database
+
+---
+
+### Task 3.2: Verify Isar Initialization Error Handling
+**Description:** Ensure proper error handling for database initialization
+**Actions:**
+1. Add try-catch around `Isar.openAsync()` call
+2. Log specific errors with schema information
+3. Provide meaningful error messages
+
+**Example Pattern (per Context7 docs):**
+```dart
+try {
+  final isar = await Isar.openAsync(
+    schemas: [
+      AudiobookModelSchema,
+      PlaybackSessionModelSchema,
+      UserProfileModelSchema,
+      LibraryModelSchema
+    ],
+    directory: dir.path,
+    name: 'audiobook_db',
+  );
+} catch (e) {
+  print('Failed to initialize Isar database: $e');
+  rethrow;
+}
+```
+
+**Acceptance Criteria:**
+- Error handling implemented
+- Clear error messages for debugging
+- Database initialization doesn't silently fail
+
+---
+
+## PHASE 4: CODE GENERATION
+
+### Task 4.1: Run Flutter Build Runner
+**Description:** Generate required .g.dart files for all Isar models
+**Commands to Execute:**
+```bash
+cd /home/romeo/Desktop/flutter-audiobooks
+flutter pub run build_runner build --delete-conflicting-outputs
+```
+
+**Expected Outcomes:**
+- `isar_models.g.dart` file generated
+- Schema classes created:
+  - AudiobookModelSchema
+  - PlaybackSessionModelSchema
+  - UserProfileModelSchema
+  - LibraryModelSchema
+- No errors or conflicts in generated code
+
+**Reference Documentation:**
+Per Context7 Isar docs: Code generation is mandatory after defining or modifying `@collection` classes. The `build_runner` package generates schema definitions and accessor methods.
+
+**Acceptance Criteria:**
+- Build runner completes without errors
+- All .g.dart files generated successfully
+- No conflicting outputs
+- Generated schemas available for import
+
+---
+
+### Task 4.2: Verify Generated Code
+**Description:** Confirm all generated code is correct
+**Actions:**
+1. Open `lib/data/models/isar_models.g.dart` (generated)
+2. Verify all schema classes are present:
+   - AudiobookModelSchema
+   - PlaybackSessionModelSchema
+   - UserProfileModelSchema
+   - LibraryModelSchema
+3. Check for any generation errors or warnings
+4. Ensure schema names match exactly what's used in Isar.openAsync()
+
+**Acceptance Criteria:**
+- File `isar_models.g.dart` exists
+- All required schemas generated
+- No generation errors in build output
+- Schema names match initialization code
+
+---
+
+## PHASE 5: CLEANUP
+
+### Task 5.1: Delete Old Schema Files
+**Description:** Remove dead code and duplicates
+**Files to Delete:**
+- `lib/data/datasources/local/isar_schema.dart` (now consolidated)
+- Any backup or unused model files
+
+**Commands to Execute:**
+```bash
+rm lib/data/datasources/local/isar_schema.dart
+```
+
+**Acceptance Criteria:**
+- Old schema files removed
+- No remaining duplicate code
+- Project references only consolidated schemas
+
+---
+
+### Task 5.2: Remove Unused Imports
+**Description:** Clean up references to deleted files
+**Actions:**
+1. Search for any remaining imports from old files
+2. Remove unused import statements
+3. Run linter to catch remaining issues
+
+**Commands to Execute:**
+```bash
+grep -r "isar_schema.dart" lib/
+grep -r "audiobook_model.dart" lib/
+grep -r "playback_session_model.dart" lib/
+grep -r "user_profile_model.dart" lib/
+```
+
+**Acceptance Criteria:**
+- No imports from deleted files
+- Clean compilation output
+- No linter warnings about unused imports
+
+---
+
+## PHASE 6: TESTING & VALIDATION
+
+### Task 6.1: Test Database Initialization
+**Description:** Verify database opens successfully with all schemas
+**Test Scope:**
+1. Build and run the app
+2. Verify no errors during app startup
+3. Check Isar database opens with all schemas
+4. Test basic database operations:
+   - Create audiobook record
+   - Create playback session record
+   - Create user profile record
+   - Query all collections
+
+**Expected Behavior:**
+- App starts without errors
+- Database initializes with all 4 schemas
+- CRUD operations work for all models
+
+**Acceptance Criteria:**
+- No runtime errors on app startup
+- All schemas successfully registered
+- Database accessible and functional
+- Collections can be written to and read from
+
+---
+
+### Task 6.2: Verify Code Generation Artifacts
+**Description:** Ensure all generated code is in sync with models
+**Actions:**
+1. Run build_runner again to verify idempotence
+2. Check for changes to generated files
+3. Verify no new conflicts
+
+**Commands to Execute:**
+```bash
+flutter pub run build_runner build --delete-conflicting-outputs
+```
+
+**Acceptance Criteria:**
+- Build runner completes successfully
+- No changes to generated files (or only expected changes)
+- All schema definitions stable
+
+---
+
+## PHASE 7: DOCUMENTATION & MAINTENANCE
+
+### Task 7.1: Document Isar Model Structure
+**Description:** Create reference documentation for future developers
+**File to Create:** `lib/data/models/README_ISAR.md`
+
+**Content Should Include:**
+- Location of consolidated schemas: `lib/data/models/isar_models.dart`
+- All registered collections:
+  - AudiobookModel
+  - PlaybackSessionModel
+  - UserProfileModel
+  - LibraryModel
+- How to add new collections (with `@collection` annotation)
+- Build runner command for code generation
+- Schema registration procedure
+
+**Acceptance Criteria:**
+- README file created and comprehensive
+- Future developers can understand structure
+- Build process documented
+
+---
+
+## PHASE 8: VERIFICATION CHECKLIST
+
+Before considering this task complete, verify:
+
+- [ ] Task 1.1: All current schema files reviewed and documented
+- [ ] Task 1.2: All imports of model files identified
+- [ ] Task 2.1: Consolidated `isar_models.dart` created with all schemas
+- [ ] Task 2.2: All imports updated to use new consolidated file
+- [ ] Task 3.1: Database initialization includes all 4 schemas
+- [ ] Task 3.2: Error handling implemented around initialization
+- [ ] Task 4.1: Build runner executed successfully
+- [ ] Task 4.2: Generated .g.dart file contains all schemas
+- [ ] Task 5.1: Old schema files deleted
+- [ ] Task 5.2: No remaining imports from deleted files
+- [ ] Task 6.1: Database initializes with all schemas
+- [ ] Task 6.2: Build runner idempotent test passes
+- [ ] Task 7.1: Documentation created for Isar structure
+- [ ] All compilation errors resolved
+- [ ] App runs without database-related errors
+
+---
+
+## Summary of Expected Outcomes
+
+After completing all tasks:
+
+1. **Single Source of Truth:** All Isar schemas in `lib/data/models/isar_models.dart`
+2. **Proper Registration:** All 4 schemas (Audiobook, PlaybackSession, UserProfile, Library) registered in `Isar.openAsync()`
+3. **No Duplicates:** Dead code removed, no redundant schema definitions
+4. **Code Generation:** All .g.dart files generated with complete schema definitions
+5. **Functional Database:** All CRUD operations work for all collections
+6. **Maintainable:** Clear documentation for future schema additions
+
+---
+
+## Related Documentation
+
+**Isar Context7 Key References:**
+- Schema Definition: Use `@collection` annotation on classes, require `Id` field
+- Database Initialization: All schemas must be passed to `Isar.openAsync()` schemas parameter
+- Code Generation: Use `flutter pub run build_runner build` after model changes
+- Error Handling: Implement try-catch around database initialization
+- Migrations: Plan for schema versioning if model changes occur
+
+---
+
+## Estimated Timeline
+
+- Phase 1 (Analysis): 30 minutes
+- Phase 2 (Consolidation): 45 minutes
+- Phase 3 (Initialization): 30 minutes
+- Phase 4 (Code Generation): 15 minutes
+- Phase 5 (Cleanup): 15 minutes
+- Phase 6 (Testing): 30 minutes
+- Phase 7 (Documentation): 20 minutes
+
+**Total Estimated Time: ~3 hours**
+
+---
+
+**Last Updated:** November 16, 2025
+**Status:** Ready for Implementation
