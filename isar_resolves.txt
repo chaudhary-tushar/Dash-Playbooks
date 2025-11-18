@@ -74,3 +74,6 @@ By following these steps, you will:
 -   Have a single, clear source for your Isar data models.
 -   Eliminate duplicated and dead code.
 -   Ensure your Isar database is correctly initialized with all necessary schemas, preventing runtime errors.
+
+
+xhost +local:docker

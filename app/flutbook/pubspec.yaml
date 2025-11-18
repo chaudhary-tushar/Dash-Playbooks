@@ -1,5 +1,5 @@
 name: flutbook
-description: A Very Good Project created by Very Good CLI.
+description: A cross-platform audiobook player application.
 version: 1.0.0+1
 publish_to: none
 
@@ -8,21 +8,39 @@ environment:
   flutter: ^3.35.0
 
 dependencies:
-  bloc: ^9.0.1
   flutter:
     sdk: flutter
-  flutter_bloc: ^9.1.1
+  cupertino_icons: ^1.0.2
+  just_audio: ^0.9.34
+  audio_service: ^0.18.11
+  file_picker: ^5.3.3
+  isar: ^3.1.0+1
+  isar_flutter_libs: ^3.1.0+1
+  # firebase_auth: ^4.15.3
+  # cloud_firestore: ^4.13.6
+  flutter_isolate: ^2.0.4
+  path_provider: ^2.1.1
+  shared_preferences: ^2.2.2
+  flutter_riverpod: ^2.6.1
   flutter_localizations:
     sdk: flutter
   intl: ^0.20.2
 
 dev_dependencies:
-  bloc_test: ^10.0.0
   flutter_test:
     sdk: flutter
   mocktail: ^1.0.4
+  flutter_lints: ^2.0.0
+  isar_generator: ^3.1.0+1
   very_good_analysis: ^10.0.0
 
 flutter:
   generate: true
   uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/icons/
+
+isar_schema: true
+
+
