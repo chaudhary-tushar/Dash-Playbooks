@@ -6,7 +6,7 @@
 build/
 .dart_servers/
 .volumes/
-./app/*
+app/flutbook/assets/my_app/*
 
 # Flutter
 .flutter-plugins
@@ -226,3 +226,4 @@ coverage/
 # Test results
 test/**/screenshots/
 test/**/golden/.volumes/
+.aider*

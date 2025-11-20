@@ -1,7 +1,11 @@
 include: package:very_good_analysis/analysis_options.yaml
 analyzer:
+  errors:
+    avoid_equals_and_hash_code_on_mutable_classes: ignore
   exclude:
     - lib/l10n/gen/*
+    - assets/my_app/*/*
 linter:
   rules:
     public_member_api_docs: false
+    lines_longer_than_80_chars: false

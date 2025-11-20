@@ -1,0 +1,82 @@
+# Map of changes from lib folder to app/flutbook/lib folder
+
+## Directory Structure Created:
+- /app/flutbook/lib/data/datasources/local
+- /app/flutbook/lib/data/datasources/remote
+- /app/flutbook/lib/data/models
+- /app/flutbook/lib/data/repositories
+- /app/flutbook/lib/domain/entities
+- /app/flutbook/lib/domain/repositories
+- /app/flutbook/lib/domain/usecases
+- /app/flutbook/lib/platform
+- /app/flutbook/lib/presentation/navigation
+- /app/flutbook/lib/presentation/providers
+- /app/flutbook/lib/presentation/screens
+- /app/flutbook/lib/presentation/theme
+- /app/flutbook/lib/presentation/widgets
+
+## Files Moved:
+### Data Layer:
+- /lib/data/datasources/local/audiobook_local_datasource.dart → /app/flutbook/lib/data/datasources/local/audiobook_local_datasource.dart
+- /lib/data/datasources/local/error_handler.dart → /app/flutbook/lib/data/datasources/local/error_handler.dart
+- /lib/data/datasources/local/isar_schema.dart → /app/flutbook/lib/data/datasources/local/isar_schema.dart
+- /lib/data/datasources/local/json_storage.dart → /app/flutbook/lib/data/datasources/local/json_storage.dart
+- /lib/data/datasources/local/metadata_extraction_datasource.dart → /app/flutbook/lib/data/datasources/local/metadata_extraction_datasource.dart
+- /lib/data/datasources/local_datasource.dart → /app/flutbook/lib/data/datasources/local_datasource.dart
+- /lib/data/datasources/remote/firebase_auth_datasource.dart → /app/flutbook/lib/data/datasources/remote/firebase_auth_datasource.dart
+- /lib/data/datasources/remote/firebase_sync_datasource.dart → /app/flutbook/lib/data/datasources/remote/firebase_sync_datasource.dart
+- /lib/data/datasources/remote_datasource.dart → /app/flutbook/lib/data/datasources/remote_datasource.dart
+- /lib/data/models/audiobook_model.dart → /app/flutbook/lib/data/models/audiobook_model.dart
+- /lib/data/models/playback_session_model.dart → /app/flutbook/lib/data/models/playback_session_model.dart
+- /lib/data/models/user_profile_model.dart → /app/flutbook/lib/data/models/user_profile_model.dart
+- /lib/data/models/user_profile_model.g.dart → /app/flutbook/lib/data/models/user_profile_model.g.dart
+- /lib/data/repositories/audiobook_repository_impl.dart → /app/flutbook/lib/data/repositories/audiobook_repository_impl.dart
+- /lib/data/repositories/library_repository_impl.dart → /app/flutbook/lib/data/repositories/library_repository_impl.dart
+- /lib/data/repositories/playback_repository_impl.dart → /app/flutbook/lib/data/repositories/playback_repository_impl.dart
+- /lib/data/repositories/user_repository_impl.dart → /app/flutbook/lib/data/repositories/user_repository_impl.dart
+
+### Domain Layer:
+- /lib/domain/entities/audiobook.dart → /app/flutbook/lib/domain/entities/audiobook.dart
+- /lib/domain/entities/chapter.dart → /app/flutbook/lib/domain/entities/chapter.dart
+- /lib/domain/entities/filter.dart → /app/flutbook/lib/domain/entities/filter.dart
+- /lib/domain/entities/library.dart → /app/flutbook/lib/domain/entities/library.dart
+- /lib/domain/entities/playback_session.dart → /app/flutbook/lib/domain/entities/playback_session.dart
+- /lib/domain/entities/user_profile.dart → /app/flutbook/lib/domain/entities/user_profile.dart
+- /lib/domain/repositories/audiobook_repository.dart → /app/flutbook/lib/domain/repositories/audiobook_repository.dart
+- /lib/domain/repositories/library_repository.dart → /app/flutbook/lib/domain/repositories/library_repository.dart
+- /lib/domain/repositories/playback_repository.dart → /app/flutbook/lib/domain/repositories/playback_repository.dart
+- /lib/domain/repositories/user_repository.dart → /app/flutbook/lib/domain/repositories/user_repository.dart
+- /lib/domain/usecases/get_playback_state_usecase.dart → /app/flutbook/lib/domain/usecases/get_playback_state_usecase.dart
+- /lib/domain/usecases/scan_library_usecase.dart → /app/flutbook/lib/domain/usecases/scan_library_usecase.dart
+- /lib/domain/usecases/sync_library_usecase.dart → /app/flutbook/lib/domain/usecases/sync_library_usecase.dart
+
+### Platform Layer:
+- /lib/platform/audio_service_handler.dart → /app/flutbook/lib/platform/audio_service_handler.dart
+
+### Presentation Layer:
+- /lib/presentation/navigation/app_router.dart → /app/flutbook/lib/presentation/navigation/app_router.dart
+- /lib/presentation/providers/playback_provider.dart → /app/flutbook/lib/presentation/providers/playback_provider.dart
+- /lib/presentation/providers/ui_state_provider.dart → /app/flutbook/lib/presentation/providers/ui_state_provider.dart
+- /lib/presentation/screens/audiobook_detail_screen.dart → /app/flutbook/lib/presentation/screens/audiobook_detail_screen.dart
+- /lib/presentation/screens/auth_screen.dart → /app/flutbook/lib/presentation/screens/auth_screen.dart
+- /lib/presentation/screens/directory_selection_screen.dart → /app/flutbook/lib/presentation/screens/directory_selection_screen.dart
+- /lib/presentation/screens/library_screen.dart → /app/flutbook/lib/presentation/screens/library_screen.dart
+- /lib/presentation/screens/playback_screen.dart → /app/flutbook/lib/presentation/screens/playback_screen.dart
+- /lib/presentation/screens/settings_screen.dart → /app/flutbook/lib/presentation/screens/settings_screen.dart
+- /lib/presentation/screens/splash_screen.dart → /app/flutbook/lib/presentation/screens/splash_screen.dart
+- /lib/presentation/theme/app_theme.dart → /app/flutbook/lib/presentation/theme/app_theme.dart
+- /lib/presentation/theme/material_3_theme.dart → /app/flutbook/lib/presentation/theme/material_3_theme.dart
+- /lib/presentation/widgets/audiobook_card.dart → /app/flutbook/lib/presentation/widgets/audiobook_card.dart
+- /lib/presentation/widgets/chapter_list.dart → /app/flutbook/lib/presentation/widgets/chapter_list.dart
+- /lib/presentation/widgets/error_dialog.dart → /app/flutbook/lib/presentation/widgets/error_dialog.dart
+- /lib/presentation/widgets/playback_controls.dart → /app/flutbook/lib/presentation/widgets/playback_controls.dart
+- /lib/presentation/widgets/progress_bar.dart → /app/flutbook/lib/presentation/widgets/progress_bar.dart
+
+### Main App File:
+- /lib/main.dart → /app/flutbook/lib/main.dart (replaced with audiobook player implementation)
+
+## Files Modified in flutbook:
+- /app/flutbook/lib/main.dart - Updated to use audiobook player functionality and proper routing
+- /app/flutbook/lib/presentation/screens/splash_screen.dart - Updated navigation to go to '/main' route
+- /app/flutbook/lib/presentation/screens/library_screen.dart - Updated navigation to pass audiobook object directly (not in map)
+- /app/flutbook/lib/presentation/screens/playback_screen.dart - Updated to receive audiobook from route arguments
