@@ -22,7 +22,7 @@ class ErrorDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Determine the list of action buttons based on provided callbacks
-    final List<Widget> actions = [];
+    final actions = <Widget>[];
 
     // 1. Dismiss Action (Always include, either with custom callback or default behavior)
     if (dismissActionLabel != null) {

@@ -17,20 +17,13 @@ const AudiobookModelSchema = CollectionSchema(
   name: r'AudiobookModel',
   id: 9031665987830502472,
   properties: {
-    r'album': PropertySchema(
-      id: 0,
-      name: r'album',
-      type: IsarType.string,
-    ),
-    r'author': PropertySchema(
-      id: 1,
-      name: r'author',
-      type: IsarType.string,
-    ),
+    r'album': PropertySchema(id: 0, name: r'album', type: IsarType.string),
+    r'author': PropertySchema(id: 1, name: r'author', type: IsarType.string),
     r'chapters': PropertySchema(
       id: 2,
       name: r'chapters',
       type: IsarType.objectList,
+
       target: r'ChapterModel',
     ),
     r'completed': PropertySchema(
@@ -68,17 +61,14 @@ const AudiobookModelSchema = CollectionSchema(
       name: r'lastPlayedAt',
       type: IsarType.dateTime,
     ),
-    r'title': PropertySchema(
-      id: 10,
-      name: r'title',
-      type: IsarType.string,
-    ),
+    r'title': PropertySchema(id: 10, name: r'title', type: IsarType.string),
     r'totalSize': PropertySchema(
       id: 11,
       name: r'totalSize',
       type: IsarType.long,
-    )
+    ),
   },
+
   estimateSize: _audiobookModelEstimateSize,
   serialize: _audiobookModelSerialize,
   deserialize: _audiobookModelDeserialize,
@@ -87,10 +77,11 @@ const AudiobookModelSchema = CollectionSchema(
   indexes: {},
   links: {},
   embeddedSchemas: {r'ChapterModel': ChapterModelSchema},
+
   getId: _audiobookModelGetId,
   getLinks: _audiobookModelGetLinks,
   attach: _audiobookModelAttach,
-  version: '3.1.0+1',
+  version: '3.3.0',
 );
 
 int _audiobookModelEstimateSize(
@@ -160,7 +151,8 @@ AudiobookModel _audiobookModelDeserialize(
   final object = AudiobookModel(
     album: reader.readString(offsets[0]),
     author: reader.readString(offsets[1]),
-    chapters: reader.readObjectList<ChapterModel>(
+    chapters:
+        reader.readObjectList<ChapterModel>(
           offsets[2],
           ChapterModelSchema.deserialize,
           allOffsets,
@@ -194,12 +186,13 @@ P _audiobookModelDeserializeProp<P>(
       return (reader.readString(offset)) as P;
     case 2:
       return (reader.readObjectList<ChapterModel>(
-            offset,
-            ChapterModelSchema.deserialize,
-            allOffsets,
-            ChapterModel(),
-          ) ??
-          []) as P;
+                offset,
+                ChapterModelSchema.deserialize,
+                allOffsets,
+                ChapterModel(),
+              ) ??
+              [])
+          as P;
     case 3:
       return (reader.readBool(offset)) as P;
     case 4:
@@ -232,7 +225,10 @@ List<IsarLinkBase<dynamic>> _audiobookModelGetLinks(AudiobookModel object) {
 }
 
 void _audiobookModelAttach(
-    IsarCollection<dynamic> col, Id id, AudiobookModel object) {
+  IsarCollection<dynamic> col,
+  Id id,
+  AudiobookModel object,
+) {
   object.id = id;
 }
 
@@ -248,17 +244,16 @@ extension AudiobookModelQueryWhereSort
 extension AudiobookModelQueryWhere
     on QueryBuilder<AudiobookModel, AudiobookModel, QWhereClause> {
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterWhereClause> idEqualTo(
-      Id id) {
+    Id id,
+  ) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IdWhereClause.between(
-        lower: id,
-        upper: id,
-      ));
+      return query.addWhereClause(IdWhereClause.between(lower: id, upper: id));
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterWhereClause> idNotEqualTo(
-      Id id) {
+    Id id,
+  ) {
     return QueryBuilder.apply(this, (query) {
       if (query.whereSort == Sort.asc) {
         return query
@@ -281,8 +276,9 @@ extension AudiobookModelQueryWhere
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterWhereClause> idGreaterThan(
-      Id id,
-      {bool include = false}) {
+    Id id, {
+    bool include = false,
+  }) {
     return QueryBuilder.apply(this, (query) {
       return query.addWhereClause(
         IdWhereClause.greaterThan(lower: id, includeLower: include),
@@ -291,8 +287,9 @@ extension AudiobookModelQueryWhere
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterWhereClause> idLessThan(
-      Id id,
-      {bool include = false}) {
+    Id id, {
+    bool include = false,
+  }) {
     return QueryBuilder.apply(this, (query) {
       return query.addWhereClause(
         IdWhereClause.lessThan(upper: id, includeUpper: include),
@@ -307,12 +304,14 @@ extension AudiobookModelQueryWhere
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IdWhereClause.between(
-        lower: lowerId,
-        includeLower: includeLower,
-        upper: upperId,
-        includeUpper: includeUpper,
-      ));
+      return query.addWhereClause(
+        IdWhereClause.between(
+          lower: lowerId,
+          includeLower: includeLower,
+          upper: upperId,
+          includeUpper: includeUpper,
+        ),
+      );
     });
   }
 }
@@ -320,53 +319,56 @@ extension AudiobookModelQueryWhere
 extension AudiobookModelQueryFilter
     on QueryBuilder<AudiobookModel, AudiobookModel, QFilterCondition> {
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      albumEqualTo(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  albumEqualTo(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'album',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'album',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      albumGreaterThan(
-    String value, {
-    bool include = false,
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'album',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      albumLessThan(
+  albumGreaterThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'album',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'album',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      albumBetween(
+  albumLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'album',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
+  albumBetween(
     String lower,
     String upper, {
     bool includeLower = true,
@@ -374,135 +376,140 @@ extension AudiobookModelQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'album',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'album',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      albumStartsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  albumStartsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'album',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'album',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      albumEndsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  albumEndsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'album',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'album',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      albumContains(String value, {bool caseSensitive = true}) {
+  albumContains(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.contains(
-        property: r'album',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'album',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      albumMatches(String pattern, {bool caseSensitive = true}) {
+  albumMatches(String pattern, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.matches(
-        property: r'album',
-        wildcard: pattern,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'album',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      albumIsEmpty() {
+  albumIsEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'album',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'album', value: ''),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      albumIsNotEmpty() {
+  albumIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'album',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'album', value: ''),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      authorEqualTo(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  authorEqualTo(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'author',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'author',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      authorGreaterThan(
-    String value, {
-    bool include = false,
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'author',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      authorLessThan(
+  authorGreaterThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'author',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'author',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      authorBetween(
+  authorLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'author',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
+  authorBetween(
     String lower,
     String upper, {
     bool includeLower = true,
@@ -510,160 +517,126 @@ extension AudiobookModelQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'author',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      authorStartsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'author',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      authorEndsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'author',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      authorContains(String value, {bool caseSensitive = true}) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.contains(
-        property: r'author',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      authorMatches(String pattern, {bool caseSensitive = true}) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.matches(
-        property: r'author',
-        wildcard: pattern,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      authorIsEmpty() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'author',
-        value: '',
-      ));
-    });
-  }
-
-  QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      authorIsNotEmpty() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'author',
-        value: '',
-      ));
-    });
-  }
-
-  QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      chaptersLengthEqualTo(int length) {
-    return QueryBuilder.apply(this, (query) {
-      return query.listLength(
-        r'chapters',
-        length,
-        true,
-        length,
-        true,
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'author',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
       );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      chaptersIsEmpty() {
+  authorStartsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.listLength(
-        r'chapters',
-        0,
-        true,
-        0,
-        true,
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'author',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
       );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      chaptersIsNotEmpty() {
+  authorEndsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.listLength(
-        r'chapters',
-        0,
-        false,
-        999999,
-        true,
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'author',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
       );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      chaptersLengthLessThan(
-    int length, {
-    bool include = false,
-  }) {
+  authorContains(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.listLength(
-        r'chapters',
-        0,
-        true,
-        length,
-        include,
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'author',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
       );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      chaptersLengthGreaterThan(
-    int length, {
-    bool include = false,
-  }) {
+  authorMatches(String pattern, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.listLength(
-        r'chapters',
-        length,
-        include,
-        999999,
-        true,
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'author',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
       );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      chaptersLengthBetween(
+  authorIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'author', value: ''),
+      );
+    });
+  }
+
+  QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
+  authorIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'author', value: ''),
+      );
+    });
+  }
+
+  QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
+  chaptersLengthEqualTo(int length) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(r'chapters', length, true, length, true);
+    });
+  }
+
+  QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
+  chaptersIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(r'chapters', 0, true, 0, true);
+    });
+  }
+
+  QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
+  chaptersIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(r'chapters', 0, false, 999999, true);
+    });
+  }
+
+  QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
+  chaptersLengthLessThan(int length, {bool include = false}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(r'chapters', 0, true, length, include);
+    });
+  }
+
+  QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
+  chaptersLengthGreaterThan(int length, {bool include = false}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(r'chapters', length, include, 999999, true);
+    });
+  }
+
+  QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
+  chaptersLengthBetween(
     int lower,
     int upper, {
     bool includeLower = true,
@@ -681,81 +654,83 @@ extension AudiobookModelQueryFilter
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      completedEqualTo(bool value) {
+  completedEqualTo(bool value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'completed',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'completed', value: value),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      coverArtPathIsNull() {
+  coverArtPathIsNull() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(const FilterCondition.isNull(
-        property: r'coverArtPath',
-      ));
+      return query.addFilterCondition(
+        const FilterCondition.isNull(property: r'coverArtPath'),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      coverArtPathIsNotNull() {
+  coverArtPathIsNotNull() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(const FilterCondition.isNotNull(
-        property: r'coverArtPath',
-      ));
+      return query.addFilterCondition(
+        const FilterCondition.isNotNull(property: r'coverArtPath'),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      coverArtPathEqualTo(
-    String? value, {
-    bool caseSensitive = true,
-  }) {
+  coverArtPathEqualTo(String? value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'coverArtPath',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'coverArtPath',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      coverArtPathGreaterThan(
+  coverArtPathGreaterThan(
     String? value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'coverArtPath',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'coverArtPath',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      coverArtPathLessThan(
+  coverArtPathLessThan(
     String? value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'coverArtPath',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'coverArtPath',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      coverArtPathBetween(
+  coverArtPathBetween(
     String? lower,
     String? upper, {
     bool includeLower = true,
@@ -763,247 +738,250 @@ extension AudiobookModelQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'coverArtPath',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'coverArtPath',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      coverArtPathStartsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  coverArtPathStartsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'coverArtPath',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'coverArtPath',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      coverArtPathEndsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  coverArtPathEndsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'coverArtPath',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'coverArtPath',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      coverArtPathContains(String value, {bool caseSensitive = true}) {
+  coverArtPathContains(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.contains(
-        property: r'coverArtPath',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'coverArtPath',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      coverArtPathMatches(String pattern, {bool caseSensitive = true}) {
+  coverArtPathMatches(String pattern, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.matches(
-        property: r'coverArtPath',
-        wildcard: pattern,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'coverArtPath',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      coverArtPathIsEmpty() {
+  coverArtPathIsEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'coverArtPath',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'coverArtPath', value: ''),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      coverArtPathIsNotEmpty() {
+  coverArtPathIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'coverArtPath',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'coverArtPath', value: ''),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      createdAtEqualTo(DateTime value) {
+  createdAtEqualTo(DateTime value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'createdAt',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'createdAt', value: value),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      createdAtGreaterThan(
-    DateTime value, {
-    bool include = false,
-  }) {
+  createdAtGreaterThan(DateTime value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'createdAt',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'createdAt',
+          value: value,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      createdAtLessThan(
-    DateTime value, {
-    bool include = false,
-  }) {
+  createdAtLessThan(DateTime value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'createdAt',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'createdAt',
+          value: value,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      createdAtBetween(
+  createdAtBetween(
     DateTime lower,
     DateTime upper, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'createdAt',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'createdAt',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      durationInMsEqualTo(int value) {
+  durationInMsEqualTo(int value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'durationInMs',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'durationInMs', value: value),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      durationInMsGreaterThan(
-    int value, {
-    bool include = false,
-  }) {
+  durationInMsGreaterThan(int value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'durationInMs',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'durationInMs',
+          value: value,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      durationInMsLessThan(
-    int value, {
-    bool include = false,
-  }) {
+  durationInMsLessThan(int value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'durationInMs',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'durationInMs',
+          value: value,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      durationInMsBetween(
+  durationInMsBetween(
     int lower,
     int upper, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'durationInMs',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'durationInMs',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      filePathEqualTo(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  filePathEqualTo(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'filePath',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'filePath',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      filePathGreaterThan(
-    String value, {
-    bool include = false,
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'filePath',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      filePathLessThan(
+  filePathGreaterThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'filePath',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'filePath',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      filePathBetween(
+  filePathLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'filePath',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
+  filePathBetween(
     String lower,
     String upper, {
     bool includeLower = true,
@@ -1011,140 +989,140 @@ extension AudiobookModelQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'filePath',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'filePath',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      filePathStartsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  filePathStartsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'filePath',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'filePath',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      filePathEndsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  filePathEndsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'filePath',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'filePath',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      filePathContains(String value, {bool caseSensitive = true}) {
+  filePathContains(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.contains(
-        property: r'filePath',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'filePath',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      filePathMatches(String pattern, {bool caseSensitive = true}) {
+  filePathMatches(String pattern, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.matches(
-        property: r'filePath',
-        wildcard: pattern,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'filePath',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      filePathIsEmpty() {
+  filePathIsEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'filePath',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'filePath', value: ''),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      filePathIsNotEmpty() {
+  filePathIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'filePath',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'filePath', value: ''),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      idIsNull() {
+  idIsNull() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(const FilterCondition.isNull(
-        property: r'id',
-      ));
+      return query.addFilterCondition(
+        const FilterCondition.isNull(property: r'id'),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      idIsNotNull() {
+  idIsNotNull() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(const FilterCondition.isNotNull(
-        property: r'id',
-      ));
+      return query.addFilterCondition(
+        const FilterCondition.isNotNull(property: r'id'),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition> idEqualTo(
-      Id? value) {
+    Id? value,
+  ) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'id',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'id', value: value),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      idGreaterThan(
-    Id? value, {
-    bool include = false,
-  }) {
+  idGreaterThan(Id? value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'id',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'id',
+          value: value,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      idLessThan(
-    Id? value, {
-    bool include = false,
-  }) {
+  idLessThan(Id? value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'id',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'id',
+          value: value,
+        ),
+      );
     });
   }
 
@@ -1155,82 +1133,87 @@ extension AudiobookModelQueryFilter
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'id',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'id',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      internalIdIsNull() {
+  internalIdIsNull() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(const FilterCondition.isNull(
-        property: r'internalId',
-      ));
+      return query.addFilterCondition(
+        const FilterCondition.isNull(property: r'internalId'),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      internalIdIsNotNull() {
+  internalIdIsNotNull() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(const FilterCondition.isNotNull(
-        property: r'internalId',
-      ));
+      return query.addFilterCondition(
+        const FilterCondition.isNotNull(property: r'internalId'),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      internalIdEqualTo(
-    String? value, {
-    bool caseSensitive = true,
-  }) {
+  internalIdEqualTo(String? value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'internalId',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'internalId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      internalIdGreaterThan(
-    String? value, {
-    bool include = false,
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'internalId',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      internalIdLessThan(
+  internalIdGreaterThan(
     String? value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'internalId',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'internalId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      internalIdBetween(
+  internalIdLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'internalId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
+  internalIdBetween(
     String? lower,
     String? upper, {
     bool includeLower = true,
@@ -1238,209 +1221,213 @@ extension AudiobookModelQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'internalId',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'internalId',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      internalIdStartsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  internalIdStartsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'internalId',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'internalId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      internalIdEndsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  internalIdEndsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'internalId',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'internalId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      internalIdContains(String value, {bool caseSensitive = true}) {
+  internalIdContains(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.contains(
-        property: r'internalId',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'internalId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      internalIdMatches(String pattern, {bool caseSensitive = true}) {
+  internalIdMatches(String pattern, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.matches(
-        property: r'internalId',
-        wildcard: pattern,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'internalId',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      internalIdIsEmpty() {
+  internalIdIsEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'internalId',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'internalId', value: ''),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      internalIdIsNotEmpty() {
+  internalIdIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'internalId',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'internalId', value: ''),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      lastPlayedAtIsNull() {
+  lastPlayedAtIsNull() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(const FilterCondition.isNull(
-        property: r'lastPlayedAt',
-      ));
+      return query.addFilterCondition(
+        const FilterCondition.isNull(property: r'lastPlayedAt'),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      lastPlayedAtIsNotNull() {
+  lastPlayedAtIsNotNull() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(const FilterCondition.isNotNull(
-        property: r'lastPlayedAt',
-      ));
+      return query.addFilterCondition(
+        const FilterCondition.isNotNull(property: r'lastPlayedAt'),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      lastPlayedAtEqualTo(DateTime? value) {
+  lastPlayedAtEqualTo(DateTime? value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'lastPlayedAt',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'lastPlayedAt', value: value),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      lastPlayedAtGreaterThan(
-    DateTime? value, {
-    bool include = false,
-  }) {
+  lastPlayedAtGreaterThan(DateTime? value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'lastPlayedAt',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'lastPlayedAt',
+          value: value,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      lastPlayedAtLessThan(
-    DateTime? value, {
-    bool include = false,
-  }) {
+  lastPlayedAtLessThan(DateTime? value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'lastPlayedAt',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'lastPlayedAt',
+          value: value,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      lastPlayedAtBetween(
+  lastPlayedAtBetween(
     DateTime? lower,
     DateTime? upper, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'lastPlayedAt',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'lastPlayedAt',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      titleEqualTo(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  titleEqualTo(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'title',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'title',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      titleGreaterThan(
-    String value, {
-    bool include = false,
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'title',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      titleLessThan(
+  titleGreaterThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'title',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'title',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      titleBetween(
+  titleLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'title',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
+  titleBetween(
     String lower,
     String upper, {
     bool includeLower = true,
@@ -1448,140 +1435,141 @@ extension AudiobookModelQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'title',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'title',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      titleStartsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  titleStartsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'title',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'title',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      titleEndsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  titleEndsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'title',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'title',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      titleContains(String value, {bool caseSensitive = true}) {
+  titleContains(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.contains(
-        property: r'title',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'title',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      titleMatches(String pattern, {bool caseSensitive = true}) {
+  titleMatches(String pattern, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.matches(
-        property: r'title',
-        wildcard: pattern,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'title',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      titleIsEmpty() {
+  titleIsEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'title',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'title', value: ''),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      titleIsNotEmpty() {
+  titleIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'title',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'title', value: ''),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      totalSizeEqualTo(int value) {
+  totalSizeEqualTo(int value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'totalSize',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'totalSize', value: value),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      totalSizeGreaterThan(
-    int value, {
-    bool include = false,
-  }) {
+  totalSizeGreaterThan(int value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'totalSize',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'totalSize',
+          value: value,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      totalSizeLessThan(
-    int value, {
-    bool include = false,
-  }) {
+  totalSizeLessThan(int value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'totalSize',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'totalSize',
+          value: value,
+        ),
+      );
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      totalSizeBetween(
+  totalSizeBetween(
     int lower,
     int upper, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'totalSize',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'totalSize',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+        ),
+      );
     });
   }
 }
@@ -1589,7 +1577,7 @@ extension AudiobookModelQueryFilter
 extension AudiobookModelQueryObject
     on QueryBuilder<AudiobookModel, AudiobookModel, QFilterCondition> {
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
-      chaptersElement(FilterQuery<ChapterModel> q) {
+  chaptersElement(FilterQuery<ChapterModel> q) {
     return QueryBuilder.apply(this, (query) {
       return query.object(q, r'chapters');
     });
@@ -1620,7 +1608,7 @@ extension AudiobookModelQuerySortBy
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterSortBy>
-      sortByAuthorDesc() {
+  sortByAuthorDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'author', Sort.desc);
     });
@@ -1633,21 +1621,21 @@ extension AudiobookModelQuerySortBy
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterSortBy>
-      sortByCompletedDesc() {
+  sortByCompletedDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'completed', Sort.desc);
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterSortBy>
-      sortByCoverArtPath() {
+  sortByCoverArtPath() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'coverArtPath', Sort.asc);
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterSortBy>
-      sortByCoverArtPathDesc() {
+  sortByCoverArtPathDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'coverArtPath', Sort.desc);
     });
@@ -1660,21 +1648,21 @@ extension AudiobookModelQuerySortBy
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterSortBy>
-      sortByCreatedAtDesc() {
+  sortByCreatedAtDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'createdAt', Sort.desc);
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterSortBy>
-      sortByDurationInMs() {
+  sortByDurationInMs() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'durationInMs', Sort.asc);
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterSortBy>
-      sortByDurationInMsDesc() {
+  sortByDurationInMsDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'durationInMs', Sort.desc);
     });
@@ -1687,35 +1675,35 @@ extension AudiobookModelQuerySortBy
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterSortBy>
-      sortByFilePathDesc() {
+  sortByFilePathDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'filePath', Sort.desc);
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterSortBy>
-      sortByInternalId() {
+  sortByInternalId() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'internalId', Sort.asc);
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterSortBy>
-      sortByInternalIdDesc() {
+  sortByInternalIdDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'internalId', Sort.desc);
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterSortBy>
-      sortByLastPlayedAt() {
+  sortByLastPlayedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'lastPlayedAt', Sort.asc);
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterSortBy>
-      sortByLastPlayedAtDesc() {
+  sortByLastPlayedAtDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'lastPlayedAt', Sort.desc);
     });
@@ -1740,7 +1728,7 @@ extension AudiobookModelQuerySortBy
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterSortBy>
-      sortByTotalSizeDesc() {
+  sortByTotalSizeDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'totalSize', Sort.desc);
     });
@@ -1768,7 +1756,7 @@ extension AudiobookModelQuerySortThenBy
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterSortBy>
-      thenByAuthorDesc() {
+  thenByAuthorDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'author', Sort.desc);
     });
@@ -1781,21 +1769,21 @@ extension AudiobookModelQuerySortThenBy
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterSortBy>
-      thenByCompletedDesc() {
+  thenByCompletedDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'completed', Sort.desc);
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterSortBy>
-      thenByCoverArtPath() {
+  thenByCoverArtPath() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'coverArtPath', Sort.asc);
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterSortBy>
-      thenByCoverArtPathDesc() {
+  thenByCoverArtPathDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'coverArtPath', Sort.desc);
     });
@@ -1808,21 +1796,21 @@ extension AudiobookModelQuerySortThenBy
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterSortBy>
-      thenByCreatedAtDesc() {
+  thenByCreatedAtDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'createdAt', Sort.desc);
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterSortBy>
-      thenByDurationInMs() {
+  thenByDurationInMs() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'durationInMs', Sort.asc);
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterSortBy>
-      thenByDurationInMsDesc() {
+  thenByDurationInMsDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'durationInMs', Sort.desc);
     });
@@ -1835,7 +1823,7 @@ extension AudiobookModelQuerySortThenBy
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterSortBy>
-      thenByFilePathDesc() {
+  thenByFilePathDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'filePath', Sort.desc);
     });
@@ -1854,28 +1842,28 @@ extension AudiobookModelQuerySortThenBy
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterSortBy>
-      thenByInternalId() {
+  thenByInternalId() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'internalId', Sort.asc);
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterSortBy>
-      thenByInternalIdDesc() {
+  thenByInternalIdDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'internalId', Sort.desc);
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterSortBy>
-      thenByLastPlayedAt() {
+  thenByLastPlayedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'lastPlayedAt', Sort.asc);
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterSortBy>
-      thenByLastPlayedAtDesc() {
+  thenByLastPlayedAtDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'lastPlayedAt', Sort.desc);
     });
@@ -1900,7 +1888,7 @@ extension AudiobookModelQuerySortThenBy
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterSortBy>
-      thenByTotalSizeDesc() {
+  thenByTotalSizeDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'totalSize', Sort.desc);
     });
@@ -1909,78 +1897,83 @@ extension AudiobookModelQuerySortThenBy
 
 extension AudiobookModelQueryWhereDistinct
     on QueryBuilder<AudiobookModel, AudiobookModel, QDistinct> {
-  QueryBuilder<AudiobookModel, AudiobookModel, QDistinct> distinctByAlbum(
-      {bool caseSensitive = true}) {
+  QueryBuilder<AudiobookModel, AudiobookModel, QDistinct> distinctByAlbum({
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'album', caseSensitive: caseSensitive);
     });
   }
 
-  QueryBuilder<AudiobookModel, AudiobookModel, QDistinct> distinctByAuthor(
-      {bool caseSensitive = true}) {
+  QueryBuilder<AudiobookModel, AudiobookModel, QDistinct> distinctByAuthor({
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'author', caseSensitive: caseSensitive);
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QDistinct>
-      distinctByCompleted() {
+  distinctByCompleted() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'completed');
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QDistinct>
-      distinctByCoverArtPath({bool caseSensitive = true}) {
+  distinctByCoverArtPath({bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'coverArtPath', caseSensitive: caseSensitive);
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QDistinct>
-      distinctByCreatedAt() {
+  distinctByCreatedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'createdAt');
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QDistinct>
-      distinctByDurationInMs() {
+  distinctByDurationInMs() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'durationInMs');
     });
   }
 
-  QueryBuilder<AudiobookModel, AudiobookModel, QDistinct> distinctByFilePath(
-      {bool caseSensitive = true}) {
+  QueryBuilder<AudiobookModel, AudiobookModel, QDistinct> distinctByFilePath({
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'filePath', caseSensitive: caseSensitive);
     });
   }
 
-  QueryBuilder<AudiobookModel, AudiobookModel, QDistinct> distinctByInternalId(
-      {bool caseSensitive = true}) {
+  QueryBuilder<AudiobookModel, AudiobookModel, QDistinct> distinctByInternalId({
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'internalId', caseSensitive: caseSensitive);
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QDistinct>
-      distinctByLastPlayedAt() {
+  distinctByLastPlayedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'lastPlayedAt');
     });
   }
 
-  QueryBuilder<AudiobookModel, AudiobookModel, QDistinct> distinctByTitle(
-      {bool caseSensitive = true}) {
+  QueryBuilder<AudiobookModel, AudiobookModel, QDistinct> distinctByTitle({
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'title', caseSensitive: caseSensitive);
     });
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QDistinct>
-      distinctByTotalSize() {
+  distinctByTotalSize() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'totalSize');
     });
@@ -2008,7 +2001,7 @@ extension AudiobookModelQueryProperty
   }
 
   QueryBuilder<AudiobookModel, List<ChapterModel>, QQueryOperations>
-      chaptersProperty() {
+  chaptersProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'chapters');
     });
@@ -2021,7 +2014,7 @@ extension AudiobookModelQueryProperty
   }
 
   QueryBuilder<AudiobookModel, String?, QQueryOperations>
-      coverArtPathProperty() {
+  coverArtPathProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'coverArtPath');
     });
@@ -2052,7 +2045,7 @@ extension AudiobookModelQueryProperty
   }
 
   QueryBuilder<AudiobookModel, DateTime?, QQueryOperations>
-      lastPlayedAtProperty() {
+  lastPlayedAtProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'lastPlayedAt');
     });
@@ -2087,22 +2080,15 @@ const ChapterModelSchema = Schema(
       name: r'endTimeInMs',
       type: IsarType.long,
     ),
-    r'id': PropertySchema(
-      id: 1,
-      name: r'id',
-      type: IsarType.string,
-    ),
+    r'id': PropertySchema(id: 1, name: r'id', type: IsarType.string),
     r'startTimeInMs': PropertySchema(
       id: 2,
       name: r'startTimeInMs',
       type: IsarType.long,
     ),
-    r'title': PropertySchema(
-      id: 3,
-      name: r'title',
-      type: IsarType.string,
-    )
+    r'title': PropertySchema(id: 3, name: r'title', type: IsarType.string),
   },
+
   estimateSize: _chapterModelEstimateSize,
   serialize: _chapterModelSerialize,
   deserialize: _chapterModelDeserialize,
@@ -2170,58 +2156,57 @@ P _chapterModelDeserializeProp<P>(
 extension ChapterModelQueryFilter
     on QueryBuilder<ChapterModel, ChapterModel, QFilterCondition> {
   QueryBuilder<ChapterModel, ChapterModel, QAfterFilterCondition>
-      endTimeInMsEqualTo(int value) {
+  endTimeInMsEqualTo(int value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'endTimeInMs',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'endTimeInMs', value: value),
+      );
     });
   }
 
   QueryBuilder<ChapterModel, ChapterModel, QAfterFilterCondition>
-      endTimeInMsGreaterThan(
-    int value, {
-    bool include = false,
-  }) {
+  endTimeInMsGreaterThan(int value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'endTimeInMs',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'endTimeInMs',
+          value: value,
+        ),
+      );
     });
   }
 
   QueryBuilder<ChapterModel, ChapterModel, QAfterFilterCondition>
-      endTimeInMsLessThan(
-    int value, {
-    bool include = false,
-  }) {
+  endTimeInMsLessThan(int value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'endTimeInMs',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'endTimeInMs',
+          value: value,
+        ),
+      );
     });
   }
 
   QueryBuilder<ChapterModel, ChapterModel, QAfterFilterCondition>
-      endTimeInMsBetween(
+  endTimeInMsBetween(
     int lower,
     int upper, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'endTimeInMs',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'endTimeInMs',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+        ),
+      );
     });
   }
 
@@ -2230,11 +2215,13 @@ extension ChapterModelQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'id',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'id',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
@@ -2244,12 +2231,14 @@ extension ChapterModelQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'id',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'id',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
@@ -2259,12 +2248,14 @@ extension ChapterModelQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'id',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'id',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
@@ -2276,14 +2267,16 @@ extension ChapterModelQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'id',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'id',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
@@ -2292,11 +2285,13 @@ extension ChapterModelQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'id',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'id',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
@@ -2305,110 +2300,115 @@ extension ChapterModelQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'id',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'id',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<ChapterModel, ChapterModel, QAfterFilterCondition> idContains(
-      String value,
-      {bool caseSensitive = true}) {
+    String value, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.contains(
-        property: r'id',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'id',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<ChapterModel, ChapterModel, QAfterFilterCondition> idMatches(
-      String pattern,
-      {bool caseSensitive = true}) {
+    String pattern, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.matches(
-        property: r'id',
-        wildcard: pattern,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'id',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<ChapterModel, ChapterModel, QAfterFilterCondition> idIsEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'id',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'id', value: ''),
+      );
     });
   }
 
   QueryBuilder<ChapterModel, ChapterModel, QAfterFilterCondition>
-      idIsNotEmpty() {
+  idIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'id',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'id', value: ''),
+      );
     });
   }
 
   QueryBuilder<ChapterModel, ChapterModel, QAfterFilterCondition>
-      startTimeInMsEqualTo(int value) {
+  startTimeInMsEqualTo(int value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'startTimeInMs',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'startTimeInMs', value: value),
+      );
     });
   }
 
   QueryBuilder<ChapterModel, ChapterModel, QAfterFilterCondition>
-      startTimeInMsGreaterThan(
-    int value, {
-    bool include = false,
-  }) {
+  startTimeInMsGreaterThan(int value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'startTimeInMs',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'startTimeInMs',
+          value: value,
+        ),
+      );
     });
   }
 
   QueryBuilder<ChapterModel, ChapterModel, QAfterFilterCondition>
-      startTimeInMsLessThan(
-    int value, {
-    bool include = false,
-  }) {
+  startTimeInMsLessThan(int value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'startTimeInMs',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'startTimeInMs',
+          value: value,
+        ),
+      );
     });
   }
 
   QueryBuilder<ChapterModel, ChapterModel, QAfterFilterCondition>
-      startTimeInMsBetween(
+  startTimeInMsBetween(
     int lower,
     int upper, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'startTimeInMs',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'startTimeInMs',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+        ),
+      );
     });
   }
 
@@ -2417,27 +2417,31 @@ extension ChapterModelQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'title',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'title',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<ChapterModel, ChapterModel, QAfterFilterCondition>
-      titleGreaterThan(
+  titleGreaterThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'title',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'title',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
@@ -2447,12 +2451,14 @@ extension ChapterModelQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'title',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'title',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
@@ -2464,28 +2470,29 @@ extension ChapterModelQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'title',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'title',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<ChapterModel, ChapterModel, QAfterFilterCondition>
-      titleStartsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  titleStartsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'title',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'title',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
@@ -2494,55 +2501,61 @@ extension ChapterModelQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'title',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'title',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<ChapterModel, ChapterModel, QAfterFilterCondition> titleContains(
-      String value,
-      {bool caseSensitive = true}) {
+    String value, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.contains(
-        property: r'title',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'title',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<ChapterModel, ChapterModel, QAfterFilterCondition> titleMatches(
-      String pattern,
-      {bool caseSensitive = true}) {
+    String pattern, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.matches(
-        property: r'title',
-        wildcard: pattern,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'title',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<ChapterModel, ChapterModel, QAfterFilterCondition>
-      titleIsEmpty() {
+  titleIsEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'title',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'title', value: ''),
+      );
     });
   }
 
   QueryBuilder<ChapterModel, ChapterModel, QAfterFilterCondition>
-      titleIsNotEmpty() {
+  titleIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'title',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'title', value: ''),
+      );
     });
   }
 }

@@ -22,11 +22,11 @@ abstract class AudiobookRepository {
 
   /// Searches audiobooks by title, author, etc. using Isar indexed queries
   /// Returns appropriate results even with missing or corrupted metadata
-  Future<List<Audiobook>> searchAudiobooks(String query);
+  // Future<List<Audiobook>> searchAudiobooks(String query);
 
   /// Filters audiobooks by status (in_progress, completed, etc.) using Isar indexed queries
   /// Handles filtering with incomplete or missing metadata
-  Future<List<Audiobook>> filterAudiobooks(AudiobookFilter filter);
+  // Future<List<Audiobook>> filterAudiobooks(AudiobookFilter filter);
 
   /// Finds audiobooks by specific criteria using Isar compound indexes
   Future<List<Audiobook>> findAudiobooks({

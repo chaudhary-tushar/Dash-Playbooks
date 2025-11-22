@@ -3,20 +3,17 @@
 /// and embedded [ChapterModel] with domain entity conversions and Isar annotations.
 library;
 
-// lib/data/datasources/local/isar_schema.dart
-import 'package:flutbook/data/models/audiobook_model.dart' show AudiobookModel, ChapterModel;
-import 'package:flutbook/data/models/playback_session_model.dart' show PlaybackSessionModel;
-import 'package:flutbook/features/library/domain/entities/audiobook.dart' as domain;
-import 'package:flutbook/features/library/domain/entities/chapter.dart' as domain;
-import 'package:flutbook/features/library/domain/entities/library.dart' as domain;
-import 'package:flutbook/features/playback/domain/entities/playback_session.dart' as domain;
-import 'package:flutbook/domain/entities/user_profile.dart' as domain;
 import 'package:flutbook/features/auth/data/models/user_profile_model.dart' show UserProfileModel;
+// lib/data/datasources/local/isar_schema.dart
 import 'package:flutbook/features/library/data/models/audiobook_model.dart'
     show AudiobookModel, ChapterModel;
+import 'package:flutbook/features/library/data/models/audiobook_model.dart';
+import 'package:flutbook/features/library/domain/entities/library.dart' as domain;
 import 'package:flutbook/features/playback/data/models/playback_session_model.dart'
     show PlaybackSessionModel;
-import 'package:isar/isar.dart';
+import 'package:isar_community/isar.dart';
+
+part 'library_model.g.dart';
 
 @collection
 class LibraryModel {

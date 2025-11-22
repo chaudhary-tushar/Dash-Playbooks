@@ -8,6 +8,7 @@ import 'dart:developer';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 /// Custom observer for Riverpod provider state changes.
 /// Logs all provider lifecycle events for debugging and monitoring.
@@ -52,6 +53,14 @@ Future<void> bootstrap(FutureOr<Widget> Function() builder) async {
   );
 
   // Add cross-flavor configuration here
+  // Ensure GoogleSignIn is initialized for google_sign_in v7+ when using flavor mains
+  try {
+    await GoogleSignIn.instance.initialize();
+  } catch (e) {
+    // Log and continue; initialization failures should not crash bootstrap.
+    // Use a logging framework in production instead of print.
+    print('Warning: GoogleSignIn.initialize() failed in bootstrap: $e');
+  }
 
   runApp(
     UncontrolledProviderScope(

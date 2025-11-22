@@ -1,17 +1,12 @@
 // lib/data/datasources/local/audiobook_local_datasource.dart
 
+import 'package:flutbook/core/error/exceptions.dart';
 import 'package:flutbook/core/services/json_storage_service.dart';
-import 'package:flutbook/data/datasources/local/error_handler.dart';
-import 'package:flutbook/data/datasources/local/isar_schema.dart';
-import 'package:flutbook/features/library/domain/entities/audiobook.dart';
-import 'package:flutbook/features/library/domain/entities/filter.dart';
-import 'package:flutbook/features/playback/domain/entities/playback_session.dart';
 import 'package:flutbook/features/directory_selection/data/datasources/metadat_extractor_ds.dart';
 import 'package:flutbook/features/library/data/models/audiobook_model.dart';
-import 'package:flutbook/features/playback/data/models/playback_session_model.dart';
+import 'package:flutbook/features/library/domain/entities/audiobook.dart';
 import 'package:flutter/foundation.dart'; // Import for debugPrint
-import 'package:isar/isar.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:isar_community/isar.dart';
 
 /// Local data source for audiobook operations with Isar database and fallback handling
 /// Implements proper schema and indexing as required by data model
@@ -31,7 +26,7 @@ class AudiobookLocalDatasource {
   /// Throws specific exceptions for corrupted files or insufficient storage
   Future<void> saveAudiobooks(List<Audiobook> audiobooks) async {
     try {
-      final audiobookModels = audiobooks.map(AudiobookModel.fromDomain()).toList();
+      final audiobookModels = audiobooks.map(AudiobookModel.fromDomain).toList();
 
       await _isar.writeTxn(() async {
         await _isar.audiobookModels.putAll(audiobookModels);
@@ -49,11 +44,15 @@ class AudiobookLocalDatasource {
       var query = _isar.audiobookModels.where();
 
       if (author != null) {
-        query = query.filter().authorEqualTo(author, caseSensitive: false);
+        query =
+            query.filter().authorEqualTo(author, caseSensitive: false)
+                as QueryBuilder<AudiobookModel, AudiobookModel, QWhere>;
       }
 
       if (completed != null) {
-        query = query.filter().completedEqualTo(completed);
+        query =
+            query.filter().completedEqualTo(completed)
+                as QueryBuilder<AudiobookModel, AudiobookModel, QWhere>;
       }
 
       // Return results directly from DB
@@ -136,99 +135,71 @@ class AudiobookLocalDatasource {
 
   /// Searches audiobooks using Isar's indexed fields for efficient queries
   /// Returns appropriate results even with missing or corrupted metadata
-  Future<List<Audiobook>> searchAudiobooks(String query) async {
-    try {
-      final results = await _isar.audiobookModels.filter().anyOf([
-        (AudiobookModelQueryBuilder q) => q.titleContains(query, caseSensitive: false),
-        (AudiobookModelQueryBuilder q) => q.authorContains(query, caseSensitive: false),
-        (AudiobookModelQueryBuilder q) => q.albumContains(query, caseSensitive: false),
-      ]).findAll();
+  // Future<List<Audiobook>> searchAudiobooks(String query) async {
+  //   try {
+  //     final results = await _isar.audiobookModels.where().anyOf([
+  //       (AudiobookModelQueryWhere q) => q.titleContains(query, caseSensitive: false),
+  //       (AudiobookModelQueryBuilder q) => q.authorContains(query, caseSensitive: false),
+  //       (AudiobookModelQueryBuilder q) => q.albumContains(query, caseSensitive: false),
+  //     ], or: (AudioBookQueryBuilder q) => q.idEqualTo(-1)).findAll();
 
-      final searchableAudiobooks = <Audiobook>[];
-      for (final model in results) {
-        final fileExists = await _metadataExtractor.isFileAccessible(model.filePath);
-        if (fileExists) {
-          searchableAudiobooks.add(model.toDomain());
-        }
-      }
+  //     final searchableAudiobooks = <Audiobook>[];
+  //     for (final model in results) {
+  //       final fileExists = await _metadataExtractor.isFileAccessible(model.filePath);
+  //       if (fileExists) {
+  //         searchableAudiobooks.add(model.toDomain());
+  //       }
+  //     }
 
-      return searchableAudiobooks;
-    } catch (e) {
-      throw DatabaseException('Failed to search audiobooks: $e');
-    }
-  }
+  //     return searchableAudiobooks;
+  //   } catch (e) {
+  //     throw DatabaseException('Failed to search audiobooks: $e');
+  //   }
+  // }
 
-  /// Filters audiobooks using Isar's indexed fields for efficient queries
-  /// Handles filtering with incomplete or missing metadata
-  Future<List<Audiobook>> filterAudiobooks(AudiobookFilter filter) async {
-    try {
-      var query = _isar.audiobookModels.where();
+  // /// Filters audiobooks using Isar's indexed fields for efficient queries
+  // /// Handles filtering with incomplete or missing metadata
+  // Future<List<Audiobook>> filterAudiobooks(AudiobookFilter filter) async {
+  //   try {
+  //     var query = _isar.audiobookModels.where();
 
-      // Apply filters based on the filter object
-      if (filter.title != null) {
-        query = query.filter().titleContains(filter.title!, caseSensitive: false);
-      }
-      if (filter.author != null) {
-        query = query.filter().authorContains(filter.author!, caseSensitive: false);
-      }
-      if (filter.completed != null) {
-        query = query.filter().completedEqualTo(filter.completed!);
-      }
-      if (filter.inProgress != null) {
-        // inProgress means completed is false but has a lastPlayedAt
-        if (filter.inProgress!) {
-          query = query.filter().completedEqualTo(false).lastPlayedAtIsNotNull();
-        } else {
-          // not in progress means either completed or never played
-          query = query.filter().lastPlayedAtIsNull();
-        }
-      }
+  //     // Apply filters based on the filter object
+  //     if (filter.title != null) {
+  //       query = query.filter().titleContains(filter.title!, caseSensitive: false);
+  //     }
+  //     if (filter.author != null) {
+  //       query = query.filter().authorContains(filter.author!, caseSensitive: false);
+  //     }
+  //     if (filter.completed != null) {
+  //       query = query.filter().completedEqualTo(filter.completed!);
+  //     }
+  //     if (filter.inProgress != null) {
+  //       // inProgress means completed is false but has a lastPlayedAt
+  //       if (filter.inProgress!) {
+  //         query = query.filter().completedEqualTo(false).lastPlayedAtIsNotNull();
+  //       } else {
+  //         // not in progress means either completed or never played
+  //         query = query.filter().lastPlayedAtIsNull();
+  //       }
+  //     }
 
-      final results = await query.findAll();
+  //     final results = await query.findAll();
 
-      // Apply additional filtering that can't be done with Isar
-      final finalResults = <Audiobook>[];
-      for (final model in results) {
-        // Verify file still exists
-        final fileExists = await _metadataExtractor.isFileAccessible(model.filePath);
-        if (fileExists) {
-          finalResults.add(model.toDomain());
-        }
-      }
+  //     // Apply additional filtering that can't be done with Isar
+  //     final finalResults = <Audiobook>[];
+  //     for (final model in results) {
+  //       // Verify file still exists
+  //       final fileExists = await _metadataExtractor.isFileAccessible(model.filePath);
+  //       if (fileExists) {
+  //         finalResults.add(model.toDomain());
+  //       }
+  //     }
 
-      return finalResults;
-    } catch (e) {
-      throw DatabaseException('Failed to filter audiobooks: $e');
-    }
-  }
-
-  /// Finds audiobooks by specific criteria using Isar compound indexes
-  Future<List<Audiobook>> findAudiobooks({String? author, bool? completed, int? limit}) async {
-    try {
-      var query = _isar.audiobookModels.where();
-
-      if (author != null) {
-        query = query.filter().authorEqualTo(author, caseSensitive: false);
-      }
-
-      if (completed != null) {
-        query = query.filter().completedEqualTo(completed);
-      }
-
-      final results = await query.limit(limit ?? 100).findAll(); // Added null check
-      final validResults = <Audiobook>[];
-      for (final model in results) {
-        final fileExists = await _metadataExtractor.isFileAccessible(model.filePath);
-        if (fileExists) {
-          validResults.add(model.toDomain());
-        }
-      }
-
-      return validResults;
-    } catch (e) {
-      throw DatabaseException('Failed to find audiobooks: $e');
-    }
-  }
+  //     return finalResults;
+  //   } catch (e) {
+  //     throw DatabaseException('Failed to filter audiobooks: $e');
+  //   }
+  // }
 
   /// Gets all settings from JSON storage
   Future<Map<String, dynamic>> getSettings() async {
@@ -244,17 +215,6 @@ class AudiobookLocalDatasource {
   /// Used to handle cases where files are moved/deleted after scanning
   Future<bool> isFileAccessible(String filePath) async {
     return _metadataExtractor.isFileAccessible(filePath);
-  }
-
-  /// Private helper to remove an audiobook from the database if the file no longer exists
-  Future<void> _removeAudiobookFromDb(String internalId) async {
-    try {
-      await _isar.writeTxn(() async {
-        await _isar.audiobookModels.filter().internalIdEqualTo(internalId).deleteFirst();
-      });
-    } catch (e) {
-      debugPrint('Warning: Could not remove audiobook from database: $e');
-    }
   }
 
   /// Scans a directory and extracts metadata for all audio files

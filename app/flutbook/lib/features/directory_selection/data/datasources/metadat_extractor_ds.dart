@@ -1,7 +1,8 @@
 // lib/data/datasources/local/metadata_extraction_datasource.dart
 import 'dart:io';
 
-import 'package:flutbook/data/datasources/local/error_handler.dart';
+import 'package:flutbook/core/error/exceptions.dart';
+import 'package:flutbook/features/library/data/datasources/audiobook_local_ds.dart';
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
 import 'package:flutbook/features/library/domain/entities/chapter.dart';
 import 'package:just_audio/just_audio.dart';
@@ -9,6 +10,11 @@ import 'package:path/path.dart' as path;
 
 /// Extracts metadata from audio files using various approaches depending on file format
 class MetadataExtractionDatasource {
+  MetadataExtractionDatasource({required AudiobookLocalDatasource audiobookLocalDatasource})
+    : _audiobookLocalDatasource = audiobookLocalDatasource;
+
+  final AudiobookLocalDatasource _audiobookLocalDatasource;
+
   /// Extracts metadata from an audio file at the given path
   Future<Audiobook?> extractMetadata(String filePath) async {
     try {
@@ -151,6 +157,7 @@ class MetadataExtractionDatasource {
 
   /// Extracts cover art from audio file if available
   /// Returns path to temporary file with cover art, or null if none found
+  // ignore: unused_element
   Future<String?> _extractCoverArt(String filePath) async {
     // In a real implementation, we would extract cover art from the audio file's metadata
     // For now, return null as placeholder
@@ -177,20 +184,20 @@ class MetadataExtractionDatasource {
   /// Scans a directory and extracts metadata for all audio files
   Future<List<Audiobook>> scanDirectory(String directoryPath) async {
     try {
-      final audioFiles = await _metadataExtractor.scanDirectoryForAudioFiles(
+      final audioFiles = await scanDirectoryForAudioFiles(
         directoryPath,
       );
 
       final audiobooks = <Audiobook>[];
       for (final filePath in audioFiles) {
-        final audiobook = await _metadataExtractor.extractMetadata(filePath);
+        final audiobook = await extractMetadata(filePath);
         if (audiobook != null) {
           audiobooks.add(audiobook);
         }
       }
 
       // Save to database
-      await saveAudiobooks(audiobooks);
+      await _audiobookLocalDatasource.saveAudiobooks(audiobooks);
 
       return audiobooks;
     } catch (e) {

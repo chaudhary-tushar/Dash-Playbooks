@@ -1,6 +1,6 @@
 // lib/features/auth/domain/repositories/user_repository.dart
 import 'package:flutbook/features/auth/domain/entities/user_profile.dart';
-// import 'package:isar/isar.dart';
+// import 'package:isar_community/isar.dart';
 
 abstract class UserRepository {
   /// Attempts to authenticate user with email and password
@@ -80,8 +80,7 @@ class UserSettings {
   });
   factory UserSettings.fromMap(Map<String, dynamic> map) {
     return UserSettings(
-      defaultPlaybackSpeed:
-          (map['defaultPlaybackSpeed'] as num?)?.toDouble() ?? 1.0,
+      defaultPlaybackSpeed: (map['defaultPlaybackSpeed'] as num?)?.toDouble() ?? 1.0,
       defaultSkipInterval: map['defaultSkipInterval'] as int? ?? 30,
       syncEnabled: map['syncEnabled'] as bool? ?? true,
       themeMode: map['themeMode'] as bool? ?? false,
@@ -136,8 +135,7 @@ class UserSettings {
       syncEnabled: syncEnabled ?? this.syncEnabled,
       themeMode: themeMode ?? this.themeMode,
       languageCode: languageCode ?? this.languageCode,
-      preferredDirectoryPath:
-          preferredDirectoryPath ?? this.preferredDirectoryPath,
+      preferredDirectoryPath: preferredDirectoryPath ?? this.preferredDirectoryPath,
       localLibraryPath: localLibraryPath ?? this.localLibraryPath,
     );
   }

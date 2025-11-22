@@ -1,6 +1,6 @@
 // lib/data/models/playback_session_model.dart
 import 'package:flutbook/features/playback/domain/entities/playback_session.dart' as domain;
-import 'package:isar/isar.dart';
+import 'package:isar_community/isar.dart';
 
 part 'playback_session_model.g.dart';
 

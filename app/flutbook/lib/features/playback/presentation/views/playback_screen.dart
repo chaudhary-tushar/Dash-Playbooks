@@ -1,6 +1,6 @@
 // lib/presentation/screens/playback_screen.dart
-import 'package:flutbook/features/library/domain/entities/audiobook.dart';
 import 'package:flutbook/features/library/data/models/audiobook_model.dart';
+import 'package:flutbook/features/library/domain/entities/audiobook.dart';
 import 'package:flutbook/features/playback/presentation/widgets/playback_controls.dart';
 import 'package:flutbook/features/playback/presentation/widgets/progress_bar.dart';
 import 'package:flutter/material.dart';

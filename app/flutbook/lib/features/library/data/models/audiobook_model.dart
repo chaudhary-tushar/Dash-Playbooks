@@ -4,12 +4,13 @@
 /// and embedded [ChapterModel] with domain entity conversions and Isar annotations.
 library;
 
+import 'package:flutbook/features/auth/data/models/user_profile_model.dart' show UserProfileModel;
+import 'package:flutbook/features/library/data/models/library_model.dart' show LibraryModel;
 // lib/data/datasources/local/isar_schema.dart
 import 'package:flutbook/features/library/domain/entities/audiobook.dart' as domain;
 import 'package:flutbook/features/library/domain/entities/chapter.dart' as domain;
-import 'package:flutbook/features/auth/data/models/user_profile_model.dart' show UserProfileModel;
-import 'package:flutbook/features/library/data/models/library_model.dart' show LibraryModel;
-import 'package:isar/isar.dart';
+import 'package:isar_community/isar.dart';
+
 part 'audiobook_model.g.dart';
 
 @collection

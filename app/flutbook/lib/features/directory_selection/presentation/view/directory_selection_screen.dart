@@ -8,12 +8,11 @@ class DirectorySelectionScreen extends StatefulWidget {
     super.key,
     this.initialDirectory,
   });
-  final Function(String) onDirectorySelected;
+  final void Function(String)? onDirectorySelected;
   final String? initialDirectory;
 
   @override
-  _DirectorySelectionScreenState createState() =>
-      _DirectorySelectionScreenState();
+  _DirectorySelectionScreenState createState() => _DirectorySelectionScreenState();
 }
 
 class _DirectorySelectionScreenState extends State<DirectorySelectionScreen> {
@@ -106,9 +105,7 @@ class _DirectorySelectionScreenState extends State<DirectorySelectionScreen> {
                         color: Theme.of(context).cardTheme.color,
                       ),
                       child: Text(
-                        _selectedDirectory != null
-                            ? _selectedDirectory!
-                            : 'No directory selected',
+                        _selectedDirectory != null ? _selectedDirectory! : 'No directory selected',
                         style: TextStyle(
                           fontSize: 16,
                           color: _selectedDirectory != null
@@ -137,8 +134,7 @@ class _DirectorySelectionScreenState extends State<DirectorySelectionScreen> {
             if (_selectedDirectory != null) ...[
               const SizedBox(height: 16),
               ElevatedButton(
-                onPressed: () =>
-                    widget.onDirectorySelected(_selectedDirectory!),
+                onPressed: () => widget.onDirectorySelected?.call(_selectedDirectory!),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   backgroundColor: Theme.of(context).colorScheme.primary,

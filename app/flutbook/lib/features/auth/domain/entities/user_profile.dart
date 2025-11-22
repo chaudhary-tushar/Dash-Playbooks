@@ -14,15 +14,19 @@ class UserProfile {
 
   factory UserProfile.fromMap(Map<String, dynamic> map) {
     return UserProfile(
-      id: map['id'] ?? '',
-      email: map['email'] ?? '',
-      displayName: map['displayName'],
-      authMethod: map['authMethod'] ?? '',
-      syncEnabled: map['syncEnabled'] ?? false,
+      id: map['id']?.toString() ?? '',
+      email: map['email']?.toString() ?? '',
+      displayName: map['displayName']?.toString(),
+      authMethod: map['authMethod']?.toString() ?? '',
+      syncEnabled: map['syncEnabled'] == true,
       lastSyncAt: map['lastSyncAt'] != null
-          ? DateTime.fromMillisecondsSinceEpoch(map['lastSyncAt'] as int)
+          ? DateTime.fromMillisecondsSinceEpoch(
+              map['lastSyncAt'] is int
+                  ? map['lastSyncAt'] as int
+                  : int.parse(map['lastSyncAt'].toString()),
+            )
           : null,
-      localLibraryPath: map['localLibraryPath'],
+      localLibraryPath: map['localLibraryPath']?.toString(),
     );
   }
 

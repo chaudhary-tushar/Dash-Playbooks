@@ -11,8 +11,20 @@ import 'package:flutbook/lib/presentation/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize GoogleSignIn (required by google_sign_in v7+)
+  try {
+    await GoogleSignIn.instance.initialize();
+  } catch (e) {
+    // Initialization failures are non-fatal at startup; log for debugging.
+    // In production prefer a logging framework instead of print.
+    print('Warning: GoogleSignIn.initialize() failed: $e');
+  }
+
   runApp(
     const ProviderScope(
       child: AudiobookPlayerApp(),
@@ -39,12 +51,9 @@ class AudiobookPlayerApp extends StatelessWidget {
         '/splash': (BuildContext context) => const SplashScreen(),
         '/main': (BuildContext context) =>
             const LibraryScreen(), // Use LibraryScreen as main screen
-        '/library': (BuildContext context) =>
-            const LibraryScreen(), // Added explicit library route
-        '/settings': (BuildContext context) =>
-            const SettingsScreen(), // Add settings route
-        '/playback': (BuildContext context) =>
-            const PlaybackScreen(), // Add playback route
+        '/library': (BuildContext context) => const LibraryScreen(), // Added explicit library route
+        '/settings': (BuildContext context) => const SettingsScreen(), // Add settings route
+        '/playback': (BuildContext context) => const PlaybackScreen(), // Add playback route
       },
       home: const SplashScreen(),
       debugShowCheckedModeBanner: false,

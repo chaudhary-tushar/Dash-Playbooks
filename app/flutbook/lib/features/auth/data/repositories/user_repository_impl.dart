@@ -1,31 +1,31 @@
-// lib/data/repositories/user_repository_impl.dart
-import 'package:flutbook/data/datasources/local/preferences_datasource.dart';
-import 'package:flutbook/data/datasources/remote/firebase_auth_datasource.dart';
-import 'package:flutbook/data/datasources/remote/firebase_sync_datasource.dart';
-import 'package:flutbook/domain/entities/auth_result.dart';
-import 'package:flutbook/domain/entities/sync_result.dart';
-import 'package:flutbook/domain/entities/sync_status.dart';
-import 'package:flutbook/domain/entities/user_profile.dart';
-import 'package:flutbook/domain/entities/user_settings.dart';
-import 'package:flutbook/domain/repositories/user_repository.dart';
+import 'package:flutbook/features/auth/data/datasources/firebase_auth_datasource.dart';
+// import 'package:flutbook/features/auth/domain/entities/auth_result.dart';
+import 'package:flutbook/features/auth/domain/entities/user_profile.dart';
+import 'package:flutbook/features/auth/domain/repositories/user_repository.dart'
+    show AuthResult, SyncResult, SyncStatus, UserRepository, UserSettings;
+import 'package:flutbook/features/library/data/datasources/remote/firebase_library_sync.dart';
+import 'package:flutbook/features/playback/data/datasources/remote/firebase_playback_sync.dart';
+import 'package:flutbook/features/settings/data/datasources/preferences_datasource.dart';
 
 class UserRepositoryImpl implements UserRepository {
   UserRepositoryImpl({
     required FirebaseAuthDatasource authDatasource,
-    required FirebaseSyncDatasource syncDatasource,
+    required LibraryRemoteDatasource syncDatasource,
+    required PlaybackRemoteDatasource playbackRemoteDatasource,
     required PreferencesDatasource preferencesDatasource,
   }) : _authDatasource = authDatasource,
        _syncDatasource = syncDatasource,
+       _playbackRemoteDatasource = playbackRemoteDatasource,
        _preferencesDatasource = preferencesDatasource;
   final FirebaseAuthDatasource _authDatasource;
-  final FirebaseSyncDatasource _syncDatasource;
+  final LibraryRemoteDatasource _syncDatasource;
+  final PlaybackRemoteDatasource _playbackRemoteDatasource;
   final PreferencesDatasource _preferencesDatasource;
+  // late final LibraryRepository _libraryRepo;
+  // late final PlaybackRepository _playbackRepo;
 
   @override
-  Future<AuthResult> signInWithEmailAndPassword(
-    String email,
-    String password,
-  ) async {
+  Future<AuthResult> signInWithEmailAndPassword(String email, String password) async {
     try {
       final result = await _authDatasource.signInWithEmailAndPassword(
         email,
@@ -34,7 +34,7 @@ class UserRepositoryImpl implements UserRepository {
 
       if (result.success && result.user != null) {
         // Save user preferences
-        await _preferencesDatasource.saveUserPreferences(result.user!);
+        await _preferencesDatasource.saveUserPreferences(result.user);
       }
 
       return AuthResult(
@@ -57,7 +57,7 @@ class UserRepositoryImpl implements UserRepository {
 
       if (result.success && result.user != null) {
         // Save user preferences
-        await _preferencesDatasource.saveUserPreferences(result.user!);
+        await _preferencesDatasource.saveUserPreferences(result.user);
       }
 
       return AuthResult(
@@ -86,7 +86,7 @@ class UserRepositoryImpl implements UserRepository {
 
       if (result.success && result.user != null) {
         // Save user preferences
-        await _preferencesDatasource.saveUserPreferences(result.user!);
+        await _preferencesDatasource.saveUserPreferences(result.user);
       }
 
       return AuthResult(
@@ -139,7 +139,7 @@ class UserRepositoryImpl implements UserRepository {
   Future<SyncResult> syncWithRemote() async {
     try {
       // Perform sync with remote
-      final result = await _syncDatasource.syncAll();
+      final result = await syncAll();
 
       // Update sync preferences
       await _preferencesDatasource.setLastSyncTime(DateTime.now());
@@ -163,25 +163,22 @@ class UserRepositoryImpl implements UserRepository {
   /// Syncs all user data with remote, with conflict resolution
   Future<SyncResult> syncAll() async {
     try {
-      final user = _authDatasource.currentUser;
-      if (user == null) {
-        throw AuthenticationException('User not authenticated');
-      }
+      final _ = _authDatasource.getCurrentUser();
 
       // For simplicity, we'll sync audiobook metadata and playback sessions
       // In a real implementation, we'd also sync user settings and preferences
-      final remoteAudiobooks = await getAudiobookMetadata();
-      final remoteSessions = await getPlaybackSessions();
+      final remoteAudiobooks = await _syncDatasource.getAudiobookMetadata();
+      final remoteSessions = await _playbackRemoteDatasource.getPlaybackSessions();
 
       return SyncResult(
         success: true,
-        message: 'Sync completed successfully',
+        errorMessage: 'Sync completed successfully',
         itemsSynced: remoteAudiobooks.length + remoteSessions.length,
       );
     } catch (e) {
       return SyncResult(
         success: false,
-        message: 'Sync failed: $e',
+        errorMessage: 'Sync failed: $e',
         itemsSynced: 0,
       );
     }
@@ -208,6 +205,7 @@ class UserRepositoryImpl implements UserRepository {
   }
 
   /// Updates sync enabled status for the user
+  // ignore: avoid_positional_boolean_parameters
   Future<void> updateSyncEnabled(bool enabled) async {
     try {
       final currentSettings = await getUserSettings();
@@ -241,7 +239,6 @@ class UserRepositoryImpl implements UserRepository {
 }
 
 // features/auth/data/repositories/user_repository_impl.dart
-class UserRepositoryImpl implements UserRepository {
-  final LibraryRepository _libraryRepo;
-  final PlaybackRepository _playbackRepo;
-}
+// class UserRepositoryImpl implements UserRepository {
+//
+// }

@@ -1,24 +1,24 @@
 // lib/data/repositories/library_repository_impl.dart
-import 'package:flutbook/data/datasources/local/audiobook_local_datasource.dart';
-import 'package:flutbook/data/datasources/remote/firebase_sync_datasource.dart';
-import 'package:flutbook/data/providers/library_provider.dart';
-import 'package:flutbook/data/repositories/error_handler.dart';
+import 'package:flutbook/features/library/data/datasources/audiobook_local_ds.dart';
+import 'package:flutbook/features/library/data/datasources/remote/firebase_library_sync.dart';
+// import 'package:flutbook/data/providers/library_provider.dart';
+import 'package:flutbook/core/error/exceptions.dart';
+import 'package:flutbook/features/library/data/repositories/audiobook_repository_impl.dart';
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
 import 'package:flutbook/features/library/domain/entities/library.dart';
 import 'package:flutbook/features/library/domain/repositories/library_repository.dart';
-import 'package:flutbook/features/library/data/repositories/audiobook_repository_impl.dart';
 
 class LibraryRepositoryImpl implements LibraryRepository {
   LibraryRepositoryImpl({
     required AudiobookLocalDatasource localDatasource,
-    required LibraryProvider provider,
-    FirebaseSyncDatasource? remoteDatasource,
+    // required LibraryProvider provider,
+    LibraryRemoteDatasource? remoteDatasource,
   }) : _localDatasource = localDatasource,
-       _remoteDatasource = remoteDatasource,
-       _provider = provider;
+       _remoteDatasource = remoteDatasource;
+  //  _provider = provider;
   final AudiobookLocalDatasource _localDatasource;
-  final FirebaseSyncDatasource? _remoteDatasource;
-  final LibraryProvider _provider;
+  final LibraryRemoteDatasource? _remoteDatasource;
+  // final LibraryProvider _provider;
 
   @override
   Future<Library> getLibrary() async {
@@ -131,7 +131,7 @@ class LibraryRepositoryImpl implements LibraryRepository {
   }
 
   @override
-  Future<String?> getLibraryPath() async {
+  Future<String?> _getLibraryPath() async {
     try {
       // Get library path from settings
       final settings = await _localDatasource.getSettings();
@@ -182,24 +182,24 @@ class LibraryRepositoryImpl implements LibraryRepository {
   }
 
   /// Searches audiobooks in the library
-  @override
-  Future<List<Audiobook>> searchInLibrary(String query) async {
-    try {
-      return await _localDatasource.searchAudiobooks(query);
-    } catch (e) {
-      throw StorageException(ErrorHandler.handleException(e));
-    }
-  }
+  // @override
+  // Future<List<Audiobook>> searchInLibrary(String query) async {
+  //   try {
+  //     return await _localDatasource.searchAudiobooks(query);
+  //   } catch (e) {
+  //     throw StorageException(ErrorHandler.handleException(e));
+  //   }
+  // }
 
   /// Filters audiobooks in the library
-  @override
-  Future<List<Audiobook>> filterInLibrary(AudiobookFilter filter) async {
-    try {
-      return await _localDatasource.filterAudiobooks(filter);
-    } catch (e) {
-      throw StorageException(ErrorHandler.handleException(e));
-    }
-  }
+  // @override
+  // Future<List<Audiobook>> filterInLibrary(AudiobookFilter filter) async {
+  //   try {
+  //     return await _localDatasource.filterAudiobooks(filter);
+  //   } catch (e) {
+  //     throw StorageException(ErrorHandler.handleException(e));
+  //   }
+  // }
 
   /// Checks if library directory is still accessible
   @override

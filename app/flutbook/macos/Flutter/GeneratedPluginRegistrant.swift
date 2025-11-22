@@ -12,7 +12,7 @@ import file_picker
 import firebase_auth
 import firebase_core
 import google_sign_in_ios
-import isar_flutter_libs
+import isar_community_flutter_libs
 import just_audio
 import shared_preferences_foundation
 import sqflite_darwin

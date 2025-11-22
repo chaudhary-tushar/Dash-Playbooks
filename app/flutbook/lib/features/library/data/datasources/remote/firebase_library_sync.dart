@@ -1,16 +1,16 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutbook/features/library/data/datasources/models/audiobook_model.dart';
+import 'package:flutbook/core/error/exceptions.dart';
+import 'package:flutbook/features/library/data/models/audiobook_model.dart';
 
 class LibraryRemoteDatasource {
-  final FirebaseFirestore _firestore;
-  final FirebaseAuth _auth;
-
   LibraryRemoteDatasource({FirebaseFirestore? firestore, FirebaseAuth? auth})
     : _firestore = firestore ?? FirebaseFirestore.instance,
       _auth = auth ?? FirebaseAuth.instance;
+  final FirebaseFirestore _firestore;
+  final FirebaseAuth _auth;
 
-  Future<void> uploadAudiobookMetadata(Audiobook audiobook) async {
+  Future<void> uploadAudiobookMetadata(AudiobookModel audiobook) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -21,7 +21,7 @@ class LibraryRemoteDatasource {
           .collection('users')
           .doc(user.uid)
           .collection('libraries')
-          .doc(audiobook.id)
+          .doc(audiobook.id as String?)
           .set({
             'id': audiobook.id,
             'title': audiobook.title,
@@ -44,7 +44,7 @@ class LibraryRemoteDatasource {
   }
 
   // Gets audiobook metadata from remote storage
-  Future<List<Audiobook>> getAudiobookMetadata() async {
+  Future<List<AudiobookModel>> getAudiobookMetadata() async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -57,25 +57,23 @@ class LibraryRemoteDatasource {
           .collection('libraries')
           .get();
 
-      final audiobooks = <Audiobook>[];
+      final audiobooks = <AudiobookModel>[];
       for (final doc in snapshot.docs) {
         final data = doc.data();
 
-        final audiobook = Audiobook(
-          id: data['id'] ?? doc.id,
-          title: data['title'] ?? '',
-          author: data['author'] ?? '',
-          album: data['album'] ?? '',
-          coverArtPath: data['coverArtPath'],
-          duration: Duration(
-            milliseconds: data['durationInMs']?.toInt() ?? 0,
-          ),
-          filePath: data['filePath'] ?? '',
+        final audiobook = AudiobookModel(
+          internalId: (data['id'] as String?) ?? doc.id,
+          title: (data['title'] as String?) ?? '',
+          author: (data['author'] as String?) ?? '',
+          album: (data['album'] as String?) ?? '',
+          coverArtPath: data['coverArtPath'] as String?,
+          durationInMs: (data['durationInMs'] as int?) ?? 0,
+          filePath: (data['filePath'] as String?) ?? '',
           chapters: [], // Chapters would be loaded separately if needed
           createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
           lastPlayedAt: (data['lastPlayedAt'] as Timestamp?)?.toDate(),
-          completed: data['completed'] ?? false,
-          totalSize: data['totalSize']?.toInt() ?? 0,
+          completed: (data['completed'] as bool?) ?? false,
+          totalSize: (data['totalSize'] as int?) ?? 0,
         );
 
         audiobooks.add(audiobook);

@@ -26,9 +26,7 @@ class FirebaseAuthDatasource {
       // The new mandatory initialization call
       await _googleSignIn.initialize();
       _isGoogleSignInInitialized = true;
-      print('GoogleSignIn initialized successfully.');
     } catch (e) {
-      print('Error initializing GoogleSignIn: $e');
       // Depending on app logic, you might want to rethrow or handle gracefully.
       rethrow;
     }
@@ -133,21 +131,39 @@ class FirebaseAuthDatasource {
     }
 
     try {
-      // Trigger the authentication flow
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) {
-        return const AuthResult(
+      // Trigger the authentication flow using the new API. In google_sign_in
+      // v7+, the interactive method is named `authenticate()` and the
+      // authentication tokens available from the account are different
+      // (idToken is available; accessToken is provided via authorization APIs).
+      GoogleSignInAccount googleUser;
+      try {
+        googleUser = await _googleSignIn.authenticate();
+      } on GoogleSignInException catch (e) {
+        // Handle user cancellation or platform-specific errors explicitly
+        if (e.code == GoogleSignInExceptionCode.canceled) {
+          return const AuthResult(
+            success: false,
+            errorMessage: 'Google sign in cancelled by user',
+          );
+        }
+        return AuthResult(
           success: false,
-          errorMessage: 'Google sign in cancelled by user',
+          errorMessage: 'Google sign in failed: $e',
         );
       }
 
-      // Obtain the auth details from the request
-      final googleAuth = await googleUser.authentication;
+      // authenticate() either returns a valid account or throws; we now
+      // have a non-null `googleUser` here.
 
-      // Create a new credential
+      // Obtain the auth details from the request. Note: the public
+      // `GoogleSignInAuthentication` currently exposes an idToken. If you
+      // require an OAuth access token, use the authorization client APIs
+      // (see `googleUser.authorizationClient.authorizationForScopes(...)`).
+      final googleAuth = googleUser.authentication;
+
+      // Create a new credential. accessToken may be null on some platforms;
+      // Firebase accepts credentials with just an idToken in many flows.
       final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 

@@ -1,7 +1,7 @@
 // lib/features/auth/data/models/user_profile_model.dart
 
-import 'package:flutbook/domain/entities/user_profile.dart' as domain;
-import 'package:isar/isar.dart';
+import 'package:flutbook/features/auth/domain/entities/user_profile.dart' as domain;
+import 'package:isar_community/isar.dart';
 
 part 'user_profile_model.g.dart';
 
