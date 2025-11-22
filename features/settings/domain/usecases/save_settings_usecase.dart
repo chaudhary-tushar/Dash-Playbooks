@@ -1,1 +1,0 @@
-// This file should contain the SaveSettingsUseCase class for persisting application settings through the repository.
