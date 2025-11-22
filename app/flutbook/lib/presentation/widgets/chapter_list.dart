@@ -1,5 +1,5 @@
 // lib/presentation/widgets/chapter_list.dart
-import 'package:flutbook/domain/entities/chapter.dart';
+import 'package:flutbook/features/library/domain/entities/chapter.dart';
 import 'package:flutter/material.dart';
 
 class ChapterList extends StatefulWidget {

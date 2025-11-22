@@ -1,0 +1,7 @@
+- Main application code resides in `app/flutbook/`, not in project root
+- Dual entry points: `lib/main.dart` (root) and `app/flutbook/lib/main.dart` (main app)
+- Bootstrap pattern using `app/flutbook/lib/bootstrap.dart` with custom Riverpod observer
+- Isar schema generation must be run before building: generates `app/flutbook/lib/data/datasources/local/isar_schema.g.dart`
+- Custom utilities like safeWriteJson for file writes
+- API retry mechanism is mandatory (not optional)
+- Provider interface has undocumented required methods

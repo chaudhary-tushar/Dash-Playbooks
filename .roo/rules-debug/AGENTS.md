@@ -1,0 +1,4 @@
+- Webview dev tools accessed via Command Palette > "Developer: Open Webview Developer Tools"
+- IPC messages fail silently if not wrapped in try/catch
+- Production builds require NODE_ENV=production or features break
+- Database migrations must run from app/flutbook/ directory

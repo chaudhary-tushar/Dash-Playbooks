@@ -2,6 +2,7 @@ include: package:very_good_analysis/analysis_options.yaml
 analyzer:
   errors:
     avoid_equals_and_hash_code_on_mutable_classes: ignore
+    use_setters_to_change_properties: ignore
   exclude:
     - lib/l10n/gen/*
     - assets/my_app/*/*

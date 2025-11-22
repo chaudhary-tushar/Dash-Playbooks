@@ -1,4 +1,8 @@
-import 'package:flutbook/login/login.dart';
+/// Root widget in the app presentation layer for Flutbook.
+/// ConsumerWidget building MaterialApp with LoginPage as home and Riverpod integration.
+library;
+
+import 'package:flutbook/features/auth/presentation/login.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

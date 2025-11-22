@@ -1,0 +1,1 @@
+// This file should contain the SelectDirectoryUseCase class for handling directory selection logic, including validating permissions and storing selected paths.

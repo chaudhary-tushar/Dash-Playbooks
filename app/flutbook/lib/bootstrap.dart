@@ -1,3 +1,8 @@
+/// Application bootstrapper for Flutbook using Riverpod state management.
+/// Implements a custom [RiverpodObserver] for logging provider lifecycle events
+/// and configures global Flutter error handling before running the app.
+library;
+
 import 'dart:async';
 import 'dart:developer';
 
@@ -6,37 +11,32 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Custom observer for Riverpod provider state changes.
 /// Logs all provider lifecycle events for debugging and monitoring.
-class RiverpodObserver extends ProviderObserver {
+final class RiverpodObserver extends ProviderObserver {
   const RiverpodObserver();
 
   @override
   void didUpdateProvider(
-    ProviderBase<Object?> provider,
-    Object? previousState,
-    Object? newState,
-    ProviderContainer container,
+    ProviderObserverContext context,
+    Object? previousValue,
+    Object? newValue,
   ) {
     log(
-      'didUpdateProvider: ${provider.runtimeType} '
-      'previousState=$previousState, newState=$newState',
+      'didUpdateProvider: ${context.provider.runtimeType} '
+      'previousValue=$previousValue, newValue=$newValue',
     );
   }
 
   @override
   void didAddProvider(
-    ProviderBase<Object?> provider,
+    ProviderObserverContext context,
     Object? value,
-    ProviderContainer container,
   ) {
-    log('didAddProvider: ${provider.runtimeType} value=$value');
+    log('didAddProvider: ${context.provider.runtimeType} value=$value');
   }
 
   @override
-  void didDisposeProvider(
-    ProviderBase<Object?> provider,
-    ProviderContainer container,
-  ) {
-    log('didDisposeProvider: ${provider.runtimeType}');
+  void didDisposeProvider(ProviderObserverContext context) {
+    log('didDisposeProvider: ${context.provider.runtimeType}');
   }
 }
 
