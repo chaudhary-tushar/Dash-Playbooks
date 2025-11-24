@@ -13,11 +13,11 @@ class _SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
     // Simulate initialization process
-    Future.delayed(const Duration(seconds: 2), () {
-      // Navigate to the main app screen after splash
-      Navigator.of(
-        context,
-      ).pushReplacementNamed('/main'); // Navigate to main screen
+    Future.delayed(const Duration(seconds: 3), () {
+      // Navigate to auth screen after splash delay
+      if (mounted) {
+        Navigator.of(context).pushReplacementNamed('/auth');
+      }
     });
   }
 

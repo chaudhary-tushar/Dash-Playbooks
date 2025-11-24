@@ -1,5 +1,5 @@
 // lib/domain/repositories/playback_repository.dart
-import 'package:flutbook/features/playback/domain/entities/playback_session.dart';
+import 'package:flutbook/features/player/domain/entities/playback_session.dart';
 
 abstract class PlaybackRepository {
   /// Gets the current playback session for an audiobook

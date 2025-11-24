@@ -133,6 +133,10 @@ class AudiobookLocalDatasource {
     }
   }
 
+  Future<void> deleteAudiobook(String audiobookId) async {
+    await _removeAudiobookFromDb(audiobookId);
+  }
+
   /// Searches audiobooks using Isar's indexed fields for efficient queries
   /// Returns appropriate results even with missing or corrupted metadata
   // Future<List<Audiobook>> searchAudiobooks(String query) async {

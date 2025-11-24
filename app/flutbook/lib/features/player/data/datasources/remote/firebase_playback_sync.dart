@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutbook/core/error/exceptions.dart';
-import 'package:flutbook/features/playback/domain/entities/playback_session.dart';
+import 'package:flutbook/features/player/domain/entities/playback_session.dart';
 
 class PlaybackRemoteDatasource {
   PlaybackRemoteDatasource({FirebaseFirestore? firestore, FirebaseAuth? auth})

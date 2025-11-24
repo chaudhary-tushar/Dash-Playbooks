@@ -29,7 +29,8 @@
                 "Dart-Code.flutter",
                 "felixangelov.bloc",
                 "zhuangtongfa.Material-theme",
-                "GitHub.copilot"
+                "GitHub.copilot",
+                "kilocode.kilo-code"
             ],
             "settings": {
                 "dart.lineLength": 100,

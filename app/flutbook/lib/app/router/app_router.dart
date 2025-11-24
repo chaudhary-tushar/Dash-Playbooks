@@ -1,12 +1,14 @@
 /// Core navigation router for the Flutbook application.
-/// Defines route generation logic using [MaterialPageRoute] for key screens like splash, auth, library, and playback.
+/// Defines route generation logic using [MaterialPageRoute] for key screens like splash, auth, library, and player.
 library;
 
 import 'package:flutbook/features/auth/presentation/login.dart';
-import 'package:flutbook/features/library/data/models/audiobook_model.dart';
-import 'package:flutbook/features/library/presentation/views/library_screen.dart';
-import 'package:flutbook/features/playback/presentation/views/playback_screen.dart';
-import 'package:flutbook/features/settings/presentation/view/settings_screen.dart';
+// import 'package:flutbook/features/library/data/models/audiobook_model.dart';
+// import 'package:flutbook/features/library/presentation/views/library_screen.dart';
+// import 'package:flutbook/features/player/presentation/views/playback_screen.dart';
+// import 'package:flutbook/features/settings/presentation/view/settings_screen.dart';
+import 'package:flutbook/_dev_stubs.dart';
+
 import 'package:flutbook/features/splash/presentation/view/splash_screen.dart';
 import 'package:flutter/material.dart';
 

@@ -16,6 +16,7 @@ class MetadataExtractionDatasource {
   final AudiobookLocalDatasource _audiobookLocalDatasource;
 
   /// Extracts metadata from an audio file at the given path
+  /// TODO: Integrate audio_tags package for full ID3v2, MP4 tags, cover art extraction, advanced chapter parsing
   Future<Audiobook?> extractMetadata(String filePath) async {
     try {
       final file = File(filePath);
@@ -55,11 +56,12 @@ class MetadataExtractionDatasource {
 
         // Additional processing for m4b files with chapter support
         if (fileExtension == '.m4b') {
-          chapters = await _extractChaptersFromM4b(filePath);
+          chapters = await _extractChaptersFromM4b(filePath, duration ?? Duration.zero);
         }
 
         // Close the audio player
         await audioPlayer.dispose();
+        coverArtPath = await _extractCoverArt(filePath);
       } catch (e) {
         // If metadata extraction fails, fall back to filename and basic info
         print('Warning: Failed to extract metadata for $filePath: $e');
@@ -148,20 +150,25 @@ class MetadataExtractionDatasource {
   }
 
   /// Extracts chapter information from m4b files
-  Future<List<Chapter>> _extractChaptersFromM4b(String filePath) async {
-    // In a real implementation, we would use a proper library to parse chapter data from m4b files
-    // For now, we'll return an empty list as placeholder
-    // Possible libraries to implement this: dart:ffi with FFmpeg bindings or similar
-    return [];
+  Future<List<Chapter>> _extractChaptersFromM4b(String filePath, Duration duration) async {
+    // TODO: proper M4B chapter parsing using specialized library
+    // For now, dummy full book chapter
+    if (duration.inSeconds <= 0) return <Chapter>[];
+    return [
+      Chapter(
+        id: _generateId(filePath) + '_full',
+        title: path.basenameWithoutExtension(filePath),
+        startTime: Duration.zero,
+        endTime: duration,
+      ),
+    ];
   }
 
   /// Extracts cover art from audio file if available
   /// Returns path to temporary file with cover art, or null if none found
-  // ignore: unused_element
   Future<String?> _extractCoverArt(String filePath) async {
-    // In a real implementation, we would extract cover art from the audio file's metadata
-    // For now, return null as placeholder
-    // Possible approach: use a package that can extract images from metadata
+    // TODO: Extract cover art using audio_tags or similar
+    // Save artwork bytes to temp file
     return null;
   }
 

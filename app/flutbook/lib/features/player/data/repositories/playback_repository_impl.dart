@@ -1,9 +1,9 @@
 // lib/data/repositories/playback_repository_impl.dart
 import 'package:flutbook/core/error/exceptions.dart';
 import 'package:flutbook/data/datasources/local/audiobook_local_datasource.dart';
-import 'package:flutbook/features/playback/data/datasources/remote/firebase_playback_sync.dart';
-import 'package:flutbook/features/playback/domain/entities/playback_session.dart';
-import 'package:flutbook/features/playback/domain/repositories/playback_repository.dart';
+import 'package:flutbook/features/player/data/datasources/remote/firebase_playback_sync.dart';
+import 'package:flutbook/features/player/domain/entities/playback_session.dart';
+import 'package:flutbook/features/player/domain/repositories/playback_repository.dart';
 
 class PlaybackRepositoryImpl implements PlaybackRepository {
   // Nullable for anonymous users

@@ -103,4 +103,8 @@ class LibraryRemoteDatasource {
       throw DatabaseException('Failed to delete audiobook metadata: $e');
     }
   }
+
+  Future<void> syncAll() async {
+    // Stub: Full library sync to be implemented
+  }
 }

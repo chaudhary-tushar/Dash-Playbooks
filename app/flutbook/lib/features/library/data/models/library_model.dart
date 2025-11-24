@@ -9,7 +9,7 @@ import 'package:flutbook/features/library/data/models/audiobook_model.dart'
     show AudiobookModel, ChapterModel;
 import 'package:flutbook/features/library/data/models/audiobook_model.dart';
 import 'package:flutbook/features/library/domain/entities/library.dart' as domain;
-import 'package:flutbook/features/playback/data/models/playback_session_model.dart'
+import 'package:flutbook/features/player/data/models/playback_session_model.dart'
     show PlaybackSessionModel;
 import 'package:isar_community/isar.dart';
 

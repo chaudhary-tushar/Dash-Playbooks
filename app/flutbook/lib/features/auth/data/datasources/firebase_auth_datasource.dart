@@ -206,6 +206,14 @@ class FirebaseAuthDatasource {
     }
   }
 
+
+  /// Signs in anonymously
+  Future<AuthResult> signInAnonymously() async {
+    try {
+      final userCredential = await _firebaseAuth.signInAnonymously();
+      final user = userCredential.user;
+      if (user != null) {
+        final
   /// Signs out the current user
   Future<void> signOut() async {
     await _firebaseAuth.signOut();
@@ -220,7 +228,9 @@ class FirebaseAuthDatasource {
         id: user.uid,
         email: user.email ?? '',
         displayName: user.displayName,
-        authMethod: 'email_password', // Default assumption; in real impl would track auth method
+        authMethod: user.providerData.isNotEmpty
+            ? user.providerData.first.providerId ?? 'anonymous'
+            : 'anonymous',
         syncEnabled: true,
       );
     }

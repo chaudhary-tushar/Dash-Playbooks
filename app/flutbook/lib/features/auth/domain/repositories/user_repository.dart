@@ -18,6 +18,12 @@ abstract class UserRepository {
   /// Gets the current authenticated user
   Future<UserProfile?> getCurrentUser();
 
+  /// Signs in anonymously
+  Future<AuthResult> anonymousSignIn();
+
+  /// Streams authentication state changes
+  Stream<UserProfile?> authStateChanges();
+
   /// Gets sync status
   Future<SyncStatus> getSyncStatus();
 

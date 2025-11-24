@@ -2,9 +2,9 @@
 import 'dart:async';
 
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
-import 'package:flutbook/features/playback/data/repositories/playback_repository_impl.dart';
-import 'package:flutbook/features/playback/domain/entities/playback_session.dart';
-import 'package:flutbook/presentation/services/audio_service_handler.dart';
+import 'package:flutbook/features/player/data/datasources/audio_service_handler.dart';
+import 'package:flutbook/features/player/data/repositories/playback_repository_impl.dart';
+import 'package:flutbook/features/player/domain/entities/playback_session.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // State classes for playback

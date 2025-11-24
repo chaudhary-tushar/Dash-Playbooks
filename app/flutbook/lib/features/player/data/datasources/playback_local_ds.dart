@@ -1,6 +1,6 @@
 import 'package:flutbook/core/error/exceptions.dart';
-import 'package:flutbook/features/playback/data/models/playback_session_model.dart';
-import 'package:flutbook/features/playback/domain/entities/playback_session.dart';
+import 'package:flutbook/features/player/data/models/playback_session_model.dart';
+import 'package:flutbook/features/player/domain/entities/playback_session.dart';
 import 'package:isar_community/isar.dart';
 
 class PlaybackLocalDatasource {

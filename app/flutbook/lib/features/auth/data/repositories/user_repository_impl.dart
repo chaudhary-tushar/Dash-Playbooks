@@ -4,7 +4,7 @@ import 'package:flutbook/features/auth/domain/entities/user_profile.dart';
 import 'package:flutbook/features/auth/domain/repositories/user_repository.dart'
     show AuthResult, SyncResult, SyncStatus, UserRepository, UserSettings;
 import 'package:flutbook/features/library/data/datasources/remote/firebase_library_sync.dart';
-import 'package:flutbook/features/playback/data/datasources/remote/firebase_playback_sync.dart';
+import 'package:flutbook/features/player/data/datasources/remote/firebase_playback_sync.dart';
 import 'package:flutbook/features/settings/data/datasources/preferences_datasource.dart';
 
 class UserRepositoryImpl implements UserRepository {
