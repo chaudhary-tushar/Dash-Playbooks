@@ -39,7 +39,7 @@ class App extends StatelessWidget {
     return MaterialApp(
       title: 'Flutbook',
       theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
+      // darkTheme: AppTheme.darkTheme,
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,

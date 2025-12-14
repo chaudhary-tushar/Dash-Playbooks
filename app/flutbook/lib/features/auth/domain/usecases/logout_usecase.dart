@@ -1,9 +1,9 @@
-import '../repositories/user_repository.dart' show UserRepository;
+import 'package:flutbook/features/auth/domain/repositories/user_repository.dart' show UserRepository;
 
 class LogoutUsecase {
-  final UserRepository repository;
 
   const LogoutUsecase(this.repository);
+  final UserRepository repository;
 
   Future<void> call() async {
     try {

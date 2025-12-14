@@ -11,10 +11,10 @@ class Chapter {
 
   factory Chapter.fromMap(Map<String, dynamic> map) {
     return Chapter(
-      id: map['id'] ?? '',
-      title: map['title'] ?? '',
-      startTime: Duration(milliseconds: map['startTime']?.toInt() ?? 0),
-      endTime: Duration(milliseconds: map['endTime']?.toInt() ?? 0),
+      id: map['id'] as String? ?? '',
+      title: map['title'] as String? ?? '',
+      startTime: Duration(milliseconds: map['startTime'] as int? ?? 0),
+      endTime: Duration(milliseconds: map['endTime'] as int? ?? 0),
     );
   }
 

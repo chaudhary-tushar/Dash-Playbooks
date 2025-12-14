@@ -12,8 +12,9 @@ class LibraryScreen extends StatelessWidget {
 }
 
 class PlaybackScreen extends StatelessWidget {
-  final dynamic audiobook; // ignore real model
-  const PlaybackScreen({super.key, required this.audiobook});
+  // ignore real model
+  const PlaybackScreen({required this.audiobook, super.key});
+  final dynamic audiobook;
 
   @override
   Widget build(BuildContext context) {

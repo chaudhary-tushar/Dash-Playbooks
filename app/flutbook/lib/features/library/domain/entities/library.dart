@@ -16,19 +16,19 @@ class Library {
 
   factory Library.fromMap(Map<String, dynamic> map) {
     return Library(
-      id: map['id'] ?? '',
-      name: map['name'] ?? '',
-      path: map['path'] ?? '',
+      id: map['id'] as String? ?? '',
+      name: map['name'] as String? ?? '',
+      path: map['path'] as String? ?? '',
       audiobooks: List<Audiobook>.from(
         (map['audiobooks'] as List<dynamic>).map<Audiobook>(
           (x) => Audiobook.fromMap(x as Map<String, dynamic>),
         ),
       ),
       lastScanAt: DateTime.fromMillisecondsSinceEpoch(
-        map['lastScanAt']?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
+        map['lastScanAt'] as int? ?? DateTime.now().millisecondsSinceEpoch,
       ),
-      totalAudiobooks: map['totalAudiobooks']?.toInt() ?? 0,
-      totalDuration: Duration(milliseconds: map['totalDuration']?.toInt() ?? 0),
+      totalAudiobooks: map['totalAudiobooks'] as int? ?? 0,
+      totalDuration: Duration(milliseconds: map['totalDuration'] as int? ?? 0),
     );
   }
 

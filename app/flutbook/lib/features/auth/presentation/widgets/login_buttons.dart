@@ -25,7 +25,16 @@ class LoginButtons extends ConsumerWidget {
         _LoginButton(
           iconPath: 'assets/icons/apple.png',
           label: 'Continue with Apple',
-          onTap: () {},
+          onTap: () {
+            Navigator.pushNamed(
+              context,
+              '/directory',
+              arguments: {
+                'initialDirectory': '',
+                'onDirectorySelected': null,
+              },
+            );
+          },
         ),
         const SizedBox(height: 24),
         const Divider(),

@@ -67,7 +67,7 @@ class FirebaseAuthDatasource {
     } on FirebaseAuthException catch (e) {
       return AuthResult(
         success: false,
-        errorMessage: _mapAuthError(e.code),
+        errorMessage: mapAuthError(e.code),
       );
     } catch (e) {
       return AuthResult(
@@ -112,7 +112,7 @@ class FirebaseAuthDatasource {
     } on FirebaseAuthException catch (e) {
       return AuthResult(
         success: false,
-        errorMessage: _mapAuthError(e.code),
+        errorMessage: mapAuthError(e.code),
       );
     } catch (e) {
       return AuthResult(
@@ -196,7 +196,7 @@ class FirebaseAuthDatasource {
     } on FirebaseAuthException catch (e) {
       return AuthResult(
         success: false,
-        errorMessage: _mapAuthError(e.code),
+        errorMessage: mapAuthError(e.code),
       );
     } on Exception catch (e) {
       return AuthResult(
@@ -206,15 +206,15 @@ class FirebaseAuthDatasource {
     }
   }
 
-
   /// Signs in anonymously
-  Future<AuthResult> signInAnonymously() async {
-    try {
-      final userCredential = await _firebaseAuth.signInAnonymously();
-      final user = userCredential.user;
-      if (user != null) {
-        final
-  /// Signs out the current user
+  // Future<AuthResult> signInAnonymously() async {
+  //   try {
+  //     final userCredential = await _firebaseAuth.signInAnonymously();
+  //     final user = userCredential.user;
+  //     if (user != null) {
+  //         /// Signs out the current user
+  //         ///
+
   Future<void> signOut() async {
     await _firebaseAuth.signOut();
     await _googleSignIn.signOut();
@@ -228,9 +228,7 @@ class FirebaseAuthDatasource {
         id: user.uid,
         email: user.email ?? '',
         displayName: user.displayName,
-        authMethod: user.providerData.isNotEmpty
-            ? user.providerData.first.providerId ?? 'anonymous'
-            : 'anonymous',
+        authMethod: user.providerData.isNotEmpty ? user.providerData.first.providerId : 'anonymous',
         syncEnabled: true,
       );
     }
@@ -238,7 +236,7 @@ class FirebaseAuthDatasource {
   }
 
   /// Maps Firebase error codes to user-friendly messages
-  String _mapAuthError(String errorCode) {
+  String mapAuthError(String errorCode) {
     switch (errorCode) {
       case 'user-not-found':
         return 'No user found for that email.';

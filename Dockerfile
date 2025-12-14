@@ -33,7 +33,20 @@ ENV PATH=$PATH:$ANDROID_HOME/tools:$ANDROID_HOME/platform-tools
 # Agree to Android licenses
 RUN yes | flutter doctor --android-licenses 2>/dev/null || true
 
-WORKDIR /app
+USER root
+RUN chown -R ubuntu:ubuntu /home/ubuntu
+
+USER ubuntu
+WORKDIR /home/ubuntu
+
+# Fix ownership if needed
+RUN sudo chown -R ubuntu:ubuntu /sdks/flutter || true && \
+    sudo chown -R ubuntu:ubuntu /opt/flutter || true
+
+# Allow Git operations on flutter SDK paths
+RUN git config --global --add safe.directory /opt/flutter && \
+    git config --global --add safe.directory /sdks/flutter && \
+    git config --global --add safe.directory /sdks/flutter/.git
 
 # Pre-pull Flutter dependencies
 RUN flutter config --enable-web && \

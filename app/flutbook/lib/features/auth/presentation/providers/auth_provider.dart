@@ -1,26 +1,40 @@
+import 'package:flutbook/features/auth/data/datasources/firebase_auth_datasource.dart';
+import 'package:flutbook/features/auth/data/repositories/user_repository_impl.dart';
+import 'package:flutbook/features/auth/domain/entities/user_profile.dart';
+import 'package:flutbook/features/auth/domain/repositories/user_repository.dart';
+import 'package:flutbook/features/auth/domain/usecases/anonymous_login_usecase.dart';
+import 'package:flutbook/features/auth/domain/usecases/get_current_user_usecase.dart';
+import 'package:flutbook/features/auth/domain/usecases/google_signin_usecase.dart';
+import 'package:flutbook/features/auth/domain/usecases/login_usecase.dart';
+import 'package:flutbook/features/auth/domain/usecases/logout_usecase.dart';
+import 'package:flutbook/features/library/data/datasources/remote/firebase_library_sync.dart';
+import 'package:flutbook/features/player/data/datasources/remote/firebase_playback_sync.dart';
+import 'package:flutbook/features/settings/data/datasources/preferences_datasource.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../../data/datasources/firebase_auth_datasource.dart';
-import '../../../data/repositories/user_repository_impl.dart';
-import '../../../domain/repositories/user_repository.dart';
-import '../../../domain/usecases/anonymous_login_usecase.dart';
-import '../../../domain/usecases/login_usecase.dart';
-import '../../../domain/usecases/google_signin_usecase.dart';
-import '../../../domain/usecases/logout_usecase.dart';
-import '../../../domain/usecases/get_current_user_usecase.dart';
-import '../../entities/user_profile.dart';
 
 final firebaseAuthDatasourceProvider = Provider<FirebaseAuthDatasource>(
   (ref) => FirebaseAuthDatasource(),
 );
 
+final libraryRemoteDatasourceProvider = Provider<LibraryRemoteDatasource>(
+  (ref) => LibraryRemoteDatasource(),
+);
+
+final playbackRemoteDatasourceProvider = Provider<PlaybackRemoteDatasource>(
+  (ref) => PlaybackRemoteDatasource(),
+);
+
+final preferencesDatasourceProvider = Provider<PreferencesDatasource>(
+  (ref) => PreferencesDatasource(),
+);
+
 final userRepositoryProvider = Provider<UserRepository>(
   (ref) => UserRepositoryImpl(
     authDatasource: ref.watch(firebaseAuthDatasourceProvider),
-    // Stub other deps for auth focus
-    syncDatasource: throw UnimplementedError(),
-    playbackRemoteDatasource: throw UnimplementedError(),
-    preferencesDatasource: throw UnimplementedError(),
+    // Provide other deps using available providers
+    syncDatasource: ref.watch(libraryRemoteDatasourceProvider),
+    playbackRemoteDatasource: ref.watch(playbackRemoteDatasourceProvider),
+    preferencesDatasource: ref.watch(preferencesDatasourceProvider),
   ),
 );
 
@@ -51,3 +65,7 @@ final authStateProvider = StreamProvider<UserProfile?>(
 final isAuthenticatedProvider = Provider<bool>(
   (ref) => ref.watch(authStateProvider).valueOrNull != null,
 );
+
+extension on AsyncValue<UserProfile?> {
+  Null get valueOrNull => null;
+}

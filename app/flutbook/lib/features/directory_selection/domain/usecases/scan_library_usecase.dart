@@ -1,7 +1,6 @@
 // lib/domain/usecases/scan_library_usecase.dart
 
-import '../../data/datasources/metadat_extractor_ds.dart';
-import 'package:flutbook/features/library/domain/entities/audiobook.dart';
+import 'package:flutbook/features/directory_selection/data/datasources/metadat_extractor_ds.dart';
 
 abstract class ScanLibraryUseCase {
   /// Scans a directory and updates the local library
@@ -36,7 +35,7 @@ class ScanLibraryUseCaseImpl implements ScanLibraryUseCase {
   @override
   Future<ScanResult> execute(String directoryPath) async {
     final stopwatch = Stopwatch()..start();
-    final List<String> errors = <String>[];
+    final errors = <String>[];
     try {
       final audiobooks = await extractor.scanDirectory(directoryPath);
       stopwatch.stop();
@@ -48,10 +47,9 @@ class ScanLibraryUseCaseImpl implements ScanLibraryUseCase {
         scanCompletedAt: DateTime.now(),
       );
     } catch (e, stackTrace) {
-      errors.add(e.toString());
-      if (stackTrace != null) {
-        errors.add(stackTrace.toString());
-      }
+      errors
+        ..add(e.toString())
+        ..add(stackTrace.toString());
       stopwatch.stop();
       return ScanResult(
         scannedFiles: 0,

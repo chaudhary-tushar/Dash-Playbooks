@@ -56,7 +56,7 @@ class MetadataExtractionDatasource {
 
         // Additional processing for m4b files with chapter support
         if (fileExtension == '.m4b') {
-          chapters = await _extractChaptersFromM4b(filePath, duration ?? Duration.zero);
+          chapters = await _extractChaptersFromM4b(filePath, duration);
         }
 
         // Close the audio player
@@ -156,7 +156,7 @@ class MetadataExtractionDatasource {
     if (duration.inSeconds <= 0) return <Chapter>[];
     return [
       Chapter(
-        id: _generateId(filePath) + '_full',
+        id: '${_generateId(filePath)}_full',
         title: path.basenameWithoutExtension(filePath),
         startTime: Duration.zero,
         endTime: duration,

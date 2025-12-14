@@ -3,6 +3,8 @@
 import 'package:flutbook/core/error/exceptions.dart';
 import 'package:flutbook/features/library/data/datasources/audiobook_local_ds.dart';
 import 'package:flutbook/features/library/data/datasources/remote/firebase_library_sync.dart';
+import 'package:flutbook/features/library/data/models/audiobook_model.dart';
+import 'package:flutbook/features/library/domain/entities/audiobook.dart';
 import 'package:flutbook/features/library/domain/entities/library.dart';
 import 'package:flutbook/features/library/domain/repositories/library_repository.dart';
 
@@ -55,7 +57,7 @@ class LibraryRepositoryImpl implements LibraryRepository {
         try {
           // For each audiobook, upload its metadata to remote
           for (final audiobook in audiobooks) {
-            await _remoteDatasource.uploadAudiobookMetadata(audiobook);
+            await _remoteDatasource.uploadAudiobookMetadata(audiobook as AudiobookModel);
           }
         } catch (e) {
           print('Warning: Could not sync library changes to remote: $e');
@@ -128,16 +130,15 @@ class LibraryRepositoryImpl implements LibraryRepository {
     }
   }
 
-  @override
-  Future<String?> _getLibraryPath() async {
+  Future<String> _getLibraryPath() async {
     try {
       // Get library path from settings
       final settings = await _localDatasource.getSettings();
-      return settings['library_path'];
+      return settings['library_path'] as String;
     } catch (e) {
       // If getting settings fails, return null
       print('Warning: Could not get library path from settings: $e');
-      return null;
+      return 'None';
     }
   }
 
@@ -212,20 +213,22 @@ class LibraryRepositoryImpl implements LibraryRepository {
       return false;
     }
   }
-}
 
-/// Statistics about the library
-class LibraryStats {
-  const LibraryStats({
-    required this.totalBooks,
-    required this.inProgress,
-    required this.completed,
-    required this.notStarted,
-    required this.totalDuration,
-  });
-  final int totalBooks;
-  final int inProgress;
-  final int completed;
-  final int notStarted;
-  final Duration totalDuration;
+  @override
+  Future<List<Audiobook>> filterInLibrary(AudiobookFilter filter) {
+    // TODO: implement filterInLibrary
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<String?> getLibraryPath() {
+    // TODO: implement getLibraryPath
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<Audiobook>> searchInLibrary(String query) {
+    // TODO: implement searchInLibrary
+    throw UnimplementedError();
+  }
 }

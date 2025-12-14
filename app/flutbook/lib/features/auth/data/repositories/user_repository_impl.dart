@@ -236,6 +236,18 @@ class UserRepositoryImpl implements UserRepository {
       throw Exception('Failed to set local library path: $e');
     }
   }
+
+  @override
+  Future<AuthResult> anonymousSignIn() {
+    // TODO: implement anonymousSignIn
+    throw UnimplementedError();
+  }
+
+  @override
+  Stream<UserProfile?> authStateChanges() {
+    // TODO: implement authStateChanges
+    throw UnimplementedError();
+  }
 }
 
 // features/auth/data/repositories/user_repository_impl.dart

@@ -11,14 +11,21 @@ services:
     platform: linux/amd64
     stdin_open: true
     tty: true
-    working_dir: /root/app
+    user: "1000:1000"
+    working_dir: /home/ubuntu/app
+    security_opt:
+      - apparmor=unconfined
+      - seccomp=unconfined
     volumes:
-      - ./app:/root/app
-      - ./.volumes/pub-cache:/root/.pub-cache
+      - ./app:/home/ubuntu/app
+      - ./.volumes/pub-cache:/home/ubuntu/.pub-cache
       - ./.volumes/flutter-bin:/opt/flutter
       - ./.volumes/android-sdk:/opt/android-sdk-linux
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - $XDG_RUNTIME_DIR:/tmp/runtime-vscode
+      - /run/user/1000/bus:/run/user/1000/bus
+      - /run/user/1000:/run/user/1000
+      - ${HOME}:/host-home:rw    #  <--- ADD THIS LINE
     ports:
       - "3000:3000"  # Development server
       - "8000:8000"  # Web server for testing
@@ -28,10 +35,11 @@ services:
       - FLUTTER_ROOT=/opt/flutter
       - ANDROID_HOME=/opt/android-sdk-linux
       - ANDROID_SDK_ROOT=/opt/android-sdk-linux
-      - PUB_CACHE=/root/.pub-cache
+      - PUB_CACHE=/home/ubuntu/.pub-cache
       - DISPLAY=${DISPLAY}
+      - DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus
       - WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-}
-      - XDG_RUNTIME_DIR=/tmp/runtime-vscode
+      - XDG_RUNTIME_DIR=/run/user/1000
       - GDK_BACKEND=x11
     # command: /usr/bin/bash
     entrypoint: ["/bin/bash"]
