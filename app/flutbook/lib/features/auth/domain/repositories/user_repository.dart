@@ -35,6 +35,24 @@ abstract class UserRepository {
 
   /// Updates user settings
   Future<void> updateUserSettings(UserSettings settings);
+
+  /// Updates remote data for a specific item
+  Future<void> updateRemoteData(String itemId, dynamic data);
+
+  /// Updates local data for a specific item
+  Future<void> updateLocalData(String itemId, dynamic data);
+
+  /// Updates remote progress for a specific item
+  Future<void> updateRemoteProgress(String itemId, int position);
+
+  /// Updates local progress for a specific item
+  Future<void> updateLocalProgress(String itemId, int position);
+
+  /// Deletes audiobook from remote storage
+  Future<void> deleteRemoteAudiobook(String itemId);
+
+  /// Deletes audiobook from local storage
+  Future<void> deleteLocalAudiobook(String itemId);
 }
 
 class AuthResult {

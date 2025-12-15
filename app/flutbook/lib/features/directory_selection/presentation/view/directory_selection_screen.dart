@@ -1,27 +1,43 @@
 // lib/presentation/screens/directory_selection_screen.dart
-import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
 
-class DirectorySelectionScreen extends StatefulWidget {
+import 'package:file_picker/file_picker.dart';
+import 'package:flutbook/core/provider/providers.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+/// Screen for selecting a directory containing audiobooks.
+///
+/// This screen:
+/// - Allows user to browse and select a directory
+/// - Injects the ScanLibraryUseCase via Riverpod
+/// - Executes the scanning workflow when Continue is pressed
+/// - Navigates to the Library screen after successful scan
+class DirectorySelectionScreen extends ConsumerStatefulWidget {
   const DirectorySelectionScreen({
-    required this.onDirectorySelected,
-    super.key,
     this.initialDirectory,
+    super.key,
   });
-  final void Function(String)? onDirectorySelected;
+
   final String? initialDirectory;
 
   @override
-  _DirectorySelectionScreenState createState() => _DirectorySelectionScreenState();
+  ConsumerState<DirectorySelectionScreen> createState() => _DirectorySelectionScreenState();
 }
 
-class _DirectorySelectionScreenState extends State<DirectorySelectionScreen> {
-  String? _selectedDirectory;
+class _DirectorySelectionScreenState extends ConsumerState<DirectorySelectionScreen> {
+  late String? _selectedDirectory;
 
   @override
   void initState() {
     super.initState();
     _selectedDirectory = widget.initialDirectory;
+  }
+
+  String mapHostPathToContainer(String originalPath) {
+    if (originalPath.startsWith('/home/')) {
+      return originalPath.replaceFirst('/home/romeo/', '/host-home/');
+    }
+    return originalPath;
   }
 
   Future<void> _selectDirectory() async {
@@ -34,9 +50,73 @@ class _DirectorySelectionScreenState extends State<DirectorySelectionScreen> {
         });
       }
     } catch (e) {
-      // Use the error handling infrastructure created earlier
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error selecting directory: $e')),
+      );
+    }
+  }
+
+  Future<void> _handleContinuePressed() async {
+    if (_selectedDirectory == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a directory first')),
+      );
+      return;
+    }
+
+    final path = mapHostPathToContainer(_selectedDirectory!);
+
+    try {
+      // Get the use case from Riverpod
+      final scanUseCase = await ref.read(scanLibraryUseCaseProvider.future);
+
+      // Show loading indicator
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Scanning directory... $path'),
+          duration: const Duration(milliseconds: 5000),
+        ),
+      );
+
+      // Execute the scan
+      print('DEBUG - Starting scan for $path');
+      final result = await scanUseCase.execute(path);
+      print('DEBUG - Scan finished');
+      print('Scanned files: ${result.scannedFiles}');
+      print('Errors: ${result.errors}');
+      print('Elapsed: ${result.elapsedTime}');
+      print('Total size: ${result.totalSize}');
+
+      if (!mounted) return;
+
+      // Hide the loading snackbar
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      // Show result
+      final message = result.success
+          ? 'Scanned ${result.scannedFiles} files in ${result.elapsedTime.inSeconds}s'
+          : 'Scan completed with errors. Check logs for details.';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+
+      // Navigate to Library screen after successful scan
+      if (result.scannedFiles > 0) {
+        Navigator.of(context).pushReplacementNamed('/library');
+      }
+    } catch (e) {
+      print('Error during scan: $e');
+      if (!mounted) return;
+
+      // Hide the loading snackbar
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      // Show error
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error scanning directory: $e')),
       );
     }
   }
@@ -134,7 +214,7 @@ class _DirectorySelectionScreenState extends State<DirectorySelectionScreen> {
             if (_selectedDirectory != null) ...[
               const SizedBox(height: 16),
               ElevatedButton(
-                onPressed: () => widget.onDirectorySelected?.call(_selectedDirectory!),
+                onPressed: _handleContinuePressed,
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   backgroundColor: Theme.of(context).colorScheme.primary,

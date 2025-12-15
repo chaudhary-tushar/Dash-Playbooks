@@ -63,12 +63,17 @@ class PlaybackState {
 }
 
 // Main playback provider
-final playbackProvider = StateNotifierProvider<PlaybackNotifier, PlaybackState>(
+final playbackProvider = NotifierProvider<PlaybackNotifier, PlaybackState>(
   PlaybackNotifier.new,
 );
 
-class PlaybackNotifier extends StateNotifier<PlaybackState> {
-  PlaybackNotifier(this.ref) : super(PlaybackState.initial()) {
+class PlaybackNotifier extends Notifier<PlaybackState> {
+  late final AudioServiceHandler _audioService;
+  late final PlaybackRepositoryImpl _playbackRepo;
+  late final StreamSubscription<dynamic> _playbackStreamSubscription;
+
+  @override
+  PlaybackState build() {
     _audioService = ref.read(audioServiceProvider);
     _playbackRepo = ref.read(playbackRepositoryProvider);
 
@@ -86,11 +91,14 @@ class PlaybackNotifier extends StateNotifier<PlaybackState> {
         state = state.copyWith(errorMessage: error.toString());
       },
     );
+
+    ref.onDispose(() {
+      _playbackStreamSubscription.cancel();
+      _audioService.dispose();
+    });
+
+    return PlaybackState.initial();
   }
-  final Ref ref;
-  final AudioServiceHandler _audioService;
-  final PlaybackRepositoryImpl _playbackRepo;
-  final _playbackStreamSubscription = StreamSubscription.none;
 
   // Set the current audiobook to play
   Future<void> setCurrentAudiobook(Audiobook audiobook) async {
@@ -238,13 +246,6 @@ class PlaybackNotifier extends StateNotifier<PlaybackState> {
 
     await seekTo(clampedPosition);
   }
-
-  @override
-  void dispose() {
-    _playbackStreamSubscription.cancel();
-    _audioService.dispose();
-    super.dispose();
-  }
 }
 
 // Providers for dependencies
@@ -259,4 +260,4 @@ final playbackRepositoryProvider = Provider<PlaybackRepositoryImpl>((ref) {
   );
 });
 
-final currentAudiobookProvider = StateProvider<Audiobook?>((ref) => null);
+final currentAudiobookProvider = Provider<Audiobook?>((ref) => null);

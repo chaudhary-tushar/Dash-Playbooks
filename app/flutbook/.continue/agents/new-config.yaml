@@ -1,0 +1,33 @@
+name: Context-Assistant
+version: 1.0.10
+schema: v1
+models:
+  - uses: google/gemini-2.0-flash
+    with:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+  - uses: openrouter/gpt-oss-120b
+    with:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+  - uses: openrouter/qwen3-coder
+    with:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+  - uses: google/gemini-2.5-pro
+    with:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    override:
+      roles:
+        - chat
+        - edit
+  - uses: mistral/codestral
+    with:
+      MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+    override:
+      roles:
+        - autocomplete
+        - apply
+context:
+  - uses: continuedev/diff-context
+  - uses: continuedev/terminal-context
+  - uses: continuedev/file-context
+mcpServers:
+  - uses: upstash/context7-mcp

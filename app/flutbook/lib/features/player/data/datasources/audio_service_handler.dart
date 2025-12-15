@@ -1,42 +1,63 @@
 // lib/platform/audio_service_handler.dart
 import 'dart:async';
 
-import 'package:audio_service/audio_service.dart';
+import 'package:audio_service/audio_service.dart' as audio_service;
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
 import 'package:just_audio/just_audio.dart';
 
-MediaControl playControl = const MediaControl(
+// Define a simple PlaybackState class for internal use that matches the expected structure
+class PlaybackState {
+  PlaybackState({
+    required this.isPlaying,
+    required this.currentPosition,
+    required this.playbackSpeed,
+    required this.sleepTimerActive,
+    required this.audiobookId,
+    required this.lastPlayedAt,
+    this.sleepTimerDuration,
+    this.duration,
+  });
+
+  final bool isPlaying;
+  final Duration currentPosition;
+  final double playbackSpeed;
+  final bool sleepTimerActive;
+  final String audiobookId;
+  final DateTime lastPlayedAt;
+  final Duration? sleepTimerDuration;
+  final Duration? duration;
+}
+
+audio_service.MediaControl playControl = const audio_service.MediaControl(
   androidIcon: 'drawable/ic_action_play_arrow',
   label: 'Play',
-  action: MediaAction.play,
+  action: audio_service.MediaAction.play,
 );
-MediaControl pauseControl = const MediaControl(
+audio_service.MediaControl pauseControl = const audio_service.MediaControl(
   androidIcon: 'drawable/ic_action_pause',
   label: 'Pause',
-  action: MediaAction.pause,
+  action: audio_service.MediaAction.pause,
 );
-MediaControl skipForwardControl = const MediaControl(
+audio_service.MediaControl skipForwardControl = const audio_service.MediaControl(
   androidIcon: 'drawable/ic_action_skip_next',
   label: 'Skip Forward',
-  action: MediaAction.skipToNext,
+  action: audio_service.MediaAction.skipToNext,
 );
-MediaControl skipBackwardControl = const MediaControl(
+audio_service.MediaControl skipBackwardControl = const audio_service.MediaControl(
   androidIcon: 'drawable/ic_action_skip_previous',
   label: 'Skip Backward',
-  action: MediaAction.skipToPrevious,
+  action: audio_service.MediaAction.skipToPrevious,
 );
 
-class AudioServiceHandler {
+class AudioServiceHandler extends audio_service.BaseAudioHandler {
   AudioServiceHandler() {
     _setupPlayer();
-    _handler = _createAudioHandler();
   }
   static const _skipInterval = Duration(seconds: 30);
 
   final AudioPlayer _player = AudioPlayer();
   final _playbackStateStream = StreamController<PlaybackState>();
 
-  late final AudioHandler _handler;
   Stream<PlaybackState> get playbackStateStream => _playbackStateStream.stream;
 
   // Current audiobook being played
@@ -45,27 +66,113 @@ class AudioServiceHandler {
   Timer? _sleepTimer;
   bool _sleepTimerActive = false;
 
-  AudioHandler _createAudioHandler() {
-    return AudioServiceBackground.run(
-      onStart: _onStart,
-      onPlay: _onPlay,
-      onPause: _onPause,
-      onClick: _onClick,
-      onStop: _onStop,
-      onSkipToNext: _onSkipToNext,
-      onSkipToPrevious: _onSkipToPrevious,
-      onSeekTo: _onSeekTo,
-      onSetSpeed: _onSetSpeed,
+  @override
+  Future<void> play() async {
+    await _player.play();
+    _updatePlaybackState(
+      PlaybackState(
+        isPlaying: true,
+        currentPosition: _player.position,
+        playbackSpeed: _player.speed,
+        sleepTimerActive: _sleepTimerActive,
+        audiobookId: _currentAudiobook?.id ?? '',
+        lastPlayedAt: DateTime.now(),
+      ),
     );
+  }
+
+  @override
+  Future<void> pause() async {
+    await _player.pause();
+    _updatePlaybackState(
+      PlaybackState(
+        isPlaying: false,
+        currentPosition: _player.position,
+        playbackSpeed: _player.speed,
+        sleepTimerActive: _sleepTimerActive,
+        audiobookId: _currentAudiobook?.id ?? '',
+        lastPlayedAt: DateTime.now(),
+      ),
+    );
+  }
+
+  @override
+  Future<void> stop() async {
+    await _player.stop();
+    _updatePlaybackState(
+      PlaybackState(
+        isPlaying: false,
+        currentPosition: _player.position,
+        playbackSpeed: _player.speed,
+        sleepTimerActive: _sleepTimerActive,
+        audiobookId: _currentAudiobook?.id ?? '',
+        lastPlayedAt: DateTime.now(),
+      ),
+    );
+  }
+
+  @override
+  Future<void> skipToNext() async {
+    await _player.seek(_player.position + _skipInterval);
+  }
+
+  @override
+  Future<void> skipToPrevious() async {
+    final newPosition = _player.position - _skipInterval;
+    if (newPosition.isNegative) {
+      await _player.seek(Duration.zero);
+    } else {
+      await _player.seek(newPosition);
+    }
+  }
+
+  @override
+  Future<void> seek(Duration position) async {
+    await _player.seek(position);
+  }
+
+  @override
+  Future<void> setSpeed(double speed) async {
+    await _player.setSpeed(speed);
+  }
+
+  @override
+  Future<void> onMediaButton(audio_service.MediaButton button) async {
+    // Simplified media button handling
+    if (button == audio_service.MediaButton.media) {
+      if (_player.playing) {
+        await pause();
+      } else {
+        await play();
+      }
+    }
   }
 
   Future<void> _setupPlayer() async {
     // Set up player event listeners
     _player.playerStateStream.listen((playerState) {
       if (playerState.playing) {
-        _updatePlaybackState(PlaybackState.playing);
+        _updatePlaybackState(
+          PlaybackState(
+            isPlaying: true,
+            currentPosition: _player.position,
+            playbackSpeed: _player.speed,
+            sleepTimerActive: _sleepTimerActive,
+            audiobookId: _currentAudiobook?.id ?? '',
+            lastPlayedAt: DateTime.now(),
+          ),
+        );
       } else {
-        _updatePlaybackState(PlaybackState.paused);
+        _updatePlaybackState(
+          PlaybackState(
+            isPlaying: false,
+            currentPosition: _player.position,
+            playbackSpeed: _player.speed,
+            sleepTimerActive: _sleepTimerActive,
+            audiobookId: _currentAudiobook?.id ?? '',
+            lastPlayedAt: DateTime.now(),
+          ),
+        );
       }
     });
 
@@ -73,62 +180,19 @@ class AudioServiceHandler {
 
     _player.processingStateStream.listen((processingState) {
       if (processingState == ProcessingState.completed) {
-        _updatePlaybackState(PlaybackState.completed);
+        _updatePlaybackState(
+          PlaybackState(
+            isPlaying: false,
+            currentPosition: _player.position,
+            playbackSpeed: _player.speed,
+            sleepTimerActive: _sleepTimerActive,
+            audiobookId: _currentAudiobook?.id ?? '',
+            lastPlayedAt: DateTime.now(),
+          ),
+        );
         _onTrackComplete();
       }
     });
-  }
-
-  Future<void> _onStart() async {
-    // Handler for when audio service starts
-  }
-
-  Future<void> _onPlay() async {
-    await _player.play();
-    _updatePlaybackState(PlaybackState.playing);
-  }
-
-  Future<void> _onPause() async {
-    await _player.pause();
-    _updatePlaybackState(PlaybackState.paused);
-  }
-
-  Future<void> _onStop() async {
-    await _player.stop();
-    _updatePlaybackState(PlaybackState.stopped);
-  }
-
-  Future<void> _onSkipToNext() async {
-    await _player.seek(_player.position + _skipInterval);
-  }
-
-  Future<void> _onSkipToPrevious() async {
-    var newPosition = _player.position - _skipInterval;
-    if (newPosition.isNegative) {
-      newPosition = Duration.zero;
-    }
-    await _player.seek(newPosition);
-  }
-
-  Future<void> _onSeekTo(Duration? to) async {
-    if (to != null) {
-      await _player.seek(to);
-    }
-  }
-
-  Future<void> _onSetSpeed(double speed) async {
-    await _player.setSpeed(speed);
-  }
-
-  void _onClick(MediaAction action) {
-    switch (action) {
-      case MediaAction.play:
-        _onPlay();
-      case MediaAction.pause:
-        _onPause();
-      default:
-        break;
-    }
   }
 
   void setCurrentAudiobook(Audiobook audiobook) {
@@ -141,28 +205,21 @@ class AudioServiceHandler {
       await _player.setAudioSource(AudioSource.uri(Uri.file(filePath)));
     } catch (e) {
       print('Error loading audio source: $e');
-      _updatePlaybackState(PlaybackState.error);
+      _updatePlaybackState(
+        PlaybackState(
+          isPlaying: false,
+          currentPosition: _player.position,
+          playbackSpeed: _player.speed,
+          sleepTimerActive: _sleepTimerActive,
+          audiobookId: _currentAudiobook?.id ?? '',
+          lastPlayedAt: DateTime.now(),
+        ),
+      );
     }
-  }
-
-  Future<void> play() async {
-    await _onPlay();
-  }
-
-  Future<void> pause() async {
-    await _onPause();
-  }
-
-  Future<void> stop() async {
-    await _onStop();
   }
 
   Future<void> seekTo(Duration position) async {
     await _player.seek(position);
-  }
-
-  Future<void> setSpeed(double speed) async {
-    await _player.setSpeed(speed);
   }
 
   void setSleepTimer(Duration duration) {
@@ -175,7 +232,7 @@ class AudioServiceHandler {
     // Set up new timer
     _sleepTimer = Timer(duration, () {
       _sleepTimerActive = false;
-      _onPause(); // Pause playback when timer ends
+      pause(); // Pause playback when timer ends
     });
   }
 
@@ -188,11 +245,11 @@ class AudioServiceHandler {
   void _updatePlaybackState(PlaybackState state) {
     final newState = PlaybackState(
       audiobookId: _currentAudiobook?.id ?? '',
-      currentPosition: _player.position,
-      playbackSpeed: _player.speed,
-      isPlaying: state == PlaybackState.playing,
+      currentPosition: state.currentPosition,
+      playbackSpeed: state.playbackSpeed,
+      isPlaying: state.isPlaying,
       lastPlayedAt: DateTime.now(),
-      sleepTimerActive: _sleepTimerActive,
+      sleepTimerActive: state.sleepTimerActive,
       sleepTimerDuration: _sleepTimerDuration,
     );
 
@@ -216,7 +273,16 @@ class AudioServiceHandler {
 
   void _onTrackComplete() {
     // Handle track completion
-    _updatePlaybackState(PlaybackState.completed);
+    _updatePlaybackState(
+      PlaybackState(
+        isPlaying: false,
+        currentPosition: _player.position,
+        playbackSpeed: _player.speed,
+        sleepTimerActive: _sleepTimerActive,
+        audiobookId: _currentAudiobook?.id ?? '',
+        lastPlayedAt: DateTime.now(),
+      ),
+    );
   }
 
   Stream<PlaybackState> getPlaybackStateStream() {

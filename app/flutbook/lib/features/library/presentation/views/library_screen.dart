@@ -318,6 +318,82 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 }
 
+// Search delegate for audiobook search
+class _AudiobookSearchDelegate extends SearchDelegate<Audiobook> {
+  _AudiobookSearchDelegate({required this.audiobooks});
+
+  final List<Audiobook> audiobooks;
+
+  @override
+  List<Widget> buildActions(BuildContext context) {
+    return [
+      IconButton(
+        icon: const Icon(Icons.clear),
+        onPressed: () {
+          query = '';
+        },
+      ),
+    ];
+  }
+
+  @override
+  Widget buildLeading(BuildContext context) {
+    return IconButton(
+      icon: const Icon(Icons.arrow_back),
+      onPressed: () {
+        close(context, Audiobook.empty());
+      },
+    );
+  }
+
+  @override
+  Widget buildResults(BuildContext context) {
+    final results = audiobooks.where((book) {
+      return book.title.toLowerCase().contains(query.toLowerCase()) ||
+          book.author.toLowerCase().contains(query.toLowerCase());
+    }).toList();
+
+    return ListView.builder(
+      itemCount: results.length,
+      itemBuilder: (context, index) {
+        final audiobook = results[index];
+        return ListTile(
+          title: Text(audiobook.title),
+          subtitle: Text(audiobook.author),
+          onTap: () {
+            close(context, audiobook);
+          },
+        );
+      },
+    );
+  }
+
+  @override
+  Widget buildSuggestions(BuildContext context) {
+    final suggestions = query.isEmpty
+        ? audiobooks
+        : audiobooks.where((book) {
+            return book.title.toLowerCase().contains(query.toLowerCase()) ||
+                book.author.toLowerCase().contains(query.toLowerCase());
+          }).toList();
+
+    return ListView.builder(
+      itemCount: suggestions.length,
+      itemBuilder: (context, index) {
+        final audiobook = suggestions[index];
+        return ListTile(
+          title: Text(audiobook.title),
+          subtitle: Text(audiobook.author),
+          onTap: () {
+            query = audiobook.title;
+            close(context, audiobook);
+          },
+        );
+      },
+    );
+  }
+}
+
 // Mock data for demonstration
 final List<Audiobook> _mockAudiobooks = [
   Audiobook(

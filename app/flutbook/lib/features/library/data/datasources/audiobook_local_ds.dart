@@ -1,5 +1,7 @@
 // lib/data/datasources/local/audiobook_local_datasource.dart
 
+import 'dart:io';
+
 import 'package:flutbook/core/error/exceptions.dart';
 import 'package:flutbook/core/services/json_storage_service.dart';
 import 'package:flutbook/features/directory_selection/data/datasources/metadat_extractor_ds.dart';
@@ -8,17 +10,21 @@ import 'package:flutbook/features/library/domain/entities/audiobook.dart';
 import 'package:flutter/foundation.dart'; // Import for debugPrint
 import 'package:isar_community/isar.dart';
 
-/// Local data source for audiobook operations with Isar database and fallback handling
-/// Implements proper schema and indexing as required by data model
+/// Local data source for audiobook operations with Isar database.
+///
+/// This datasource is responsible ONLY for:
+/// - Storing and retrieving audiobooks from Isar
+/// - Querying the database
+/// - Managing JSON settings storage
+///
+/// It does NOT handle metadata extraction or depend on MetadataExtractionDatasource.
 class AudiobookLocalDatasource {
   AudiobookLocalDatasource(
     this._isar, {
-    required MetadataExtractionDatasource metadataExtractor,
     required JsonStorage jsonStorage,
-  }) : _metadataExtractor = metadataExtractor,
-       _jsonStorage = jsonStorage;
+  }) : _jsonStorage = jsonStorage;
+
   final Isar _isar; // Injected via constructor
-  final MetadataExtractionDatasource _metadataExtractor;
   final JsonStorage _jsonStorage;
 
   /// Saves audiobooks to Isar database with proper schema and indexing
@@ -65,31 +71,10 @@ class AudiobookLocalDatasource {
   }
 
   /// Gets audiobooks from Isar database using indexed queries for performance
-  /// Handles cases where files may have been moved/deleted since last scan
   Future<List<Audiobook>> getAudiobooks() async {
     try {
       final audiobookModels = await _isar.audiobookModels.where().findAll();
-
-      // Filter out audiobooks that no longer exist on the file system
-      final validAudiobooks = <Audiobook>[];
-
-      for (final model in audiobookModels) {
-        try {
-          final fileExists = await _metadataExtractor.isFileAccessible(model.filePath);
-          if (fileExists) {
-            validAudiobooks.add(model.toDomain());
-          } else {
-            // Remove from database if file no longer exists
-            await _removeAudiobookFromDb(model.internalId ?? model.filePath);
-          }
-        } catch (e) {
-          // If we can't check, still include but log the issue
-          debugPrint('Could not check file existence for ${model.filePath}: $e');
-          validAudiobooks.add(model.toDomain());
-        }
-      }
-
-      return validAudiobooks;
+      return audiobookModels.map((model) => model.toDomain()).toList();
     } catch (e) {
       throw DatabaseException('Failed to retrieve audiobooks: $e');
     }
@@ -105,15 +90,7 @@ class AudiobookLocalDatasource {
           .findFirst();
 
       if (audiobookModel != null) {
-        // Verify file still exists
-        final fileExists = await _metadataExtractor.isFileAccessible(audiobookModel.filePath);
-        if (fileExists) {
-          return audiobookModel.toDomain();
-        } else {
-          // Remove from database if file no longer exists
-          await _removeAudiobookFromDb(id);
-          return null;
-        }
+        return audiobookModel.toDomain();
       }
 
       return null;
@@ -217,33 +194,43 @@ class AudiobookLocalDatasource {
 
   /// Checks if audio file still exists and is accessible
   /// Used to handle cases where files are moved/deleted after scanning
+  /// NOTE: File existence validation should be done by the caller, not in the datasource
   Future<bool> isFileAccessible(String filePath) async {
-    return _metadataExtractor.isFileAccessible(filePath);
+    try {
+      final file = File(filePath);
+      if (!await file.exists()) {
+        return false;
+      }
+
+      final fileStat = await file.stat();
+      return fileStat.type == FileSystemEntityType.file;
+    } catch (e) {
+      debugPrint('File access check failed for $filePath: $e');
+      return false;
+    }
   }
 
   /// Scans a directory and extracts metadata for all audio files
+  /// NOTE: This method is deprecated. Use ScanLibraryUseCase instead.
   Future<List<Audiobook>> scanDirectory(String directoryPath) async {
     try {
-      final audioFiles = await _metadataExtractor.scanDirectoryForAudioFiles(directoryPath);
+      final metadataExtractor = MetadataExtractionDatasource();
 
+      // Scan directory for audio files
+      final audioFiles = await metadataExtractor.scanDirectoryForAudioFiles(directoryPath);
+
+      // Extract metadata for each file
       final audiobooks = <Audiobook>[];
       for (final filePath in audioFiles) {
-        final audiobook = await _metadataExtractor.extractMetadata(filePath);
+        final audiobook = await metadataExtractor.extractMetadata(filePath);
         if (audiobook != null) {
           audiobooks.add(audiobook);
         }
       }
 
-      // Save to database
-      await saveAudiobooks(audiobooks);
-
       return audiobooks;
     } catch (e) {
-      if (e is FileSystemException || e is StorageException) {
-        rethrow;
-      } else {
-        throw FileSystemException('Error scanning directory: $e');
-      }
+      throw FileSystemException('Failed to scan directory: $e');
     }
   }
 

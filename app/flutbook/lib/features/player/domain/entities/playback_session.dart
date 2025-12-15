@@ -14,16 +14,16 @@ class PlaybackSession {
 
   factory PlaybackSession.fromMap(Map<String, dynamic> map) {
     return PlaybackSession(
-      audiobookId: map['audiobookId'] ?? '',
+      audiobookId: map['audiobookId'] as String? ?? '',
       currentPosition: Duration(
-        milliseconds: map['currentPosition']?.toInt() ?? 0,
+        milliseconds: (map['currentPosition'] as num?)?.toInt() ?? 0,
       ),
-      playbackSpeed: map['playbackSpeed']?.toDouble() ?? 1.0,
-      isPlaying: map['isPlaying'] ?? false,
+      playbackSpeed: (map['playbackSpeed'] as num?)?.toDouble() ?? 1.0,
+      isPlaying: map['isPlaying'] as bool? ?? false,
       lastPlayedAt: DateTime.fromMillisecondsSinceEpoch(
-        map['lastPlayedAt']?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
+        (map['lastPlayedAt'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
       ),
-      sleepTimerActive: map['sleepTimerActive'] ?? false,
+      sleepTimerActive: map['sleepTimerActive'] as bool? ?? false,
       sleepTimerDuration: map['sleepTimerDuration'] != null
           ? Duration(milliseconds: map['sleepTimerDuration'] as int)
           : null,

@@ -2,18 +2,21 @@
 import 'dart:io';
 
 import 'package:flutbook/core/error/exceptions.dart';
-import 'package:flutbook/features/library/data/datasources/audiobook_local_ds.dart';
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
 import 'package:flutbook/features/library/domain/entities/chapter.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path/path.dart' as path;
 
-/// Extracts metadata from audio files using various approaches depending on file format
+/// Extracts metadata from audio files using various approaches depending on file format.
+///
+/// This datasource is responsible ONLY for:
+/// - Scanning directories for audio files
+/// - Extracting metadata from individual files
+/// - Validating file access
+///
+/// It does NOT handle database operations or depend on AudiobookLocalDatasource.
 class MetadataExtractionDatasource {
-  MetadataExtractionDatasource({required AudiobookLocalDatasource audiobookLocalDatasource})
-    : _audiobookLocalDatasource = audiobookLocalDatasource;
-
-  final AudiobookLocalDatasource _audiobookLocalDatasource;
+  MetadataExtractionDatasource();
 
   /// Extracts metadata from an audio file at the given path
   /// TODO: Integrate audio_tags package for full ID3v2, MP4 tags, cover art extraction, advanced chapter parsing
@@ -185,34 +188,6 @@ class MetadataExtractionDatasource {
     } catch (e) {
       print('File access check failed for $filePath: $e');
       return false;
-    }
-  }
-
-  /// Scans a directory and extracts metadata for all audio files
-  Future<List<Audiobook>> scanDirectory(String directoryPath) async {
-    try {
-      final audioFiles = await scanDirectoryForAudioFiles(
-        directoryPath,
-      );
-
-      final audiobooks = <Audiobook>[];
-      for (final filePath in audioFiles) {
-        final audiobook = await extractMetadata(filePath);
-        if (audiobook != null) {
-          audiobooks.add(audiobook);
-        }
-      }
-
-      // Save to database
-      await _audiobookLocalDatasource.saveAudiobooks(audiobooks);
-
-      return audiobooks;
-    } catch (e) {
-      if (e is FileSystemException || e is StorageException) {
-        rethrow;
-      } else {
-        throw FileSystemException('Error scanning directory: $e');
-      }
     }
   }
 }

@@ -1,3 +1,4 @@
+import 'package:flutbook/core/provider/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -31,7 +32,54 @@ class LoginButtons extends ConsumerWidget {
               '/directory',
               arguments: {
                 'initialDirectory': '',
-                'onDirectorySelected': null,
+                'onDirectorySelected': (String path) async {
+                  print('Selected directory: $path');
+
+                  try {
+                    // Show loading indicator
+                    const snackBar = SnackBar(
+                      content: Text('Scanning directory...'),
+                      duration: Duration(milliseconds: 5000),
+                    );
+                    ScaffoldMessenger.of(context).showSnackBar(snackBar);
+
+                    // call your scan use case here
+                    final scanUseCase = await ref.read(scanLibraryUseCaseProvider.future);
+
+                    final result = await scanUseCase.execute(path);
+
+                    // Hide loading indicator
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+                    print('Scan completed: ${result.scannedFiles} files');
+                    print('Errors: ${result.errors}');
+                    print('Elapsed time: ${result.elapsedTime}');
+
+                    // Navigate to library screen after successful scan
+                    if (result.success) {
+                      Navigator.pushNamed(context, '/library');
+                    } else {
+                      // Show error message but still navigate
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Scan completed with errors. Check logs for details.'),
+                        ),
+                      );
+                      Navigator.pushNamed(context, '/library');
+                    }
+                  } catch (e) {
+                    // Hide loading indicator
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+                    // Show error message
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error during scan: $e'),
+                      ),
+                    );
+                    print('Scan error: $e');
+                  }
+                },
               },
             );
           },

@@ -18,6 +18,22 @@ class Audiobook {
     this.lastPlayedAt,
   });
 
+  // Empty audiobook for search delegate
+  factory Audiobook.empty() {
+    return Audiobook(
+      id: '',
+      title: '',
+      author: '',
+      album: '',
+      duration: Duration.zero,
+      filePath: '',
+      chapters: [],
+      createdAt: DateTime.now(),
+      completed: false,
+      totalSize: 0,
+    );
+  }
+
   factory Audiobook.fromMap(Map<String, dynamic> map) {
     return Audiobook(
       id: map['id'] as String? ?? '',

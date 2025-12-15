@@ -6,6 +6,7 @@ library;
 import 'dart:async';
 import 'dart:developer';
 
+import 'package:flutbook/core/provider/providers.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -51,6 +52,13 @@ Future<void> bootstrap(FutureOr<Widget> Function() builder) async {
   final container = ProviderContainer(
     observers: [const RiverpodObserver()],
   );
+
+  // Initialize the database service early - this must happen before any datasource tries to use Isar
+  try {
+    await container.read(databaseServiceProvider.future);
+  } catch (e) {
+    print('Warning: Database initialization failed in bootstrap: $e');
+  }
 
   // Add cross-flavor configuration here
   // Ensure GoogleSignIn is initialized for google_sign_in v7+ when using flavor mains

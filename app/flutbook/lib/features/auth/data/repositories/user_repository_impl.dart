@@ -248,6 +248,42 @@ class UserRepositoryImpl implements UserRepository {
     // TODO: implement authStateChanges
     throw UnimplementedError();
   }
+
+  @override
+  Future<void> deleteLocalAudiobook(String itemId) {
+    // TODO: implement deleteLocalAudiobook
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> deleteRemoteAudiobook(String itemId) {
+    // TODO: implement deleteRemoteAudiobook
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> updateLocalData(String itemId, data) {
+    // TODO: implement updateLocalData
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> updateLocalProgress(String itemId, int position) {
+    // TODO: implement updateLocalProgress
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> updateRemoteData(String itemId, data) {
+    // TODO: implement updateRemoteData
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> updateRemoteProgress(String itemId, int position) {
+    // TODO: implement updateRemoteProgress
+    throw UnimplementedError();
+  }
 }
 
 // features/auth/data/repositories/user_repository_impl.dart

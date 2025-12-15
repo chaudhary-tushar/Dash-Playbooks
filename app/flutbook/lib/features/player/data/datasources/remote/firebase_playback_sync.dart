@@ -57,14 +57,14 @@ class PlaybackRemoteDatasource {
         final data = doc.data();
 
         final session = PlaybackSession(
-          audiobookId: data['audiobookId'] ?? doc.id,
+          audiobookId: data['audiobookId'] as String? ?? doc.id,
           currentPosition: Duration(
-            milliseconds: data['currentPositionInMs']?.toInt() ?? 0,
+            milliseconds: (data['currentPositionInMs'] as num?)?.toInt() ?? 0,
           ),
-          playbackSpeed: data['playbackSpeed']?.toDouble() ?? 1.0,
-          isPlaying: data['isPlaying'] ?? false,
+          playbackSpeed: (data['playbackSpeed'] as num?)?.toDouble() ?? 1.0,
+          isPlaying: data['isPlaying'] as bool? ?? false,
           lastPlayedAt: (data['lastPlayedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-          sleepTimerActive: data['sleepTimerActive'] ?? false,
+          sleepTimerActive: data['sleepTimerActive'] as bool? ?? false,
           sleepTimerDuration: data['sleepTimerDurationInMs'] != null
               ? Duration(milliseconds: data['sleepTimerDurationInMs'] as int)
               : null,

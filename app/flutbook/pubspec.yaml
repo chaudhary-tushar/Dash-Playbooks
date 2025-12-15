@@ -8,7 +8,7 @@ environment:
   flutter: ^3.35.0
 
 dependencies:
-  audio_service: ^0.18.11
+  audio_service: ^0.18.18
   cloud_firestore: ^6.1.0
   cupertino_icons: ^1.0.2
   equatable: ^2.0.7

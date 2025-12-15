@@ -3,7 +3,6 @@
 import 'package:flutbook/core/error/exceptions.dart';
 import 'package:flutbook/features/library/data/datasources/audiobook_local_ds.dart';
 import 'package:flutbook/features/library/data/datasources/remote/firebase_library_sync.dart';
-import 'package:flutbook/features/library/data/models/audiobook_model.dart';
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
 import 'package:flutbook/features/library/domain/entities/library.dart';
 import 'package:flutbook/features/library/domain/repositories/library_repository.dart';
@@ -45,44 +44,12 @@ class LibraryRepositoryImpl implements LibraryRepository {
 
   @override
   Future<Library> scanDirectory(String directoryPath) async {
-    try {
-      // First, use the local datasource to scan and extract audiobooks
-      final audiobooks = await _localDatasource.scanDirectory(directoryPath);
-
-      // Save to local storage
-      await _localDatasource.saveAudiobooks(audiobooks);
-
-      // If user is authenticated, consider syncing library changes
-      if (_remoteDatasource != null) {
-        try {
-          // For each audiobook, upload its metadata to remote
-          for (final audiobook in audiobooks) {
-            await _remoteDatasource.uploadAudiobookMetadata(audiobook as AudiobookModel);
-          }
-        } catch (e) {
-          print('Warning: Could not sync library changes to remote: $e');
-          // Continue anyway, local storage is the primary source
-        }
-      }
-
-      // Calculate total duration for the library
-      final totalDuration = audiobooks.fold(
-        Duration.zero,
-        (sum, book) => sum + book.duration,
-      );
-
-      return Library(
-        id: 'default_library',
-        name: 'My Library',
-        path: directoryPath,
-        audiobooks: audiobooks,
-        lastScanAt: DateTime.now(),
-        totalAudiobooks: audiobooks.length,
-        totalDuration: totalDuration,
-      );
-    } catch (e) {
-      throw FileSystemException(ErrorHandler.handleException(e));
-    }
+    // NOTE: Directory scanning is now handled by ScanLibraryUseCase
+    // This method is deprecated and should not be called directly
+    // Use ScanLibraryUseCase.execute() instead
+    throw UnimplementedError(
+      'Use ScanLibraryUseCase.execute() instead of LibraryRepository.scanDirectory()',
+    );
   }
 
   @override
@@ -200,14 +167,14 @@ class LibraryRepositoryImpl implements LibraryRepository {
   //   }
   // }
 
-  /// Checks if library directory is still accessible
   @override
   Future<bool> isLibraryPathAccessible() async {
     try {
       final path = await getLibraryPath();
       if (path == null) return false;
-
-      return await _localDatasource.isFileAccessible(path);
+      // File existence checks should be done by MetadataExtractionDatasource
+      // For now, just verify we have a path
+      return path.isNotEmpty;
     } catch (e) {
       // If we can't check, assume it's not accessible
       return false;
