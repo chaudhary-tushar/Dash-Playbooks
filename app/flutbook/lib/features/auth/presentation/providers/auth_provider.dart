@@ -1,10 +1,7 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutbook/core/provider/providers.dart';
 import 'package:flutbook/features/auth/domain/entities/user_profile.dart';
 import 'package:flutbook/features/auth/domain/repositories/user_repository.dart';
-import 'package:flutbook/features/auth/domain/usecases/anonymous_login_usecase.dart';
-import 'package:flutbook/features/auth/domain/usecases/login_usecase.dart';
-import 'package:flutbook/features/auth/domain/usecases/logout_usecase.dart';
-import 'package:flutbook/features/auth/domain/usecases/get_current_user_usecase.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // Auth State class to represent the authentication state
 class AuthState {
@@ -33,123 +30,155 @@ class AuthState {
       errorMessage: errorMessage ?? this.errorMessage,
     );
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is AuthState &&
+        other.isAuthenticated == isAuthenticated &&
+        other.userProfile == userProfile &&
+        other.isLoading == isLoading &&
+        other.errorMessage == errorMessage;
+  }
+
+  @override
+  int get hashCode {
+    return isAuthenticated.hashCode ^
+        userProfile.hashCode ^
+        isLoading.hashCode ^
+        errorMessage.hashCode;
+  }
 }
 
 // AuthNotifier class that extends Notifier for Riverpod 3.x
 class AuthNotifier extends Notifier<AuthState> {
   @override
   AuthState build() {
-    // Initialize with loading state and check current user
-    _checkCurrentUser();
+    // Initialize with loading state
+    ref.onDispose(() {
+      // Cleanup if needed
+    });
+
     return const AuthState(isLoading: true);
   }
 
   UserRepository get _userRepository => ref.read(userRepositoryProvider);
-  LoginUsecase get _loginUsecase => ref.read(loginUsecaseProvider);
-  AnonymousLoginUsecase get _anonymousLoginUsecase => ref.read(anonymousLoginUsecaseProvider);
-  LogoutUsecase get _logoutUsecase => ref.read(logoutUsecaseProvider);
-  GetCurrentUserUsecase get _getCurrentUserUsecase => ref.read(getCurrentUserUsecaseProvider);
 
   // Check current user on initialization
-  Future<void> _checkCurrentUser() async {
+  Future<void> checkCurrentUser() async {
     try {
-      final user = await _getCurrentUserUsecase();
-      final newState = AuthState(
-        isAuthenticated: user != null,
-        userProfile: user,
-        isLoading: false,
-        errorMessage: null,
-      );
-      state = newState;
+      final usecase = ref.read(getCurrentUserUsecaseProvider);
+      final user = await usecase();
+      if (ref.mounted) {
+        state = AuthState(
+          isAuthenticated: user != null,
+          userProfile: user,
+        );
+      }
     } catch (e) {
-      state = AuthState(
-        isAuthenticated: false,
-        userProfile: null,
-        isLoading: false,
-        errorMessage: e.toString(),
-      );
+      if (ref.mounted) {
+        state = AuthState(
+          errorMessage: e.toString(),
+        );
+      }
     }
   }
 
   // Login with email and password
   Future<void> login(String email, String password) async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
-    
+    if (!ref.mounted) return;
+    state = state.copyWith(isLoading: true);
+
     try {
-      final result = await _loginUsecase(email: email, password: password);
-      
+      final usecase = ref.read(loginUsecaseProvider);
+      final result = await usecase(email: email, password: password);
+
       if (result.success) {
-        final user = await _getCurrentUserUsecase();
-        state = AuthState(
-          isAuthenticated: true,
-          userProfile: user,
-          isLoading: false,
-          errorMessage: null,
-        );
+        final usercase = ref.read(getCurrentUserUsecaseProvider);
+        final user = await usercase();
+        if (ref.mounted) {
+          state = AuthState(
+            isAuthenticated: true,
+            userProfile: user,
+          );
+        }
       } else {
+        if (ref.mounted) {
+          state = state.copyWith(
+            isAuthenticated: false,
+            isLoading: false,
+            errorMessage: result.errorMessage,
+          );
+        }
+      }
+    } catch (e) {
+      if (ref.mounted) {
         state = state.copyWith(
           isAuthenticated: false,
           isLoading: false,
-          errorMessage: result.errorMessage,
+          errorMessage: 'Login failed: $e',
         );
       }
-    } catch (e) {
-      state = state.copyWith(
-        isAuthenticated: false,
-        isLoading: false,
-        errorMessage: 'Login failed: $e',
-      );
     }
   }
 
   // Login anonymously
   Future<void> loginAnonymously() async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
-    
+    if (!ref.mounted) return;
+    state = state.copyWith(isLoading: true);
+
     try {
-      final result = await _anonymousLoginUsecase();
-      
+      final usecase = ref.read(anonymousLoginUsecaseProvider);
+      final result = await usecase();
+
       if (result.success) {
-        final user = await _getCurrentUserUsecase();
-        state = AuthState(
-          isAuthenticated: true,
-          userProfile: user,
-          isLoading: false,
-          errorMessage: null,
-        );
+        final usercase = ref.read(getCurrentUserUsecaseProvider);
+        final user = await usercase();
+        if (ref.mounted) {
+          state = AuthState(
+            isAuthenticated: true,
+            userProfile: user,
+          );
+        }
       } else {
+        if (ref.mounted) {
+          state = state.copyWith(
+            isAuthenticated: false,
+            isLoading: false,
+            errorMessage: result.errorMessage,
+          );
+        }
+      }
+    } catch (e) {
+      if (ref.mounted) {
         state = state.copyWith(
           isAuthenticated: false,
           isLoading: false,
-          errorMessage: result.errorMessage,
+          errorMessage: 'Anonymous login failed: $e',
         );
       }
-    } catch (e) {
-      state = state.copyWith(
-        isAuthenticated: false,
-        isLoading: false,
-        errorMessage: 'Anonymous login failed: $e',
-      );
     }
   }
 
   // Logout
   Future<void> logout() async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
-    
+    if (!ref.mounted) return;
+    state = state.copyWith(isLoading: true);
+
     try {
-      await _logoutUsecase();
-      state = const AuthState(
-        isAuthenticated: false,
-        userProfile: null,
-        isLoading: false,
-        errorMessage: null,
-      );
+      final usecase = ref.read(logoutUsecaseProvider);
+      await usecase();
+      if (ref.mounted) {
+        state = const AuthState();
+      }
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: 'Logout failed: $e',
-      );
+      if (ref.mounted) {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: 'Logout failed: $e',
+        );
+      }
     }
   }
 

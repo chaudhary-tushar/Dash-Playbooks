@@ -6,6 +6,9 @@ import 'package:flutbook/features/auth/domain/repositories/user_repository.dart'
 import 'package:flutbook/features/library/data/datasources/remote/firebase_library_sync.dart';
 import 'package:flutbook/features/player/data/datasources/remote/firebase_playback_sync.dart';
 import 'package:flutbook/features/settings/data/datasources/preferences_datasource.dart';
+import 'package:flutbook/features/settings/domain/entities/sync_status.dart';
+import 'package:flutbook/core/error/sync_result.dart';
+import 'package:flutbook/features/settings/domain/entities/user_settings.dart';
 
 class UserRepositoryImpl implements UserRepository {
   UserRepositoryImpl({
@@ -34,7 +37,7 @@ class UserRepositoryImpl implements UserRepository {
 
       if (result.success && result.user != null) {
         // Save user preferences
-        await _preferencesDatasource.saveUserPreferences(result.user!);
+        await _preferencesDatasource.saveUserPreferences(result.user);
       }
 
       return result;
@@ -53,7 +56,7 @@ class UserRepositoryImpl implements UserRepository {
 
       if (result.success && result.user != null) {
         // Save user preferences
-        await _preferencesDatasource.saveUserPreferences(result.user!);
+        await _preferencesDatasource.saveUserPreferences(result.user);
       }
 
       return result;
@@ -78,7 +81,7 @@ class UserRepositoryImpl implements UserRepository {
 
       if (result.success && result.user != null) {
         // Save user preferences
-        await _preferencesDatasource.saveUserPreferences(result.user!);
+        await _preferencesDatasource.saveUserPreferences(result.user);
       }
 
       return result;
@@ -233,7 +236,7 @@ class UserRepositoryImpl implements UserRepository {
 
       // If successful, save user preferences using the user from datasource result
       if (datasourceResult.success && datasourceResult.user != null) {
-        await _preferencesDatasource.saveUserPreferences(datasourceResult.user!);
+        await _preferencesDatasource.saveUserPreferences(datasourceResult.user);
       }
 
       // Return a repository-compatible AuthResult (without user field)

@@ -1,6 +1,7 @@
 // lib/presentation/widgets/progress_bar.dart
-import 'package:flutter/material.dart';
 import 'dart:async';
+
+import 'package:flutter/material.dart';
 
 class ProgressBar extends StatefulWidget {
   const ProgressBar({

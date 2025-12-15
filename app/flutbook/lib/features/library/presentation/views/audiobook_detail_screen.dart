@@ -1,7 +1,8 @@
 // lib/presentation/screens/audiobook_detail_screen.dart
+import 'dart:async';
+
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
 import 'package:flutter/material.dart';
-import 'dart:async';
 
 class AudiobookDetailScreen extends StatefulWidget {
   const AudiobookDetailScreen({

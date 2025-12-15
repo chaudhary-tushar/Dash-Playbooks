@@ -32,72 +32,69 @@ class LoginButtons extends ConsumerWidget {
               '/directory',
               arguments: {
                 'initialDirectory': '',
-                'onDirectorySelected': (String path) {
+                'onDirectorySelected': (String path) async {
                   // Capture context reference immediately to avoid BuildContext sync issues
                   final contextRef = context;
 
-                  // Run the async operation without blocking the UI
-                  () async {
-                    print('Selected directory: $path');
+                  print('Selected directory: $path');
 
-                    try {
-                      // Use the captured context to get ScaffoldMessenger before async calls
-                      final messenger = ScaffoldMessenger.of(contextRef);
+                  try {
+                    // Use the captured context to get ScaffoldMessenger before async calls
+                    final messenger = ScaffoldMessenger.of(contextRef);
 
-                      // Show loading indicator
-                      const snackBar = SnackBar(
-                        content: Text('Scanning directory...'),
-                        duration: Duration(milliseconds: 5000),
-                      );
-                      messenger.showSnackBar(snackBar);
+                    // Show loading indicator
+                    const snackBar = SnackBar(
+                      content: Text('Scanning directory...'),
+                      duration: Duration(milliseconds: 5000),
+                    );
+                    messenger.showSnackBar(snackBar);
 
-                      // call your scan use case here
-                      final scanUseCase = await ref.read(scanLibraryUseCaseProvider.future);
+                    // call your scan use case here
+                    final scanUseCase = await ref.read(scanLibraryUseCaseProvider.future);
 
-                      final result = await scanUseCase.execute(path);
+                    final result = await scanUseCase.execute(path);
 
-                      // Hide loading indicator
+                    // Hide loading indicator
+                    if (contextRef.mounted) {
+                      messenger.hideCurrentSnackBar();
+                    }
+
+                    print('Scan completed: ${result.scannedFiles} files');
+                    print('Errors: ${result.errors}');
+                    print('Elapsed time: ${result.elapsedTime}');
+
+                    // Navigate to library screen after successful scan
+                    if (result.success) {
                       if (contextRef.mounted) {
-                        messenger.hideCurrentSnackBar();
+                        Navigator.pushNamed(contextRef, '/library');
                       }
-
-                      print('Scan completed: ${result.scannedFiles} files');
-                      print('Errors: ${result.errors}');
-                      print('Elapsed time: ${result.elapsedTime}');
-
-                      // Navigate to library screen after successful scan
-                      if (result.success) {
-                        if (contextRef.mounted) {
-                          Navigator.pushNamed(contextRef, '/library');
-                        }
-                      } else {
-                        // Show error message but still navigate
-                        if (contextRef.mounted) {
-                          messenger.showSnackBar(
-                            const SnackBar(
-                              content: Text('Scan completed with errors. Check logs for details.'),
-                            ),
-                          );
-                          Navigator.pushNamed(contextRef, '/library');
-                        }
-                      }
-                    } catch (e) {
-                      // Handle error scenario
+                    } else {
+                      // Show error message but still navigate
                       if (contextRef.mounted) {
-                        // Hide loading indicator
-                        final messenger = ScaffoldMessenger.of(contextRef);
-                        messenger.hideCurrentSnackBar();
-
-                        // Show error message
                         messenger.showSnackBar(
-                          SnackBar(
-                            content: Text('Error during scan: $e'),
+                          const SnackBar(
+                            content: Text('Scan completed with errors. Check logs for details.'),
                           ),
                         );
+                        Navigator.pushNamed(contextRef, '/library');
                       }
-                      print('Scan error: $e');
                     }
-                  }();
+                  } catch (e) {
+                    // Handle error scenario
+                    if (contextRef.mounted) {
+                      // Hide loading indicator
+                      final messenger = ScaffoldMessenger.of(contextRef);
+                      messenger.hideCurrentSnackBar();
+
+                      // Show error message
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text('Error during scan: $e'),
+                        ),
+                      );
+                    }
+                    print('Scan error: $e');
+                  }
                 },
               },
             );

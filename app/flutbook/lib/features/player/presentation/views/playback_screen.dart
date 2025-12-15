@@ -74,7 +74,12 @@ class PlaybackScreenState extends State<PlaybackScreen> {
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color.fromARGB(255, 0, 0, 0).withValues(),
+                      color: const Color.fromARGB(
+                        255,
+                        0,
+                        0,
+                        0,
+                      ).withOpacity(0.2),
                       spreadRadius: 2,
                       blurRadius: 10,
                       offset: const Offset(0, 5),
@@ -128,7 +133,9 @@ class PlaybackScreenState extends State<PlaybackScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  audiobook.author.isEmpty ? 'Unknown Author' : audiobook.author,
+                  audiobook.author.isEmpty
+                      ? 'Unknown Author'
+                      : audiobook.author,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -147,18 +154,20 @@ class PlaybackScreenState extends State<PlaybackScreen> {
             child: ProgressBar(
               currentPosition: _isScrubbing ? _scrubPosition : _currentPosition,
               totalDuration: audiobook.duration,
-              chapterMarkers: audiobook.chapters.map((chapter) => chapter.startTime).toList(),
+              chapterMarkers: audiobook.chapters
+                  .map((chapter) => chapter.startTime)
+                  .toList(),
               onSeek: (newPosition) {
                 setState(() {
                   _scrubPosition = newPosition;
                 });
               },
-              onSeekStart: () {
+              onSeekStart: () async {
                 setState(() {
                   _isScrubbing = true;
                 });
               },
-              onSeekEnd: (finalPosition) {
+              onSeekEnd: (finalPosition) async {
                 setState(() {
                   _currentPosition = finalPosition;
                   _isScrubbing = false;
@@ -201,7 +210,8 @@ class PlaybackScreenState extends State<PlaybackScreen> {
                 onSkipForward: (duration) {
                   setState(() {
                     final newPosition = _currentPosition + duration;
-                    _currentPosition = newPosition.compareTo(audiobook.duration) > 0
+                    _currentPosition =
+                        newPosition.compareTo(audiobook.duration) > 0
                         ? audiobook.duration
                         : newPosition;
                   });
@@ -210,7 +220,9 @@ class PlaybackScreenState extends State<PlaybackScreen> {
                 onSkipBackward: (duration) {
                   setState(() {
                     final newPosition = _currentPosition - duration;
-                    _currentPosition = newPosition.isNegative ? Duration.zero : newPosition;
+                    _currentPosition = newPosition.isNegative
+                        ? Duration.zero
+                        : newPosition;
                   });
                   // In a real implementation, this would skip backward in playback
                 },

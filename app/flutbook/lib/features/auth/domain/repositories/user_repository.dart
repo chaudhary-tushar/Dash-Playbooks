@@ -1,6 +1,9 @@
 // lib/features/auth/domain/repositories/user_repository.dart
 import 'package:flutbook/features/auth/domain/entities/auth_result.dart';
 import 'package:flutbook/features/auth/domain/entities/user_profile.dart';
+import 'package:flutbook/features/settings/domain/entities/sync_status.dart';
+import 'package:flutbook/core/error/sync_result.dart';
+import 'package:flutbook/features/settings/domain/entities/user_settings.dart';
 // import 'package:isar_community/isar.dart';
 
 abstract class UserRepository {

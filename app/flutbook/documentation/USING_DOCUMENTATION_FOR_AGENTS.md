@@ -583,7 +583,7 @@ MVP COMPLETE in 5 days! 🎉
 
 ### Tip 1: Keep Files Organized
 ```
-Root folder: /home/ubuntu/app/flutbook/
+Root folder: /home/ubuntu/app/flutbook/documentation/
 
 Agent-facing docs:
 - START_HERE.md (give first)

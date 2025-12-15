@@ -283,7 +283,7 @@ class LibraryScreenState extends State<LibraryScreen> {
                     ),
                   )
                 : RefreshIndicator(
-                    onRefresh: () => _refreshLibrary(),
+                    onRefresh: _refreshLibrary,
                     child: ListView.builder(
                       itemCount: _filteredAudiobooks.length,
                       itemBuilder: (context, index) {
@@ -364,7 +364,7 @@ class _AudiobookSearchDelegate extends SearchDelegate<Audiobook> {
           title: Text(audiobook.title),
           subtitle: Text(audiobook.author),
           onTap: () {
-            unawaited(close(context, audiobook));
+            close(context, audiobook);
           },
         );
       },
@@ -389,7 +389,7 @@ class _AudiobookSearchDelegate extends SearchDelegate<Audiobook> {
           subtitle: Text(audiobook.author),
           onTap: () {
             query = audiobook.title;
-            unawaited(close(context, audiobook));
+            close(context, audiobook);
           },
         );
       },

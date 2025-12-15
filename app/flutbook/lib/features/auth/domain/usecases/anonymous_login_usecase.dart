@@ -1,6 +1,6 @@
 import 'dart:math';
-import 'package:flutbook/features/auth/domain/repositories/user_repository.dart'
-    show AuthResult, UserRepository;
+import 'package:flutbook/features/auth/domain/entities/auth_result.dart';
+import 'package:flutbook/features/auth/domain/repositories/user_repository.dart' show UserRepository;
 
 class AnonymousLoginUsecase {
   const AnonymousLoginUsecase(this.repository);

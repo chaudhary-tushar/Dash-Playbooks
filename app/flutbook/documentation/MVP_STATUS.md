@@ -1,7 +1,7 @@
 # 🎯 Flutbook MVP Status Report
 
 **Last Updated:** December 15, 2025
-**Overall Progress:** ~55% Complete
+**Overall Progress:** ~57% Complete
 
 ---
 
@@ -14,7 +14,7 @@
 | **Phase 3: Directory** | 5/6 | ✅ Nearly Complete | 83% |
 | **Phase 4: Library** | 2/6 | ⏳ In Progress | 33% |
 | **Phase 5: Playback** | 3/10 | ⏳ In Progress | 30% |
-| **TOTAL MVP** | 17/33 | ⏳ In Progress | 51% |
+| **TOTAL MVP** | 19/33 | ⏳ In Progress | 57% |
 
 **Estimated Time to MVP:** 6-8 working days
 
@@ -27,6 +27,27 @@
 - [x] Automatic navigation to auth after 3 seconds
 - [x] Router integration and error handling
 - **File:** `lib/features/splash/presentation/view/splash_screen.dart`
+
+### Phase 2: Authentication (4/8)
+- [x] Login Use Case with email/password validation
+- [x] Anonymous Login Use Case with session generation
+- [x] Auth State Provider with Riverpod NotifierProvider pattern
+  - ✅ NotifierProvider pattern (Riverpod 3.x)
+  - ✅ Exposes isAuthenticated boolean
+  - ✅ Manages login/logout state
+  - ✅ Persists auth state to local storage
+  - ✅ Has getter for current user profile
+  - ✅ login(email, password) → Future<void>
+  - ✅ loginAnonymously() → Future<void>
+  - ✅ logout() → Future<void>
+  - ✅ getCurrentUser() → User?
+  - ✅ isAuthenticated() → bool
+- [x] Authentication tests with 80%+ coverage
+- **Files:**
+  - `lib/features/auth/domain/usecases/login_usecase.dart`
+  - `lib/features/auth/domain/usecases/anonymous_login_usecase.dart`
+  - `lib/features/auth/presentation/providers/auth_provider.dart`
+  - `test/features/auth/presentation/providers/auth_provider_test.dart`
 
 ### Phase 3: Directory Selection & Scanning (5/6)
 - [x] Directory picker with mobile support
@@ -126,10 +147,10 @@
 ## 🎯 Next Steps (Recommended Workflow)
 
 ### Day 1: Phase 2A - Core Auth (8 hours)
-1. [ ] Create login use case with email validation
-2. [ ] Create anonymous login use case
+1. [x] Create login use case with email validation
+2. [x] Create anonymous login use case
 3. [ ] Update Firebase auth datasource
-4. [ ] Create Riverpod auth state provider
+4. [x] Create Riverpod auth state provider
 5. [ ] Add auth guard for route protection
 
 **Output:** Login screen functional with both email and guest options
@@ -137,7 +158,7 @@
 ### Day 2: Phase 2B - Auth UI & Routing (4 hours)
 1. [ ] Complete login page UI with form fields
 2. [ ] Integrate auth state with router
-3. [ ] Add authentication tests (80% coverage)
+3. [x] Add authentication tests (80% coverage)
 
 **Output:** Full auth workflow with navigation
 
@@ -222,13 +243,13 @@ flutter run -d chrome --target lib/main_development.dart
 | Phase | Hours | Status |
 |-------|-------|--------|
 | Phase 1 | 4 | ✅ Done |
-| Phase 2 | 18 | ⏳ Starting |
+| Phase 2 | 18 | ⏳ 50% complete |
 | Phase 3 | 8 | ✅ Near complete |
 | Phase 4 | 14 | ⏳ Starting |
 | Phase 5 | 24 | ⏳ Starting |
-| **Total** | **68** | **~45% complete** |
+| **Total** | **68** | **~57% complete** |
 
-**Hours Remaining:** ~34 hours (5 working days)
+**Hours Remaining:** ~28 hours (4 working days)
 
 ---
 
