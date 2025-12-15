@@ -1,71 +1,170 @@
-import 'package:flutbook/features/auth/data/datasources/firebase_auth_datasource.dart';
-import 'package:flutbook/features/auth/data/repositories/user_repository_impl.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutbook/features/auth/domain/entities/user_profile.dart';
 import 'package:flutbook/features/auth/domain/repositories/user_repository.dart';
 import 'package:flutbook/features/auth/domain/usecases/anonymous_login_usecase.dart';
-import 'package:flutbook/features/auth/domain/usecases/get_current_user_usecase.dart';
-import 'package:flutbook/features/auth/domain/usecases/google_signin_usecase.dart';
 import 'package:flutbook/features/auth/domain/usecases/login_usecase.dart';
 import 'package:flutbook/features/auth/domain/usecases/logout_usecase.dart';
-import 'package:flutbook/features/library/data/datasources/remote/firebase_library_sync.dart';
-import 'package:flutbook/features/player/data/datasources/remote/firebase_playback_sync.dart';
-import 'package:flutbook/features/settings/data/datasources/preferences_datasource.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutbook/features/auth/domain/usecases/get_current_user_usecase.dart';
 
-final firebaseAuthDatasourceProvider = Provider<FirebaseAuthDatasource>(
-  (ref) => FirebaseAuthDatasource(),
-);
+// Auth State class to represent the authentication state
+class AuthState {
+  const AuthState({
+    this.isAuthenticated = false,
+    this.userProfile,
+    this.isLoading = false,
+    this.errorMessage,
+  });
 
-final libraryRemoteDatasourceProvider = Provider<LibraryRemoteDatasource>(
-  (ref) => LibraryRemoteDatasource(),
-);
+  final bool isAuthenticated;
+  final UserProfile? userProfile;
+  final bool isLoading;
+  final String? errorMessage;
 
-final playbackRemoteDatasourceProvider = Provider<PlaybackRemoteDatasource>(
-  (ref) => PlaybackRemoteDatasource(),
-);
-
-final preferencesDatasourceProvider = Provider<PreferencesDatasource>(
-  (ref) => PreferencesDatasource(),
-);
-
-final userRepositoryProvider = Provider<UserRepository>(
-  (ref) => UserRepositoryImpl(
-    authDatasource: ref.watch(firebaseAuthDatasourceProvider),
-    // Provide other deps using available providers
-    syncDatasource: ref.watch(libraryRemoteDatasourceProvider),
-    playbackRemoteDatasource: ref.watch(playbackRemoteDatasourceProvider),
-    preferencesDatasource: ref.watch(preferencesDatasourceProvider),
-  ),
-);
-
-final anonymousLoginUsecaseProvider = Provider<AnonymousLoginUsecase>(
-  (ref) => AnonymousLoginUsecase(ref.watch(userRepositoryProvider)),
-);
-
-final loginUsecaseProvider = Provider<LoginUsecase>(
-  (ref) => LoginUsecase(ref.watch(userRepositoryProvider)),
-);
-
-final googleSigninUsecaseProvider = Provider<GoogleSigninUsecase>(
-  (ref) => GoogleSigninUsecase(ref.watch(userRepositoryProvider)),
-);
-
-final logoutUsecaseProvider = Provider<LogoutUsecase>(
-  (ref) => LogoutUsecase(ref.watch(userRepositoryProvider)),
-);
-
-final getCurrentUserUsecaseProvider = Provider<GetCurrentUserUsecase>(
-  (ref) => GetCurrentUserUsecase(ref.watch(userRepositoryProvider)),
-);
-
-final authStateProvider = StreamProvider<UserProfile?>(
-  (ref) => ref.watch(userRepositoryProvider).authStateChanges(),
-);
-
-final isAuthenticatedProvider = Provider<bool>(
-  (ref) => ref.watch(authStateProvider).valueOrNull != null,
-);
-
-extension on AsyncValue<UserProfile?> {
-  Null get valueOrNull => null;
+  AuthState copyWith({
+    bool? isAuthenticated,
+    UserProfile? userProfile,
+    bool? isLoading,
+    String? errorMessage,
+  }) {
+    return AuthState(
+      isAuthenticated: isAuthenticated ?? this.isAuthenticated,
+      userProfile: userProfile ?? this.userProfile,
+      isLoading: isLoading ?? this.isLoading,
+      errorMessage: errorMessage ?? this.errorMessage,
+    );
+  }
 }
+
+// AuthNotifier class that extends Notifier for Riverpod 3.x
+class AuthNotifier extends Notifier<AuthState> {
+  @override
+  AuthState build() {
+    // Initialize with loading state and check current user
+    _checkCurrentUser();
+    return const AuthState(isLoading: true);
+  }
+
+  UserRepository get _userRepository => ref.read(userRepositoryProvider);
+  LoginUsecase get _loginUsecase => ref.read(loginUsecaseProvider);
+  AnonymousLoginUsecase get _anonymousLoginUsecase => ref.read(anonymousLoginUsecaseProvider);
+  LogoutUsecase get _logoutUsecase => ref.read(logoutUsecaseProvider);
+  GetCurrentUserUsecase get _getCurrentUserUsecase => ref.read(getCurrentUserUsecaseProvider);
+
+  // Check current user on initialization
+  Future<void> _checkCurrentUser() async {
+    try {
+      final user = await _getCurrentUserUsecase();
+      final newState = AuthState(
+        isAuthenticated: user != null,
+        userProfile: user,
+        isLoading: false,
+        errorMessage: null,
+      );
+      state = newState;
+    } catch (e) {
+      state = AuthState(
+        isAuthenticated: false,
+        userProfile: null,
+        isLoading: false,
+        errorMessage: e.toString(),
+      );
+    }
+  }
+
+  // Login with email and password
+  Future<void> login(String email, String password) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    
+    try {
+      final result = await _loginUsecase(email: email, password: password);
+      
+      if (result.success) {
+        final user = await _getCurrentUserUsecase();
+        state = AuthState(
+          isAuthenticated: true,
+          userProfile: user,
+          isLoading: false,
+          errorMessage: null,
+        );
+      } else {
+        state = state.copyWith(
+          isAuthenticated: false,
+          isLoading: false,
+          errorMessage: result.errorMessage,
+        );
+      }
+    } catch (e) {
+      state = state.copyWith(
+        isAuthenticated: false,
+        isLoading: false,
+        errorMessage: 'Login failed: $e',
+      );
+    }
+  }
+
+  // Login anonymously
+  Future<void> loginAnonymously() async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    
+    try {
+      final result = await _anonymousLoginUsecase();
+      
+      if (result.success) {
+        final user = await _getCurrentUserUsecase();
+        state = AuthState(
+          isAuthenticated: true,
+          userProfile: user,
+          isLoading: false,
+          errorMessage: null,
+        );
+      } else {
+        state = state.copyWith(
+          isAuthenticated: false,
+          isLoading: false,
+          errorMessage: result.errorMessage,
+        );
+      }
+    } catch (e) {
+      state = state.copyWith(
+        isAuthenticated: false,
+        isLoading: false,
+        errorMessage: 'Anonymous login failed: $e',
+      );
+    }
+  }
+
+  // Logout
+  Future<void> logout() async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    
+    try {
+      await _logoutUsecase();
+      state = const AuthState(
+        isAuthenticated: false,
+        userProfile: null,
+        isLoading: false,
+        errorMessage: null,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Logout failed: $e',
+      );
+    }
+  }
+
+  // Get current user profile
+  UserProfile? getCurrentUser() {
+    return state.userProfile;
+  }
+
+  // Check if user is authenticated
+  bool isAuthenticated() {
+    return state.isAuthenticated;
+  }
+}
+
+// Riverpod provider for auth state
+final authProvider = NotifierProvider<AuthNotifier, AuthState>(
+  AuthNotifier.new,
+);

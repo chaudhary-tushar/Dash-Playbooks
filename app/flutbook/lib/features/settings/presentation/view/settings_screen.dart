@@ -6,10 +6,10 @@ class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  _SettingsScreenState createState() => _SettingsScreenState();
+  SettingsScreenState createState() => SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class SettingsScreenState extends State<SettingsScreen> {
   // Mock settings values - will be replaced with actual state management
   bool _darkMode = false;
   double _defaultSpeed = 1;
@@ -356,9 +356,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     value: 10,
                     groupValue: currentInterval,
                     onChanged: (int? value) {
-                      setState(() {
-                        currentInterval = value!;
-                      });
+                      if (value != null) {
+                        setState(() {
+                          currentInterval = value;
+                        });
+                      }
                     },
                   ),
                   RadioListTile<int>(
@@ -366,9 +368,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     value: 15,
                     groupValue: currentInterval,
                     onChanged: (int? value) {
-                      setState(() {
-                        currentInterval = value!;
-                      });
+                      if (value != null) {
+                        setState(() {
+                          currentInterval = value;
+                        });
+                      }
                     },
                   ),
                   RadioListTile<int>(
@@ -376,9 +380,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     value: 30,
                     groupValue: currentInterval,
                     onChanged: (int? value) {
-                      setState(() {
-                        currentInterval = value!;
-                      });
+                      if (value != null) {
+                        setState(() {
+                          currentInterval = value;
+                        });
+                      }
                     },
                   ),
                 ],

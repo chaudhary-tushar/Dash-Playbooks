@@ -1,14 +1,15 @@
 // lib/presentation/screens/splash_screen.dart
 import 'package:flutter/material.dart';
+import 'dart:async';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  _SplashScreenState createState() => _SplashScreenState();
+  SplashScreenState createState() => SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
@@ -16,7 +17,7 @@ class _SplashScreenState extends State<SplashScreen> {
     Future.delayed(const Duration(seconds: 3), () {
       // Navigate to auth screen after splash delay
       if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/auth');
+        unawaited(Navigator.of(context).pushReplacementNamed('/auth'));
       }
     });
   }

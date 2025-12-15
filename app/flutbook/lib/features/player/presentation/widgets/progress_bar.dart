@@ -1,5 +1,6 @@
 // lib/presentation/widgets/progress_bar.dart
 import 'package:flutter/material.dart';
+import 'dart:async';
 
 class ProgressBar extends StatefulWidget {
   const ProgressBar({
@@ -16,15 +17,15 @@ class ProgressBar extends StatefulWidget {
   final Duration totalDuration;
   final List<Duration> chapterMarkers; // Positions of chapters if available
   final Function(Duration) onSeek;
-  final Function()? onSeekStart;
-  final Function(Duration)? onSeekEnd;
+  final Future<void> Function()? onSeekStart;
+  final Future<void> Function(Duration)? onSeekEnd;
   final bool isLoading;
 
   @override
-  _ProgressBarState createState() => _ProgressBarState();
+  ProgressBarState createState() => ProgressBarState();
 }
 
-class _ProgressBarState extends State<ProgressBar> {
+class ProgressBarState extends State<ProgressBar> {
   double get _currentSliderPosition {
     if (widget.totalDuration.inMilliseconds == 0) return 0;
     return widget.currentPosition.inMilliseconds /
@@ -78,7 +79,7 @@ class _ProgressBarState extends State<ProgressBar> {
                       child: Container(
                         width: 2,
                         height: 8,
-                        color: primaryColor.withOpacity(0.7),
+                        color: Color.fromRGBO(primaryColor.red, primaryColor.green, primaryColor.blue, 0.7),
                       ),
                     ),
 
@@ -89,8 +90,8 @@ class _ProgressBarState extends State<ProgressBar> {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        primaryColor.withOpacity(0.5),
-                        primaryColor.withOpacity(0.1),
+                        Color.fromRGBO(primaryColor.red, primaryColor.green, primaryColor.blue, 0.5),
+                        Color.fromRGBO(primaryColor.red, primaryColor.green, primaryColor.blue, 0.1),
                       ],
                     ),
                     borderRadius: BorderRadius.circular(2),
@@ -131,7 +132,7 @@ class _ProgressBarState extends State<ProgressBar> {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
+                          color: Color.fromRGBO(Colors.black.red, Colors.black.green, Colors.black.blue, 0.3),
                           blurRadius: 2,
                           offset: const Offset(1, 1),
                         ),
@@ -202,9 +203,7 @@ class _ProgressBarState extends State<ProgressBar> {
   }
 
   void _handleSeekStart(double dx) {
-    if (widget.onSeekStart != null) {
-      widget.onSeekStart!();
-    }
+    unawaited(widget.onSeekStart?.call());
     _handleSeek(dx);
   }
 
@@ -216,9 +215,7 @@ class _ProgressBarState extends State<ProgressBar> {
       milliseconds: (percent * widget.totalDuration.inMilliseconds).round(),
     );
 
-    if (widget.onSeekEnd != null) {
-      widget.onSeekEnd!(newDuration);
-    }
+    unawaited(widget.onSeekEnd?.call(newDuration));
   }
 
   String _formatDuration(Duration duration) {

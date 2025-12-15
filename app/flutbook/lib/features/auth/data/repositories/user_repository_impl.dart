@@ -1,8 +1,8 @@
 import 'package:flutbook/features/auth/data/datasources/firebase_auth_datasource.dart';
-// import 'package:flutbook/features/auth/domain/entities/auth_result.dart';
+import 'package:flutbook/features/auth/domain/entities/auth_result.dart';
 import 'package:flutbook/features/auth/domain/entities/user_profile.dart';
 import 'package:flutbook/features/auth/domain/repositories/user_repository.dart'
-    show AuthResult, SyncResult, SyncStatus, UserRepository, UserSettings;
+    show UserRepository;
 import 'package:flutbook/features/library/data/datasources/remote/firebase_library_sync.dart';
 import 'package:flutbook/features/player/data/datasources/remote/firebase_playback_sync.dart';
 import 'package:flutbook/features/settings/data/datasources/preferences_datasource.dart';
@@ -34,14 +34,10 @@ class UserRepositoryImpl implements UserRepository {
 
       if (result.success && result.user != null) {
         // Save user preferences
-        await _preferencesDatasource.saveUserPreferences(result.user);
+        await _preferencesDatasource.saveUserPreferences(result.user!);
       }
 
-      return AuthResult(
-        success: result.success,
-        userId: result.userId,
-        errorMessage: result.errorMessage,
-      );
+      return result;
     } catch (e) {
       return AuthResult(
         success: false,
@@ -57,14 +53,10 @@ class UserRepositoryImpl implements UserRepository {
 
       if (result.success && result.user != null) {
         // Save user preferences
-        await _preferencesDatasource.saveUserPreferences(result.user);
+        await _preferencesDatasource.saveUserPreferences(result.user!);
       }
 
-      return AuthResult(
-        success: result.success,
-        userId: result.userId,
-        errorMessage: result.errorMessage,
-      );
+      return result;
     } catch (e) {
       return AuthResult(
         success: false,
@@ -86,14 +78,10 @@ class UserRepositoryImpl implements UserRepository {
 
       if (result.success && result.user != null) {
         // Save user preferences
-        await _preferencesDatasource.saveUserPreferences(result.user);
+        await _preferencesDatasource.saveUserPreferences(result.user!);
       }
 
-      return AuthResult(
-        success: result.success,
-        userId: result.userId,
-        errorMessage: result.errorMessage,
-      );
+      return result;
     } catch (e) {
       return AuthResult(
         success: false,
@@ -238,9 +226,28 @@ class UserRepositoryImpl implements UserRepository {
   }
 
   @override
-  Future<AuthResult> anonymousSignIn() {
-    // TODO: implement anonymousSignIn
-    throw UnimplementedError();
+  Future<AuthResult> anonymousSignIn() async {
+    try {
+      // Use the auth result from the datasource (which has the user field)
+      final datasourceResult = await _authDatasource.anonymousSignIn();
+
+      // If successful, save user preferences using the user from datasource result
+      if (datasourceResult.success && datasourceResult.user != null) {
+        await _preferencesDatasource.saveUserPreferences(datasourceResult.user!);
+      }
+
+      // Return a repository-compatible AuthResult (without user field)
+      return AuthResult(
+        success: datasourceResult.success,
+        userId: datasourceResult.userId,
+        errorMessage: datasourceResult.errorMessage,
+      );
+    } catch (e) {
+      return AuthResult(
+        success: false,
+        errorMessage: 'Anonymous sign in failed: $e',
+      );
+    }
   }
 
   @override

@@ -207,14 +207,61 @@ class FirebaseAuthDatasource {
   }
 
   /// Signs in anonymously
-  // Future<AuthResult> signInAnonymously() async {
-  //   try {
-  //     final userCredential = await _firebaseAuth.signInAnonymously();
-  //     final user = userCredential.user;
-  //     if (user != null) {
-  //         /// Signs out the current user
-  //         ///
+  Future<AuthResult> anonymousSignIn() async {
+    try {
+      final userCredential = await _firebaseAuth.signInAnonymously();
+      final user = userCredential.user;
 
+      if (user != null) {
+        final userProfile = UserProfile(
+          id: user.uid,
+          email: 'anonymous@${user.uid}', // Anonymous users don't have emails
+          displayName: 'Anonymous User',
+          authMethod: 'anonymous',
+          syncEnabled: true,
+        );
+
+        return AuthResult(
+          success: true,
+          userId: user.uid,
+          user: userProfile,
+        );
+      } else {
+        return const AuthResult(
+          success: false,
+          errorMessage: 'Anonymous authentication failed: No user returned',
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      return AuthResult(
+        success: false,
+        errorMessage: mapAuthError(e.code),
+      );
+    } catch (e) {
+      return AuthResult(
+        success: false,
+        errorMessage: 'Failed to sign in anonymously: $e',
+      );
+    }
+  }
+
+  /// Signs in with email and password
+  Future<User> signInWithEmail(String email, String password) async {
+    try {
+      final userCredential = await _firebaseAuth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      return userCredential.user!;
+    } on FirebaseAuthException catch (e) {
+      throw Exception('Failed to sign in with email: ${mapAuthError(e.code)}');
+    } catch (e) {
+      throw Exception('Failed to sign in with email: $e');
+    }
+  }
+
+  /// Signs out the current user
+  ///
   Future<void> signOut() async {
     await _firebaseAuth.signOut();
     await _googleSignIn.signOut();
@@ -228,7 +275,9 @@ class FirebaseAuthDatasource {
         id: user.uid,
         email: user.email ?? '',
         displayName: user.displayName,
-        authMethod: user.providerData.isNotEmpty ? user.providerData.first.providerId : 'anonymous',
+        authMethod: user.providerData.isNotEmpty
+            ? user.providerData.first.providerId
+            : 'anonymous',
         syncEnabled: true,
       );
     }

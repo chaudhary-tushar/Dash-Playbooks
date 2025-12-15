@@ -87,7 +87,7 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
           sleepTimerActive: playbackState.sleepTimerActive,
         );
       },
-      onError: (error) {
+      onError: (Object error) {
         state = state.copyWith(errorMessage: error.toString());
       },
     );
@@ -242,7 +242,9 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
   // Skip backward
   Future<void> skipBackward(Duration interval) async {
     final newPosition = state.currentPosition - interval;
-    final clampedPosition = newPosition.isNegative ? Duration.zero : newPosition;
+    final clampedPosition = newPosition.isNegative
+        ? Duration.zero
+        : newPosition;
 
     await seekTo(clampedPosition);
   }

@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutbook/core/provider/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:async';
 
 /// Screen for selecting a directory containing audiobooks.
 ///
@@ -214,7 +215,10 @@ class _DirectorySelectionScreenState extends ConsumerState<DirectorySelectionScr
             if (_selectedDirectory != null) ...[
               const SizedBox(height: 16),
               ElevatedButton(
-                onPressed: _handleContinuePressed,
+                onPressed: () {
+                  // Properly handle the Future returned by _handleContinuePressed
+                  unawaited(_handleContinuePressed());
+                },
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   backgroundColor: Theme.of(context).colorScheme.primary,

@@ -25,10 +25,10 @@ class PlaybackControls extends StatefulWidget {
   final Function(Duration) onSkipBackward;
 
   @override
-  _PlaybackControlsState createState() => _PlaybackControlsState();
+  PlaybackControlsState createState() => PlaybackControlsState();
 }
 
-class _PlaybackControlsState extends State<PlaybackControls> {
+class PlaybackControlsState extends State<PlaybackControls> {
   late double _currentSpeed;
 
   @override
@@ -182,7 +182,7 @@ class _PlaybackControlsState extends State<PlaybackControls> {
                   horizontal: 16,
                 ),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                  color: Color.fromRGBO(Theme.of(context).colorScheme.primary.red, Theme.of(context).colorScheme.primary.green, Theme.of(context).colorScheme.primary.blue, 0.1),
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: Row(

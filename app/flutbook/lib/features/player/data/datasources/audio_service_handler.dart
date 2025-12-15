@@ -136,7 +136,6 @@ class AudioServiceHandler extends audio_service.BaseAudioHandler {
     await _player.setSpeed(speed);
   }
 
-  @override
   Future<void> onMediaButton(audio_service.MediaButton button) async {
     // Simplified media button handling
     if (button == audio_service.MediaButton.media) {
@@ -232,7 +231,7 @@ class AudioServiceHandler extends audio_service.BaseAudioHandler {
     // Set up new timer
     _sleepTimer = Timer(duration, () {
       _sleepTimerActive = false;
-      pause(); // Pause playback when timer ends
+      unawaited(pause()); // Pause playback when timer ends
     });
   }
 

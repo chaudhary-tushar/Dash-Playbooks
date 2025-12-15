@@ -2,15 +2,16 @@
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
 import 'package:flutbook/features/library/presentation/widgets/audiobook_card.dart';
 import 'package:flutter/material.dart';
+import 'dart:async';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
 
   @override
-  _LibraryScreenState createState() => _LibraryScreenState();
+  LibraryScreenState createState() => LibraryScreenState();
 }
 
-class _LibraryScreenState extends State<LibraryScreen> {
+class LibraryScreenState extends State<LibraryScreen> {
   // Temporary: Will be replaced with Riverpod state management
   List<Audiobook> _audiobooks = [];
   String _searchQuery = '';
@@ -98,10 +99,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
             icon: const Icon(Icons.filter_list),
             onSelected: (value) {
               if (value == 'refresh') {
-                _refreshLibrary();
+                unawaited(_refreshLibrary());
               } else if (value == 'settings') {
                 // Navigate to settings
-                Navigator.pushNamed(context, '/settings');
+                unawaited(Navigator.pushNamed(context, '/settings'));
               }
             },
             itemBuilder: (context) => [
@@ -282,7 +283,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     ),
                   )
                 : RefreshIndicator(
-                    onRefresh: _refreshLibrary,
+                    onRefresh: () => _refreshLibrary(),
                     child: ListView.builder(
                       itemCount: _filteredAudiobooks.length,
                       itemBuilder: (context, index) {
@@ -301,10 +302,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
                               : null,
                           onTap: () {
                             // Navigate to playback screen
-                            Navigator.pushNamed(
-                              context,
-                              '/playback',
-                              arguments: audiobook,
+                            unawaited(
+                              Navigator.pushNamed(
+                                context,
+                                '/playback',
+                                arguments: audiobook,
+                              ),
                             );
                           },
                         );
@@ -361,7 +364,7 @@ class _AudiobookSearchDelegate extends SearchDelegate<Audiobook> {
           title: Text(audiobook.title),
           subtitle: Text(audiobook.author),
           onTap: () {
-            close(context, audiobook);
+            unawaited(close(context, audiobook));
           },
         );
       },
@@ -386,7 +389,7 @@ class _AudiobookSearchDelegate extends SearchDelegate<Audiobook> {
           subtitle: Text(audiobook.author),
           onTap: () {
             query = audiobook.title;
-            close(context, audiobook);
+            unawaited(close(context, audiobook));
           },
         );
       },

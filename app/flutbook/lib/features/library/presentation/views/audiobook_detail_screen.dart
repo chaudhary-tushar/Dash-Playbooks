@@ -1,6 +1,7 @@
 // lib/presentation/screens/audiobook_detail_screen.dart
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
 import 'package:flutter/material.dart';
+import 'dart:async';
 
 class AudiobookDetailScreen extends StatefulWidget {
   const AudiobookDetailScreen({
@@ -10,10 +11,10 @@ class AudiobookDetailScreen extends StatefulWidget {
   final Audiobook audiobook;
 
   @override
-  _AudiobookDetailScreenState createState() => _AudiobookDetailScreenState();
+  AudiobookDetailScreenState createState() => AudiobookDetailScreenState();
 }
 
-class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
+class AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -219,11 +220,13 @@ class _AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
                       icon: const Icon(Icons.play_arrow),
                       label: const Text('Play'),
                       onPressed: () {
-                        // Navigate to playback screen with this audiobook
-                        Navigator.pushNamed(
-                          context,
-                          '/playback',
-                          arguments: {'audiobook': widget.audiobook},
+                        // Handle the returned Future properly
+                        unawaited(
+                          Navigator.pushNamed(
+                            context,
+                            '/playback',
+                            arguments: {'audiobook': widget.audiobook},
+                          ),
                         );
                       },
                     ),

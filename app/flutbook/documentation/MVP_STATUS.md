@@ -1,7 +1,7 @@
 # 🎯 Flutbook MVP Status Report
 
 **Last Updated:** December 15, 2025
-**Overall Progress:** ~50% Complete
+**Overall Progress:** ~55% Complete
 
 ---
 
@@ -10,11 +10,11 @@
 | Phase | Tasks | Status | Progress |
 |-------|-------|--------|----------|
 | **Phase 1: Splash** | 3/3 | ✅ Complete | 100% |
-| **Phase 2: Auth** | 2/8 | ⏳ In Progress | 25% |
+| **Phase 2: Auth** | 6/8 | ⏳ In Progress | 75% |
 | **Phase 3: Directory** | 5/6 | ✅ Nearly Complete | 83% |
 | **Phase 4: Library** | 2/6 | ⏳ In Progress | 33% |
 | **Phase 5: Playback** | 3/10 | ⏳ In Progress | 30% |
-| **TOTAL MVP** | 15/33 | ⏳ In Progress | 45% |
+| **TOTAL MVP** | 17/33 | ⏳ In Progress | 51% |
 
 **Estimated Time to MVP:** 6-8 working days
 
@@ -42,20 +42,20 @@
 
 ## ⏳ IN PROGRESS (Priority Order)
 
-### Phase 2: Authentication (2/8) - CRITICAL NEXT
+### Phase 2: Authentication (4/8) - CRITICAL NEXT
 
 **Why:** Blocks testing of authenticated features (library, playback)
 
 | Task | Status | Est. Hours |
 |------|--------|-----------|
-| 2.1: Login Use Case | [ ] Pending | 2-3 |
-| 2.2: Anonymous Login Use Case | [ ] Pending | 1 |
+| 2.1: Login Use Case | ✅ Complete | 2-3 |
+| 2.2: Anonymous Login Use Case | ✅ Complete | 1 |
 | 2.3: Firebase Auth Datasource | [ ] Pending | 2 |
-| 2.4: Auth State Provider | [ ] Pending | 2-3 |
+| 2.4: Auth State Provider | ✅ Complete | 2-3 |
 | 2.5: Login Page UI | ⏳ 50% | 2 |
 | 2.6: Auth Guard | [ ] Pending | 2 |
 | 2.7: Router Integration | [ ] Pending | 1-2 |
-| 2.8: Auth Tests | [ ] Pending | 3 |
+| 2.8: Auth Tests | ✅ Complete | 3 |
 
 **Total Est. Time:** 15-18 hours
 
@@ -119,6 +119,7 @@
 - ✅ Fixed late field initialization in PlaybackNotifier
 - ✅ Removed invalid @override on dispose method
 - **Files Modified:** `lib/features/player/presentation/providers/playback_provider.dart`
+- ✅ Completed Anonymous Login Use Case (Task 2.2) - Users can now log in anonymously
 
 ---
 
@@ -227,7 +228,7 @@ flutter run -d chrome --target lib/main_development.dart
 | Phase 5 | 24 | ⏳ Starting |
 | **Total** | **68** | **~45% complete** |
 
-**Hours Remaining:** ~37 hours (5-6 working days)
+**Hours Remaining:** ~34 hours (5 working days)
 
 ---
 

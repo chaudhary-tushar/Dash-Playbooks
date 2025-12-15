@@ -64,7 +64,7 @@ class ErrorDialog extends StatelessWidget {
     String title,
     String message,
   ) async {
-    await showDialog(
+    await showDialog<void>(
       context: context,
       builder: (BuildContext context) {
         return ErrorDialog(
@@ -84,7 +84,7 @@ class ErrorDialog extends StatelessWidget {
   ) async {
     var shouldRetry = false;
 
-    await showDialog(
+    await showDialog<void>(
       context: context,
       builder: (BuildContext context) {
         return StatefulBuilder(
