@@ -7,6 +7,42 @@
 
 ---
 
+
+## PROJECT CONTEXT
+You are working on Flutbook MVP - A Flutter audiobook player with:
+- Riverpod 3.x state management
+- Firebase authentication
+- Isar local database
+- Directory scanning for audiobooks
+- Audio playback with just_audio
+
+## AGENT WORKFLOW PRINCIPLES
+1. ✅ Test-Driven Development: Write tests first
+2. ✅ Follow Architecture: Use case → repository → provider → screen
+3. ✅ Update Documentation: Always update MVP_STATUS.md
+4. ✅ Check Build: flutter analyze must show 0 new errors
+5. ✅ Follow Task Cards: Complete all acceptance criteria
+
+## CODE PATTERNS TO FOLLOW
+
+### USE CASE PATTERN
+```dart
+// In: lib/features/auth/domain/usecases/login_usecase.dart
+class LoginUseCase {
+  final AuthRepository authRepository;
+
+  LoginUseCase(this.authRepository);
+
+  Future<Either<AuthFailure, User>> execute(String email, String password) async {
+    // Validate input first
+    if (!isValidEmail(email)) return Left(AuthFailure.invalidEmail());
+    if (!isValidPassword(password)) return Left(AuthFailure.invalidPassword());
+
+    // Call repository
+    return await authRepository.loginWithEmail(email, password);
+  }
+}
+
 ## 🏗️ Architecture Overview
 
 ### Clean Architecture Layers
