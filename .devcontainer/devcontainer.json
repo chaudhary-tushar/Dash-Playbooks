@@ -6,7 +6,7 @@
         "../docker-compose.yml"
     ],
     "service": "flutter-dev",
-    "remoteUser": "root",
+    "remoteUser": "ubuntu",
 
     "forwardPorts": [3000, 8000, 8080, 9090],
 
@@ -29,7 +29,8 @@
                 "Dart-Code.flutter",
                 "felixangelov.bloc",
                 "zhuangtongfa.Material-theme",
-                "GitHub.copilot"
+                "GitHub.copilot",
+                "kilocode.kilo-code"
             ],
             "settings": {
                 "dart.lineLength": 100,
@@ -71,16 +72,17 @@
     ],
 
     "remoteEnv": {
-        "PATH": "/opt/flutter/bin:/opt/flutter/bin/cache/dart-sdk/bin:/root/.pub-cache/bin:${containerEnv:PATH}",
+        "PATH": "/opt/flutter/bin:/opt/flutter/bin/cache/dart-sdk/bin:/home/ubuntu/.pub-cache/bin:${containerEnv:PATH}",
         "FLUTTER_ROOT": "/opt/flutter",
         "ANDROID_HOME": "/opt/android-sdk-linux",
         "ANDROID_SDK_ROOT": "/opt/android-sdk-linux",
-        "PUB_CACHE": "/root/.pub-cache",
+        "PUB_CACHE": "/home/ubuntu/.pub-cache",
         "GRADLE_USER_HOME": "/root/.gradle"
     },
 
 
-    "workspaceFolder": "/root/app/flutbook",
+    "workspaceFolder": "/home/ubuntu/app/flutbook",
+
 
     "hostRequirements": {
         "cpus": 4,

@@ -1,0 +1,5 @@
+- "src/" contains VSCode extension code, not source for web apps
+- Provider examples are canonical reference (docs are outdated)
+- UI runs in VSCode webview with restrictions (no localStorage, limited APIs)
+- Package.json scripts must be run from specific directories
+- Locales in root are for extension, webview-ui/src/i18n for UI

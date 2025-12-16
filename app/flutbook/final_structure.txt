@@ -1,0 +1,141 @@
+lib/
+├── app/
+│   ├── app.dart                           // Root app widget; setups Router + Themes
+│   ├── bootstrap.dart                     // Initializes DI, observers, global config (like Django settings)
+│   └── router/
+│       └── app_router.dart                // Global routing map (Django project urls.py)
+│
+├── core/                                  // Shared utilities: like Django utilities/middleware
+│   ├── constants/                         // Global constants (routes, sizes)
+│   ├── errors/                            // Exceptions, failure handling
+│   ├── services/                          // Shared services (logging, permissions, file pickers)
+│   └── utils/                             // Formatters, extensions, helpers
+│
+├── features/
+│
+│   ├── auth/                              // Django-style "authentication app"
+│   │   ├── domain/
+│   │   │   ├── entities/
+│   │   │   │   └── user.dart              // Pure user entity (Django User-like)
+│   │   │   ├── repositories/
+│   │   │   │   └── auth_repository.dart   // Abstract contract (Django repository interface)
+│   │   │   └── usecases/
+│   │   │       ├── login.dart             // Handles login logic
+│   │   │       ├── logout.dart            // Handles logout logic
+│   │   │       └── register_user.dart     // Handles registration logic
+│   │   ├── data/
+│   │   │   ├── models/
+│   │   │   │   └── user_model.dart        // Serializable model (similar to Django serializer)
+│   │   │   ├── datasources/
+│   │   │   │   ├── firebase_auth_ds.dart  // FirebaseAuth API integration
+│   │   │   │   └── user_profile_ds.dart   // Firestore/Isar user profile storage
+│   │   │   └── repositories/
+│   │   │       └── auth_repository_impl.dart // Implements repository using Firebase + Isar
+│   │   └── presentation/
+│   │       ├── view/
+│   │       │   └── login_page.dart        // Login UI page (Django template)
+│   │       ├── providers/
+│   │       │   └── auth_provider.dart     // Riverpod state for auth status
+│   │       └── widgets/
+│   │           ├── login_form.dart        // Email+password form widget
+│   │           ├── login_buttons.dart     // Google/Phone login buttons
+│   │           └── login_header.dart      // Header illustration/UI
+│
+│
+│   ├── directory_selector/                 // Django "file-picker" app
+│   │   ├── domain/
+│   │   │   ├── entities/
+│   │   │   │   |── directory_info.dart     // Represents selected directory info
+│   │   │   │   └── audiobook_metadata.dart  // Metadata (title, author, duration)
+│   │   │   ├── repositories/
+│   │   │   │   |── directory_repository.dart // Contract for directory picking
+│   │   │   │   └── metadata_repository.dart // Contract for metadata extraction
+│   │   │   └── usecases/
+│   │   │       |── pick_directory.dart     // Use case: open file chooser dialog
+│   │   │       └── extract_metadata.dart   // The core use case — read audio file metadata
+│   │   ├── data/
+│   │   │   ├── datasources/
+│   │   │   │   |── system_directory_picker_ds.dart // Integrates OS file picker
+│   │   │   │   └── metadata_extractor_ds.dart // Uses ffmpeg or taglib
+│   │   │   └── repositories/
+│   │   │       |── directory_repository_impl.dart  // Implementation
+│   │   │       └── metadata_repository_impl.dart
+│   │   └── presentation/
+│   │       ├── view/
+│   │       │   └── directory_selection_page.dart // UI to select a directory
+│   │       └── providers/
+│   │           |── directory_provider.dart // Stores selected directory path
+│   │           └── metadata_provider.dart // Manages metadata lookup state
+│
+│
+│   ├── library/                            // Django "homepage" app — lists audiobooks
+│   │   ├── domain/
+│   │   │   ├── entities/
+│   │   │   │   ├── audiobook.dart          // The pure entity (like Django model w/out ORM)
+│   │   │   │   └── chapter.dart            // Chapter entity
+│   │   │   ├── repositories/
+│   │   │   │   └── library_repository.dart // Contract for fetching audiobooks
+│   │   │   └── usecases/
+│   │   │       ├── get_audiobooks.dart     // Load all audiobooks
+│   │   │       └── scan_library.dart       // Parse folder & create audiobook entries
+│   │   ├── data/
+│   │   │   ├── models/
+│   │   │   │   ├── audiobook_model.dart    // Isar model
+│   │   │   │   └── chapter_model.dart      // Isar model for chapters
+│   │   │   ├── datasources/
+│   │   │   │   ├── audiobook_local_ds.dart // Isar access to audiobook collection
+│   │   │   │   └── json_storage_ds.dart    // JSON serializer for backup
+│   │   │   └── repositories/
+│   │   │       └── library_repository_impl.dart // Isar-based implementation
+│   │   └── presentation/
+│   │       ├── view/
+│   │       │   └── library_page.dart       // Home screen listing audiobooks
+│   │       ├── widgets/
+│   │       │   ├── audiobook_card.dart     // Grid/list item UI
+│   │       │   └── chapter_list.dart       // Chapter listing widget
+│   │       └── providers/
+│   │           └── library_provider.dart   // Riverpod state for library
+│
+│
+│   ├── player/                             // Django "audiobook playback" app
+│   │   ├── domain/
+│   │   │   ├── entities/
+│   │   │   │   └── playback_session.dart    // Entity with position, speed, etc.
+│   │   │   ├── repositories/
+│   │   │   │   └── playback_repository.dart // Contract for playback logic
+│   │   │   └── usecases/
+│   │   │       ├── play_pause.dart         // Business logic: toggle playback
+│   │   │       ├── seek_position.dart      // Seek logic
+│   │   │       └── sync_playback_cloud.dart // Sync playback position → Firebase
+│   │   ├── data/
+│   │   │   ├── models/
+│   │   │   │   └── playback_session_model.dart // Isar model
+│   │   │   ├── datasources/
+│   │   │   │   ├── audio_handler_ds.dart   // Integrates with AudioService
+│   │   │   │   └── firebase_sync_ds.dart   // Sync progress to Firestore
+│   │   │   └── repositories/
+│   │   │       └── playback_repository_impl.dart // Implementation
+│   │   └── presentation/
+│   │       ├── view/
+│   │       │   └── player_page.dart        // Main player screen
+│   │       ├── widgets/
+│   │       │   ├── playback_controls.dart  // Play/pause UI
+│   │       │   ├── progress_bar.dart       // Seek bar widget
+│   │       │   └── chapter_detail_modal.dart // Audiobook detail modal view
+│   │       └── providers/
+│   │           └── playback_provider.dart  // UI state for playback
+│
+│
+│   └── splash/
+│       └── presentation/
+│           └── splash_page.dart           // First screen → checks auth + library status
+│
+├── l10n/                                   // Localization resources
+│   ├── arb/
+│   ├── gen/
+│   └── l10n.dart
+│
+├── main.dart                               // Default entrypoint (not used with flavors)
+├── main_development.dart                   // dev flavor init
+├── main_staging.dart                       // staging flavor init
+└── main_production.dart                    // prod flavor init
