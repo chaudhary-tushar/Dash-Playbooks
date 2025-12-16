@@ -245,6 +245,18 @@ class FirebaseAuthDatasource {
     }
   }
 
+  /// Signs in anonymously and returns User object
+  Future<User> signInAnonymously() async {
+    try {
+      final userCredential = await _firebaseAuth.signInAnonymously();
+      return userCredential.user!;
+    } on FirebaseAuthException catch (e) {
+      throw Exception('Failed to sign in anonymously: ${mapAuthError(e.code)}');
+    } catch (e) {
+      throw Exception('Failed to sign in anonymously: $e');
+    }
+  }
+
   /// Signs in with email and password
   Future<User> signInWithEmail(String email, String password) async {
     try {

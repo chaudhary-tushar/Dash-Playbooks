@@ -118,7 +118,7 @@
 │ Priority: 🔴 CRITICAL (integration)                         │
 │ Estimated Time: 2 hours                                     │
 │ Dependencies: Tasks 2.1, 2.2                               │
-│ Status: [ ] TODO / [ ] IN PROGRESS / [ ] COMPLETE          │
+│ Status: [ ] TODO / [ ] IN PROGRESS / [x] COMPLETE          │
 ├─────────────────────────────────────────────────────────────┤
 │ FILE TO UPDATE:                                             │
 │ lib/features/auth/data/datasources/firebase_auth_datasource.dart
@@ -209,7 +209,7 @@
 │ Priority: 🟡 HIGH (user-facing)                             │
 │ Estimated Time: 2 hours                                     │
 │ Dependencies: Tasks 2.1-2.4 (auth logic)                   │
-│ Status: [ ] TODO / [ ] IN PROGRESS / [ ] COMPLETE          │
+│ Status: [ ] TODO / [ ] IN PROGRESS / [x] COMPLETE          │
 ├─────────────────────────────────────────────────────────────┤
 │ FILE TO UPDATE:                                             │
 │ lib/features/auth/presentation/login.dart                  │
@@ -255,7 +255,7 @@
 │ Priority: 🟡 HIGH (security)                                │
 │ Estimated Time: 2 hours                                     │
 │ Dependencies: Task 2.4 (auth provider)                     │
-│ Status: [ ] TODO / [ ] IN PROGRESS / [ ] COMPLETE          │
+│ Status: [ ] TODO / [ ] IN PROGRESS / [x] COMPLETE          │
 ├─────────────────────────────────────────────────────────────┤
 │ FILE TO CREATE:                                             │
 │ lib/app/router/auth_guard.dart                             │
@@ -351,7 +351,7 @@
 │ Priority: 🟡 MEDIUM (quality assurance)                     │
 │ Estimated Time: 3 hours                                     │
 │ Dependencies: Tasks 2.1-2.7                                │
-│ Status: [ ] TODO / [ ] IN PROGRESS / [ ] COMPLETE          │
+│ Status: [ ] TODO / [ ] IN PROGRESS / [x] COMPLETE          │
 ├─────────────────────────────────────────────────────────────┤
 │ FILES TO CREATE:                                            │
 │ test/features/auth/domain/usecases/login_usecase_test.dart │
