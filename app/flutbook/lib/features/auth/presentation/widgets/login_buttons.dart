@@ -29,8 +29,8 @@ class LoginButtons extends ConsumerWidget {
         _LoginButton(
           iconPath: 'assets/icons/apple.png',
           label: 'Continue with Apple',
-          onTap: () {
-            Navigator.pushNamed(
+          onTap: () async {
+            await Navigator.pushNamed(
               context,
               '/directory',
               arguments: {
@@ -61,7 +61,7 @@ class LoginButtons extends ConsumerWidget {
 
                     // Hide loading indicator
                     if (contextRef.mounted) {
-                      messenger.hideCurrentSnackBar();
+                      await messenger.hideCurrentSnackBar();
                     }
 
                     print('Scan completed: ${result.scannedFiles} files');
@@ -71,19 +71,19 @@ class LoginButtons extends ConsumerWidget {
                     // Navigate to library screen after successful scan
                     if (result.success) {
                       if (contextRef.mounted) {
-                        Navigator.pushNamed(contextRef, '/library');
+                        await Navigator.pushNamed(contextRef, '/library');
                       }
                     } else {
                       // Show error message but still navigate
                       if (contextRef.mounted) {
-                        messenger.showSnackBar(
+                        await messenger.showSnackBar(
                           const SnackBar(
                             content: Text(
                               'Scan completed with errors. Check logs for details.',
                             ),
                           ),
                         );
-                        Navigator.pushNamed(contextRef, '/library');
+                        await Navigator.pushNamed(contextRef, '/library');
                       }
                     }
                   } catch (e) {
@@ -91,10 +91,10 @@ class LoginButtons extends ConsumerWidget {
                     if (contextRef.mounted) {
                       // Hide loading indicator
                       final messenger = ScaffoldMessenger.of(contextRef);
-                      messenger.hideCurrentSnackBar();
+                      await messenger.hideCurrentSnackBar();
 
                       // Show error message
-                      messenger.showSnackBar(
+                      await messenger.showSnackBar(
                         SnackBar(
                           content: Text('Error during scan: $e'),
                         ),

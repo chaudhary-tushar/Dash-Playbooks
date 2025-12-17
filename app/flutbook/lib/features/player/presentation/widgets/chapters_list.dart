@@ -12,7 +12,7 @@ class ChaptersList extends StatelessWidget {
   });
   
   final Audiobook audiobook;
-  final Function(Chapter) onChapterTap;
+  final void Function(Chapter) onChapterTap;
   final Duration currentPosition;
 
   @override

@@ -272,7 +272,7 @@ class UserRepositoryImpl implements UserRepository {
   }
 
   @override
-  Future<void> updateLocalData(String itemId, data) {
+  Future<void> updateLocalData(String itemId, Object data) {
     // TODO: implement updateLocalData
     throw UnimplementedError();
   }
@@ -284,7 +284,7 @@ class UserRepositoryImpl implements UserRepository {
   }
 
   @override
-  Future<void> updateRemoteData(String itemId, data) {
+  Future<void> updateRemoteData(String itemId, Object data) {
     // TODO: implement updateRemoteData
     throw UnimplementedError();
   }

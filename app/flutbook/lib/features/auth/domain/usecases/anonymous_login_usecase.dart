@@ -8,9 +8,6 @@ class AnonymousLoginUsecase {
 
   Future<AuthResult> call() async {
     try {
-      // Generate unique session ID for tracking purposes
-      final sessionId = _generateSessionId();
-
       // Call repository method for anonymous sign in
       final result = await repository.anonymousSignIn();
 

@@ -1,13 +1,12 @@
 // lib/data/datasources/local/metadata_extraction_datasource.dart
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutbook/core/error/exceptions.dart';
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
 import 'package:flutbook/features/library/domain/entities/chapter.dart';
+import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path/path.dart' as path;
-import 'package:path_provider/path_provider.dart';
 
 /// Extracts metadata from audio files using various approaches depending on file format.
 ///
@@ -38,7 +37,7 @@ class MetadataExtractionDatasource {
       var author = '';
       const album = '';
       String? coverArtPath;
-      Duration? duration;
+      Duration duration = Duration.zero; // Initialize with zero as default
       var chapters = <Chapter>[];
 
       try {
@@ -72,26 +71,43 @@ class MetadataExtractionDatasource {
         } else {
           // For desktop platforms, estimate duration based on file size and standard bitrates
           // This is less accurate but prevents the MissingPluginException
-          final fileData = await file.readAsBytes();
-          final fileSizeInBytes = fileData.lengthInBytes;
+          try {
+            final fileData = await file.readAsBytes();
+            final fileSizeInBytes = fileData.lengthInBytes;
 
-          // Estimate duration based on common audio bitrates
-          // 128 kbps (16 KB/s) is a common MP3 bitrate
-          // 256 kbps (32 KB/s) is common for higher quality
-          final estimatedDurationSeconds = (fileSizeInBytes / 32000).round();
-          duration = Duration(seconds: estimatedDurationSeconds);
+            // Calculate based on common audio bitrates (in bits per second)
+            // 128 kbps (16000 bytes/second) is a common MP3 bitrate
+            // 256 kbps (32000 bytes/second) for higher quality
+            // Use conservative 128kbps estimation to avoid overestimation
+            final estimatedDurationSeconds = (fileSizeInBytes / 16000).round();
+            duration = Duration(seconds: estimatedDurationSeconds > 0 ? estimatedDurationSeconds : 1); // Ensure at least 1 second
 
-          // Try to extract title/author from filename format like "Author - Title.mp3"
-          final extractedInfo = _extractInfoFromFilename(fileName);
-          if (extractedInfo.title.isNotEmpty) title = extractedInfo.title;
-          if (extractedInfo.author.isNotEmpty) author = extractedInfo.author;
+            // Try to extract title/author from filename format like "Author - Title.mp3"
+            final extractedInfo = _extractInfoFromFilename(fileName);
+            if (extractedInfo.title.isNotEmpty) title = extractedInfo.title;
+            if (extractedInfo.author.isNotEmpty) author = extractedInfo.author;
+          } catch (e) {
+            // If file reading fails, use minimum duration
+            print('Warning: Failed to read file for duration estimation $filePath: $e');
+            duration = const Duration(seconds: 1); // Default to 1 second if we can't estimate
+
+            // Try to extract title/author from filename anyway
+            final extractedInfo = _extractInfoFromFilename(fileName);
+            if (extractedInfo.title.isNotEmpty) title = extractedInfo.title;
+            if (extractedInfo.author.isNotEmpty) author = extractedInfo.author;
+          }
         }
 
         coverArtPath = await _extractCoverArt(filePath);
       } catch (e) {
-        // If metadata extraction fails, fall back to filename and basic info
+        // If metadata extraction fails, fall back to minimum viable audiobook object
         print('Warning: Failed to extract metadata for $filePath: $e');
-        // Continue with filename-derived info
+        // Set sensible defaults to ensure audiobook object is still valid
+        duration = const Duration(seconds: 1); // Default to 1 second
+
+        final extractedInfo = _extractInfoFromFilename(fileName);
+        if (extractedInfo.title.isNotEmpty) title = extractedInfo.title;
+        if (extractedInfo.author.isNotEmpty) author = extractedInfo.author;
       }
 
       return Audiobook(
@@ -100,7 +116,7 @@ class MetadataExtractionDatasource {
         author: author,
         album: album,
         coverArtPath: coverArtPath,
-        duration: duration ?? Duration.zero,
+        duration: duration,
         filePath: filePath,
         chapters: chapters,
         createdAt: DateTime.now(),

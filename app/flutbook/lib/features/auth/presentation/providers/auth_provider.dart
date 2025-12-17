@@ -1,5 +1,6 @@
 import 'package:flutbook/core/provider/providers.dart';
 import 'package:flutbook/features/auth/domain/entities/user_profile.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // Auth State class to represent the authentication state
@@ -60,7 +61,7 @@ class AuthNotifier extends Notifier<AuthState> {
     });
 
     // Check current user after provider initialization
-    Future.microtask(() async {
+    unawaited(Future.microtask(() async {
       try {
         await checkCurrentUser();
       } catch (e) {
@@ -71,7 +72,7 @@ class AuthNotifier extends Notifier<AuthState> {
           state = const AuthState();
         }
       }
-    });
+    }));
 
     // Start with loading state, but avoid Firebase calls if they would fail
     return const AuthState(isLoading: true);

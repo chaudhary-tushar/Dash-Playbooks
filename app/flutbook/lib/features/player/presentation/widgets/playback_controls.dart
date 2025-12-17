@@ -18,11 +18,11 @@ class PlaybackControls extends StatefulWidget {
   final double playbackSpeed;
   final bool sleepTimerActive;
   final Duration sleepTimerDuration;
-  final Function() onPlayPause;
-  final Function(double) onSpeedChanged;
-  final Function(bool) onSleepTimerToggle;
-  final Function(Duration) onSkipForward;
-  final Function(Duration) onSkipBackward;
+  final void Function() onPlayPause;
+  final void Function(double) onSpeedChanged;
+  final void Function({required bool value}) onSleepTimerToggle;
+  final void Function(Duration) onSkipForward;
+  final void Function(Duration) onSkipBackward;
 
   @override
   PlaybackControlsState createState() => PlaybackControlsState();
@@ -35,6 +35,14 @@ class PlaybackControlsState extends State<PlaybackControls> {
   void initState() {
     super.initState();
     _currentSpeed = widget.playbackSpeed;
+  }
+
+  @override
+  void didUpdateWidget(PlaybackControls oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.playbackSpeed != widget.playbackSpeed) {
+      _currentSpeed = widget.playbackSpeed;
+    }
   }
 
   @override
@@ -123,7 +131,7 @@ class PlaybackControlsState extends State<PlaybackControls> {
                         child: DropdownButton<double>(
                           isExpanded: true,
                           value: _currentSpeed,
-                          items: [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
+                          items: [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
                               .map(
                                 (speed) => DropdownMenuItem(
                                   value: speed,
@@ -149,7 +157,7 @@ class PlaybackControlsState extends State<PlaybackControls> {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () {
-                      widget.onSleepTimerToggle(!widget.sleepTimerActive);
+                      widget.onSleepTimerToggle(value: !widget.sleepTimerActive);
                     },
                     icon: Icon(
                       widget.sleepTimerActive
@@ -182,7 +190,12 @@ class PlaybackControlsState extends State<PlaybackControls> {
                   horizontal: 16,
                 ),
                 decoration: BoxDecoration(
-                  color: Color.fromRGBO(Theme.of(context).colorScheme.primary.red, Theme.of(context).colorScheme.primary.green, Theme.of(context).colorScheme.primary.blue, 0.1),
+                  color: Color.fromRGBO(
+                    (Theme.of(context).colorScheme.primary.red * 255.0).round().clamp(0, 255),
+                    (Theme.of(context).colorScheme.primary.green * 255.0).round().clamp(0, 255),
+                    (Theme.of(context).colorScheme.primary.blue * 255.0).round().clamp(0, 255),
+                    0.1,
+                  ),
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: Row(

@@ -2,7 +2,7 @@
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
 import 'package:flutbook/features/library/domain/repositories/library_repository.dart';
 
-abstract class GetAudiobooksUseCase {
+class GetAudiobooksUseCase {
   /// Gets audiobooks with optional filtering and sorting
   Future<List<Audiobook>> execute({
     String? sortBy,
@@ -12,7 +12,9 @@ abstract class GetAudiobooksUseCase {
     String? title,
     String? author,
     int? limit,
-  });
+  }) async {
+    throw UnimplementedError();
+  }
 }
 
 class GetAudiobooksUseCaseImpl implements GetAudiobooksUseCase {

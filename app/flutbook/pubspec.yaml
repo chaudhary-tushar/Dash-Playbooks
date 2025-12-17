@@ -46,6 +46,7 @@ dev_dependencies:
   mocktail: ^1.0.4
   very_good_analysis: ^10.0.0
 
+  state_notifier: any
 flutter:
   generate: true
   uses-material-design: true

@@ -12,7 +12,7 @@ class ChapterList extends StatefulWidget {
   });
   final List<Chapter> chapters;
   final Chapter? currentChapter;
-  final Function(Chapter)? onChapterSelected;
+  final void Function(Chapter)? onChapterSelected;
   final bool isExpanded;
 
   @override
@@ -51,7 +51,6 @@ class _ChapterListState extends State<ChapterList> {
 
   List<Widget> buildChapterList() {
     return widget.chapters.asMap().entries.map((entry) {
-      final index = entry.key;
       final chapter = entry.value;
       final isCurrent = widget.currentChapter?.id == chapter.id;
 

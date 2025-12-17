@@ -24,7 +24,9 @@ class AppRouter {
 
     // If cannot activate and not already on auth page, redirect to auth
     // But allow development bypass for specific routes
-    if (!canActivate && settings.name != '/auth' && settings.name != 'dev_directory') {
+    if (!canActivate &&
+        settings.name != '/auth' &&
+        settings.name != 'dev_directory') {
       return MaterialPageRoute(builder: (_) => const LoginPage());
     }
 
@@ -48,7 +50,7 @@ class AppRouter {
         final args = settings.arguments as Map<String, AudiobookModel>?;
         return MaterialPageRoute(
           builder: (_) => PlaybackScreen(
-            audiobook: args!['audiobook']!,
+            audiobook: args!['audiobook']!.toDomain(),
           ),
         );
       case '/settings':

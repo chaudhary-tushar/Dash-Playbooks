@@ -18,8 +18,6 @@ class AudiobookDetailScreen extends StatefulWidget {
 class AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Audiobook Details'),

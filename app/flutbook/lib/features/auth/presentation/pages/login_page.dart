@@ -275,9 +275,9 @@ class _LoginFormState extends ConsumerState<_LoginForm> {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton(
-              onPressed: () {
+              onPressed: () async {
                 // Navigate directly to directory selection screen bypassing auth guard
-                Navigator.of(context).pushReplacementNamed('dev_directory',
+                await Navigator.of(context).pushReplacementNamed('dev_directory',
                   arguments: {'initialDirectory': null});
               },
               child: const Padding(

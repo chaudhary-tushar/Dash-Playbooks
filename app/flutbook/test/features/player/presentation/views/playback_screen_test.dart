@@ -1,11 +1,1045 @@
 // test/features/player/presentation/views/playback_screen_test.dart
+import 'package:flutbook/features/library/domain/entities/audiobook.dart';
+import 'package:flutbook/features/library/domain/entities/chapter.dart';
+import 'package:flutbook/features/player/domain/entities/playback_session.dart';
+import 'package:flutbook/features/player/presentation/providers/playback_provider.dart';
+import 'package:flutbook/features/player/presentation/views/playback_screen.dart';
+import 'package:flutbook/features/player/presentation/widgets/chapters_list.dart';
+import 'package:flutbook/features/player/presentation/widgets/progress_bar.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+// Mock implementation of PlaybackNotifier for testing
+class MockPlaybackNotifier extends PlaybackNotifier {
+  bool _shouldThrowError = false;
+  PlaybackState _state = PlaybackState.initial();
+  Audiobook? _currentAudiobook;
+
+  void setShouldThrowError(bool shouldThrow) {
+    _shouldThrowError = shouldThrow;
+  }
+
+  @override
+  @override
+  Future<void> setCurrentAudiobook(Audiobook audiobook) async {
+    _currentAudiobook = audiobook;
+    _state = _state.copyWith(
+      duration: audiobook.duration,
+    );
+  }
+
+  void setState(PlaybackState newState) {
+    _state = newState;
+  }
+
+  void triggerPlay() {
+    _state = _state.copyWith(isPlaying: true);
+  }
+
+  void triggerPause() {
+    _state = _state.copyWith(isPlaying: false);
+  }
+
+  void setPosition(Duration position) {
+    _state = _state.copyWith(currentPosition: position);
+  }
+
+  void setPlaybackSpeed(double speed) {
+    _state = _state.copyWith(playbackSpeed: speed);
+  }
+
+  void setSleepTimerActive(bool active, [Duration? duration]) {
+    _state = _state.copyWith(
+      sleepTimerActive: active,
+      sleepTimerDuration: duration,
+    );
+  }
+
+  @override
+  PlaybackState build() {
+    return _state;
+  }
+
+  @override
+  Future<void> play() async {
+    if (_shouldThrowError) {
+      throw Exception('Play error');
+    }
+    triggerPlay();
+  }
+
+  @override
+  Future<void> pause() async {
+    if (_shouldThrowError) {
+      throw Exception('Pause error');
+    }
+    triggerPause();
+  }
+
+  @override
+  Future<void> seekTo(Duration position) async {
+    if (_shouldThrowError) {
+      throw Exception('Seek error');
+    }
+    setPosition(position);
+  }
+
+  @override
+  Future<void> setSpeed(double speed) async {
+    if (_shouldThrowError) {
+      throw Exception('Speed error');
+    }
+    setSpeed(speed);
+  }
+
+  @override
+  void setSleepTimer(Duration duration, {bool endOfChapter = false}) {
+    if (_shouldThrowError) {
+      throw Exception('Sleep timer error');
+    }
+    setSleepTimerActive(true, duration);
+  }
+
+  @override
+  void cancelSleepTimer() {
+    if (_shouldThrowError) {
+      throw Exception('Cancel sleep timer error');
+    }
+    setSleepTimerActive(false);
+  }
+
+  @override
+  Future<void> skipForward(Duration interval) async {
+    if (_shouldThrowError) {
+      throw Exception('Skip forward error');
+    }
+    final newPosition = _state.currentPosition + interval;
+    if (newPosition <= _state.duration) {
+      setPosition(newPosition);
+    }
+  }
+
+  @override
+  Future<void> skipBackward(Duration interval) async {
+    if (_shouldThrowError) {
+      throw Exception('Skip backward error');
+    }
+    final newPosition = _state.currentPosition - interval;
+    if (newPosition >= Duration.zero) {
+      setPosition(newPosition);
+    }
+  }
+
+  @override
+  Future<PlaybackSession?> getCurrentPlaybackSession() async {
+    if (_shouldThrowError) {
+      throw Exception('Get session error');
+    }
+    if (_currentAudiobook == null) return null;
+
+    return PlaybackSession(
+      audiobookId: _currentAudiobook!.id,
+      currentPosition: _state.currentPosition,
+      playbackSpeed: _state.playbackSpeed,
+      isPlaying: _state.isPlaying,
+      lastPlayedAt: DateTime.now(),
+      sleepTimerActive: _state.sleepTimerActive,
+      sleepTimerDuration: _state.sleepTimerDuration,
+    );
+  }
+}
+
+// Test provider overrides
+final testPlaybackProvider =
+    NotifierProvider<MockPlaybackNotifier, PlaybackState>(
+      MockPlaybackNotifier.new,
+    );
+
 void main() {
-  group('PlaybackScreen', () {
-    test('should render properly', () {
-      // TODO: Implement widget tests
-      expect(1, 1); // Placeholder to avoid no tests warning
+  late Audiobook testAudiobook;
+  late MockPlaybackNotifier mockNotifier;
+
+  setUp(() {
+    // Create test audiobook with chapters
+    testAudiobook = Audiobook(
+      id: 'test-audiobook-1',
+      title: 'Test Audiobook Title',
+      author: 'Test Author Name',
+      album: 'Test Album',
+      duration: const Duration(hours: 2, minutes: 30),
+      filePath: '/path/to/test/audiobook.mp3',
+      chapters: [
+        Chapter(
+          id: 'chapter-1',
+          title: 'Introduction',
+          startTime: Duration.zero,
+          endTime: const Duration(minutes: 30),
+        ),
+        Chapter(
+          id: 'chapter-2',
+          title: 'Main Content',
+          startTime: const Duration(minutes: 30),
+          endTime: const Duration(minutes: 75),
+        ),
+        Chapter(
+          id: 'chapter-3',
+          title: 'Conclusion',
+          startTime: const Duration(minutes: 75),
+          endTime: const Duration(minutes: 105),
+        ),
+      ],
+      createdAt: DateTime.now(),
+      completed: false,
+      totalSize: 100000000,
+    );
+  });
+
+  // Helper function to create test widget with provider overrides
+  Widget createTestWidget({required Widget child}) {
+    return ProviderScope(
+      overrides: [
+        playbackProvider.overrideWith(() => mockNotifier),
+        currentAudiobookProvider.overrideWith((ref) => testAudiobook),
+      ],
+      child: MaterialApp(
+        home: child,
+      ),
+    );
+  }
+
+  group('PlaybackScreen - Initialization and Rendering', () {
+    testWidgets('should render PlaybackScreen with audiobook information', (
+      WidgetTester tester,
+    ) async {
+      // Setup
+      mockNotifier = MockPlaybackNotifier();
+      mockNotifier.setCurrentAudiobook(testAudiobook);
+
+      // Build the widget
+      await tester.pumpWidget(
+        createTestWidget(
+          child: PlaybackScreen(audiobook: testAudiobook),
+        ),
+      );
+
+      // Wait for any async operations
+      await tester.pumpAndSettle();
+
+      // Verify basic rendering
+      expect(find.byType(PlaybackScreen), findsOneWidget);
+      expect(find.byType(Scaffold), findsOneWidget);
+      expect(find.text('Now Playing'), findsOneWidget);
+
+      // Verify audiobook information is displayed
+      expect(find.text('Test Audiobook Title'), findsOneWidget);
+      expect(find.text('Test Author Name'), findsOneWidget);
+
+      // Verify playback controls are present
+      expect(find.byType(FloatingActionButton), findsOneWidget);
+      expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
+
+      // Verify progress bar is present
+      expect(find.byType(ProgressBar), findsOneWidget);
+
+      // Verify chapters list is present
+      expect(find.byType(ChaptersList), findsOneWidget);
+    });
+
+    testWidgets('should display cover art when available', (
+      WidgetTester tester,
+    ) async {
+      // Setup - audiobook with cover art
+      final audiobookWithCover = testAudiobook.copyWith(
+        coverArtPath: 'https://example.com/cover.jpg',
+      );
+
+      mockNotifier = MockPlaybackNotifier();
+      mockNotifier.setCurrentAudiobook(audiobookWithCover);
+
+      // Build the widget
+      await tester.pumpWidget(
+        createTestWidget(
+          child: PlaybackScreen(audiobook: audiobookWithCover),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Verify cover art is displayed (Image.network)
+      expect(find.byType(Image), findsOneWidget);
+    });
+
+    testWidgets('should display placeholder when cover art is not available', (
+      WidgetTester tester,
+    ) async {
+      // Setup - audiobook without cover art
+      final audiobookWithoutCover = testAudiobook.copyWith();
+
+      mockNotifier = MockPlaybackNotifier();
+      mockNotifier.setCurrentAudiobook(audiobookWithoutCover);
+
+      // Build the widget
+      await tester.pumpWidget(
+        createTestWidget(
+          child: PlaybackScreen(audiobook: audiobookWithoutCover),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Verify placeholder icon is displayed
+      expect(find.byIcon(Icons.album_outlined), findsOneWidget);
+    });
+  });
+
+  group('PlaybackScreen - Play/Pause Functionality', () {
+    testWidgets('should start in paused state', (
+      WidgetTester tester,
+    ) async {
+      // Setup
+      mockNotifier = MockPlaybackNotifier();
+      mockNotifier.setCurrentAudiobook(testAudiobook);
+
+      // Build the widget
+      await tester.pumpWidget(
+        createTestWidget(
+          child: PlaybackScreen(audiobook: testAudiobook),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Verify initial state is paused
+      expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.pause_rounded), findsNothing);
+    });
+
+    testWidgets(
+      'should toggle from play to pause when play button is pressed',
+      (
+        WidgetTester tester,
+      ) async {
+        // Setup
+        mockNotifier = MockPlaybackNotifier();
+        mockNotifier.setCurrentAudiobook(testAudiobook);
+
+        // Build the widget
+        await tester.pumpWidget(
+          createTestWidget(
+            child: PlaybackScreen(audiobook: testAudiobook),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        // Initial state should be paused
+        expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
+
+        // Tap play button
+        await tester.tap(find.byType(FloatingActionButton));
+        await tester.pump();
+
+        // Should now show pause icon
+        expect(find.byIcon(Icons.pause_rounded), findsOneWidget);
+        expect(find.byIcon(Icons.play_arrow_rounded), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'should toggle from pause to play when pause button is pressed',
+      (
+        WidgetTester tester,
+      ) async {
+        // Setup - start in playing state
+        mockNotifier = MockPlaybackNotifier();
+        mockNotifier.setCurrentAudiobook(testAudiobook);
+        mockNotifier.triggerPlay();
+
+        // Build the widget
+        await tester.pumpWidget(
+          createTestWidget(
+            child: PlaybackScreen(audiobook: testAudiobook),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        // Initial state should be playing
+        expect(find.byIcon(Icons.pause_rounded), findsOneWidget);
+
+        // Tap pause button
+        await tester.tap(find.byType(FloatingActionButton));
+        await tester.pump();
+
+        // Should now show play icon
+        expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
+        expect(find.byIcon(Icons.pause_rounded), findsNothing);
+      },
+    );
+
+    testWidgets('should handle play/pause error gracefully', (
+      WidgetTester tester,
+    ) async {
+      // Setup - configure to throw error
+      mockNotifier = MockPlaybackNotifier();
+      mockNotifier.setShouldThrowError(true);
+      mockNotifier.setCurrentAudiobook(testAudiobook);
+
+      // Build the widget
+      await tester.pumpWidget(
+        createTestWidget(
+          child: PlaybackScreen(audiobook: testAudiobook),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Tap play button (should throw error but not crash)
+      await tester.tap(find.byType(FloatingActionButton));
+      await tester.pump();
+
+      // Should still be functional (error handling in provider)
+      expect(find.byType(PlaybackScreen), findsOneWidget);
+    });
+  });
+
+  group('PlaybackScreen - Seek/Slider Functionality', () {
+    testWidgets('should update position when progress bar is tapped', (
+      WidgetTester tester,
+    ) async {
+      // Setup
+      mockNotifier = MockPlaybackNotifier();
+      mockNotifier.setCurrentAudiobook(testAudiobook);
+      mockNotifier.setPosition(const Duration(minutes: 30));
+
+      // Build the widget
+      await tester.pumpWidget(
+        createTestWidget(
+          child: PlaybackScreen(audiobook: testAudiobook),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Find the progress bar
+      final progressBar = tester.widget<ProgressBar>(
+        find.byType(ProgressBar),
+      );
+
+      // Get the render object to calculate tap position
+      final renderObject = tester.renderObject<RenderBox>(
+        find.byType(ProgressBar),
+      );
+      final size = renderObject.size;
+
+      // Tap at 75% position (should seek to ~1 hour 52.5 minutes)
+      final tapPosition = Offset(size.width * 0.75, size.height / 2);
+      await tester.tapAt(tapPosition);
+      await tester.pump();
+
+      // Verify position was updated (approximate check)
+      const expectedPosition = Duration(
+        minutes: 112,
+        seconds: 30,
+      ); // 75% of 150 minutes
+      expect(
+        mockNotifier.state.currentPosition.inMinutes,
+        closeTo(expectedPosition.inMinutes, 5),
+      );
+    });
+
+    testWidgets('should handle seek to beginning', (
+      WidgetTester tester,
+    ) async {
+      // Setup - start at middle position
+      mockNotifier = MockPlaybackNotifier();
+      mockNotifier.setCurrentAudiobook(testAudiobook);
+      mockNotifier.setPosition(const Duration(minutes: 75));
+
+      // Build the widget
+      await tester.pumpWidget(
+        createTestWidget(
+          child: PlaybackScreen(audiobook: testAudiobook),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Tap at beginning of progress bar
+      final renderObject = tester.renderObject<RenderBox>(
+        find.byType(ProgressBar),
+      );
+      final size = renderObject.size;
+      final tapPosition = Offset(10, size.height / 2); // Near start
+
+      await tester.tapAt(tapPosition);
+      await tester.pump();
+
+      // Should be near beginning
+      expect(
+        mockNotifier.state.currentPosition.inMinutes,
+        lessThan(5), // Less than 5 minutes
+      );
+    });
+
+    testWidgets('should handle seek to end', (
+      WidgetTester tester,
+    ) async {
+      // Setup
+      mockNotifier = MockPlaybackNotifier();
+      mockNotifier.setCurrentAudiobook(testAudiobook);
+
+      // Build the widget
+      await tester.pumpWidget(
+        createTestWidget(
+          child: PlaybackScreen(audiobook: testAudiobook),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Tap at end of progress bar
+      final renderObject = tester.renderObject<RenderBox>(
+        find.byType(ProgressBar),
+      );
+      final size = renderObject.size;
+      final tapPosition = Offset(size.width - 10, size.height / 2); // Near end
+
+      await tester.tapAt(tapPosition);
+      await tester.pump();
+
+      // Should be near end (within 5 minutes of total duration)
+      expect(
+        mockNotifier.state.currentPosition.inMinutes,
+        greaterThan(testAudiobook.duration.inMinutes - 5),
+      );
+    });
+
+    testWidgets('should handle seek error gracefully', (
+      WidgetTester tester,
+    ) async {
+      // Setup - configure to throw error on seek
+      mockNotifier = MockPlaybackNotifier();
+      mockNotifier.setShouldThrowError(true);
+      mockNotifier.setCurrentAudiobook(testAudiobook);
+
+      // Build the widget
+      await tester.pumpWidget(
+        createTestWidget(
+          child: PlaybackScreen(audiobook: testAudiobook),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Try to seek (should throw error but not crash)
+      final renderObject = tester.renderObject<RenderBox>(
+        find.byType(ProgressBar),
+      );
+      final size = renderObject.size;
+      final tapPosition = Offset(size.width * 0.5, size.height / 2);
+
+      await tester.tapAt(tapPosition);
+      await tester.pump();
+
+      // Should still be functional
+      expect(find.byType(PlaybackScreen), findsOneWidget);
+    });
+  });
+
+  group('PlaybackScreen - Speed Changes', () {
+    testWidgets('should display initial speed correctly', (
+      WidgetTester tester,
+    ) async {
+      // Setup
+      mockNotifier = MockPlaybackNotifier();
+      mockNotifier.setCurrentAudiobook(testAudiobook);
+      mockNotifier.setSpeed(1);
+
+      // Build the widget
+      await tester.pumpWidget(
+        createTestWidget(
+          child: PlaybackScreen(audiobook: testAudiobook),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Verify speed dropdown shows 1.0x
+      expect(find.text('1.0x'), findsOneWidget);
+    });
+
+    testWidgets('should change speed when dropdown selection changes', (
+      WidgetTester tester,
+    ) async {
+      // Setup
+      mockNotifier = MockPlaybackNotifier();
+      mockNotifier.setCurrentAudiobook(testAudiobook);
+
+      // Build the widget
+      await tester.pumpWidget(
+        createTestWidget(
+          child: PlaybackScreen(audiobook: testAudiobook),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Open the speed dropdown
+      await tester.tap(find.byType(DropdownButton<double>));
+      await tester.pumpAndSettle();
+
+      // Select 1.5x speed
+      await tester.tap(find.text('1.5x').last);
+      await tester.pumpAndSettle();
+
+      // Verify speed was changed
+      expect(mockNotifier.state.playbackSpeed, 1.5);
+      expect(find.text('1.5x'), findsWidgets);
+    });
+
+    testWidgets('should support all standard speed options', (
+      WidgetTester tester,
+    ) async {
+      // Setup
+      mockNotifier = MockPlaybackNotifier();
+      mockNotifier.setCurrentAudiobook(testAudiobook);
+
+      // Build the widget
+      await tester.pumpWidget(
+        createTestWidget(
+          child: PlaybackScreen(audiobook: testAudiobook),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Open the speed dropdown
+      await tester.tap(find.byType(DropdownButton<double>));
+      await tester.pumpAndSettle();
+
+      // Verify all speed options are available
+      const expectedSpeeds = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+      for (final speed in expectedSpeeds) {
+        expect(find.text('${speed}x'), findsOneWidget);
+      }
+    });
+
+    testWidgets('should handle speed change error gracefully', (
+      WidgetTester tester,
+    ) async {
+      // Setup - configure to throw error on speed change
+      mockNotifier = MockPlaybackNotifier();
+      mockNotifier.setShouldThrowError(true);
+      mockNotifier.setCurrentAudiobook(testAudiobook);
+
+      // Build the widget
+      await tester.pumpWidget(
+        createTestWidget(
+          child: PlaybackScreen(audiobook: testAudiobook),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Try to change speed (should throw error but not crash)
+      await tester.tap(find.byType(DropdownButton<double>));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('1.5x').last);
+      await tester.pumpAndSettle();
+
+      // Should still be functional
+      expect(find.byType(PlaybackScreen), findsOneWidget);
+    });
+  });
+
+  group('PlaybackScreen - Sleep Timer', () {
+    testWidgets('should start with sleep timer inactive', (
+      WidgetTester tester,
+    ) async {
+      // Setup
+      mockNotifier = MockPlaybackNotifier();
+      mockNotifier.setCurrentAudiobook(testAudiobook);
+
+      // Build the widget
+      await tester.pumpWidget(
+        createTestWidget(
+          child: PlaybackScreen(audiobook: testAudiobook),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Verify sleep timer is inactive
+      expect(find.text('Sleep'), findsOneWidget);
+      expect(find.byIcon(Icons.bedtime_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.bedtime_rounded), findsNothing);
+    });
+
+    testWidgets('should activate sleep timer when button is pressed', (
+      WidgetTester tester,
+    ) async {
+      // Setup
+      mockNotifier = MockPlaybackNotifier();
+      mockNotifier.setCurrentAudiobook(testAudiobook);
+
+      // Build the widget
+      await tester.pumpWidget(
+        createTestWidget(
+          child: PlaybackScreen(audiobook: testAudiobook),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Tap sleep timer button
+      await tester.tap(find.text('Sleep'));
+      await tester.pumpAndSettle();
+
+      // For now, we'll just verify the dialog opens (simplified test)
+      // In a real implementation, this would show a dialog and then activate the timer
+      expect(find.byType(AlertDialog), findsOneWidget);
+    });
+
+    testWidgets('should show sleep timer display when active', (
+      WidgetTester tester,
+    ) async {
+      // Setup - start with sleep timer active
+      mockNotifier = MockPlaybackNotifier();
+      mockNotifier.setCurrentAudiobook(testAudiobook);
+      mockNotifier.setSleepTimerActive(true, const Duration(minutes: 30));
+
+      // Build the widget
+      await tester.pumpWidget(
+        createTestWidget(
+          child: PlaybackScreen(audiobook: testAudiobook),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Verify sleep timer is active
+      expect(find.byIcon(Icons.bedtime_rounded), findsOneWidget);
+      expect(find.text('Cancel'), findsOneWidget);
+      expect(find.text('30'), findsOneWidget); // Should show timer duration
+    });
+
+    testWidgets('should cancel sleep timer when active and button is pressed', (
+      WidgetTester tester,
+    ) async {
+      // Setup - start with sleep timer active
+      mockNotifier = MockPlaybackNotifier();
+      mockNotifier.setCurrentAudiobook(testAudiobook);
+      mockNotifier.setSleepTimerActive(true, const Duration(minutes: 30));
+
+      // Build the widget
+      await tester.pumpWidget(
+        createTestWidget(
+          child: PlaybackScreen(audiobook: testAudiobook),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Tap cancel button
+      await tester.tap(find.text('Cancel'));
+      await tester.pump();
+
+      // Verify sleep timer is cancelled
+      expect(find.text('Sleep'), findsOneWidget);
+      expect(find.byIcon(Icons.bedtime_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.bedtime_rounded), findsNothing);
+    });
+  });
+
+  group('PlaybackScreen - Skip Controls', () {
+    testWidgets('should skip forward when forward button is pressed', (
+      WidgetTester tester,
+    ) async {
+      // Setup
+      mockNotifier = MockPlaybackNotifier();
+      mockNotifier.setCurrentAudiobook(testAudiobook);
+      mockNotifier.setPosition(const Duration(minutes: 30));
+
+      // Build the widget
+      await tester.pumpWidget(
+        createTestWidget(
+          child: PlaybackScreen(audiobook: testAudiobook),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Find and tap the forward button
+      final forwardButton = find.byIcon(Icons.forward_30_outlined);
+      expect(forwardButton, findsOneWidget);
+
+      await tester.tap(forwardButton);
+      await tester.pump();
+
+      // Should skip forward by 30 seconds
+      expect(
+        mockNotifier.state.currentPosition,
+        const Duration(minutes: 30, seconds: 30),
+      );
+    });
+
+    testWidgets('should skip backward when backward button is pressed', (
+      WidgetTester tester,
+    ) async {
+      // Setup
+      mockNotifier = MockPlaybackNotifier();
+      mockNotifier.setCurrentAudiobook(testAudiobook);
+      mockNotifier.setPosition(const Duration(minutes: 1, seconds: 30));
+
+      // Build the widget
+      await tester.pumpWidget(
+        createTestWidget(
+          child: PlaybackScreen(audiobook: testAudiobook),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Find and tap the backward button
+      final backwardButton = find.byIcon(Icons.replay_10_outlined);
+      expect(backwardButton, findsOneWidget);
+
+      await tester.tap(backwardButton);
+      await tester.pump();
+
+      // Should skip backward by 15 seconds
+      expect(
+        mockNotifier.state.currentPosition,
+        const Duration(minutes: 1, seconds: 15),
+      );
+    });
+
+    testWidgets('should not skip backward past beginning', (
+      WidgetTester tester,
+    ) async {
+      // Setup - start at beginning
+      mockNotifier = MockPlaybackNotifier();
+      mockNotifier.setCurrentAudiobook(testAudiobook);
+      mockNotifier.setPosition(Duration.zero);
+
+      // Build the widget
+      await tester.pumpWidget(
+        createTestWidget(
+          child: PlaybackScreen(audiobook: testAudiobook),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Try to skip backward
+      final backwardButton = find.byIcon(Icons.replay_10_outlined);
+      await tester.tap(backwardButton);
+      await tester.pump();
+
+      // Should stay at beginning
+      expect(mockNotifier.state.currentPosition, Duration.zero);
+    });
+
+    testWidgets('should not skip forward past end', (
+      WidgetTester tester,
+    ) async {
+      // Setup - start near end
+      mockNotifier = MockPlaybackNotifier();
+      mockNotifier.setCurrentAudiobook(testAudiobook);
+      mockNotifier.setPosition(const Duration(hours: 2, minutes: 29));
+
+      // Build the widget
+      await tester.pumpWidget(
+        createTestWidget(
+          child: PlaybackScreen(audiobook: testAudiobook),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Try to skip forward by 30 seconds (would go past end)
+      final forwardButton = find.byIcon(Icons.forward_30_outlined);
+      await tester.tap(forwardButton);
+      await tester.pump();
+
+      // Should be at end
+      expect(mockNotifier.state.currentPosition, testAudiobook.duration);
+    });
+  });
+
+  group('PlaybackScreen - Chapter Navigation', () {
+    testWidgets('should display chapters list', (
+      WidgetTester tester,
+    ) async {
+      // Setup
+      mockNotifier = MockPlaybackNotifier();
+      mockNotifier.setCurrentAudiobook(testAudiobook);
+
+      // Build the widget
+      await tester.pumpWidget(
+        createTestWidget(
+          child: PlaybackScreen(audiobook: testAudiobook),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Verify chapters are displayed
+      expect(find.byType(ChaptersList), findsOneWidget);
+      expect(find.text('Introduction'), findsOneWidget);
+      expect(find.text('Main Content'), findsOneWidget);
+      expect(find.text('Conclusion'), findsOneWidget);
+    });
+
+    testWidgets('should navigate to chapter when tapped', (
+      WidgetTester tester,
+    ) async {
+      // Setup
+      mockNotifier = MockPlaybackNotifier();
+      mockNotifier.setCurrentAudiobook(testAudiobook);
+
+      // Build the widget
+      await tester.pumpWidget(
+        createTestWidget(
+          child: PlaybackScreen(audiobook: testAudiobook),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Tap the second chapter (Main Content - starts at 30 minutes)
+      await tester.tap(find.text('Main Content'));
+      await tester.pump();
+
+      // Should seek to chapter start time
+      expect(
+        mockNotifier.state.currentPosition,
+        const Duration(minutes: 30),
+      );
+    });
+
+    testWidgets('should highlight current chapter', (
+      WidgetTester tester,
+    ) async {
+      // Setup - start at position that's in the second chapter
+      mockNotifier = MockPlaybackNotifier();
+      mockNotifier.setCurrentAudiobook(testAudiobook);
+      mockNotifier.setPosition(const Duration(minutes: 45));
+
+      // Build the widget
+      await tester.pumpWidget(
+        createTestWidget(
+          child: PlaybackScreen(audiobook: testAudiobook),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // The chapters list should highlight the current chapter
+      // This is a simplified test - actual highlighting would depend on implementation
+      expect(find.text('Main Content'), findsOneWidget);
+    });
+  });
+
+  group('PlaybackScreen - Error Handling', () {
+    testWidgets('should handle audiobook loading error gracefully', (
+      WidgetTester tester,
+    ) async {
+      // Setup - configure to throw error during initialization
+      mockNotifier = MockPlaybackNotifier();
+      mockNotifier.setShouldThrowError(true);
+
+      // Build the widget
+      await tester.pumpWidget(
+        createTestWidget(
+          child: PlaybackScreen(audiobook: testAudiobook),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Should still render (error handling in provider)
+      expect(find.byType(PlaybackScreen), findsOneWidget);
+    });
+
+    testWidgets('should display error message when playback fails', (
+      WidgetTester tester,
+    ) async {
+      // Setup - configure to throw error on play
+      mockNotifier = MockPlaybackNotifier();
+      mockNotifier.setShouldThrowError(true);
+      mockNotifier.setCurrentAudiobook(testAudiobook);
+
+      // Build the widget
+      await tester.pumpWidget(
+        createTestWidget(
+          child: PlaybackScreen(audiobook: testAudiobook),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Try to play (should fail)
+      await tester.tap(find.byType(FloatingActionButton));
+      await tester.pump();
+
+      // Should still be functional
+      expect(find.byType(PlaybackScreen), findsOneWidget);
+    });
+  });
+
+  group('PlaybackScreen - Responsive Design', () {
+    testWidgets('should adapt layout for mobile screens', (
+      WidgetTester tester,
+    ) async {
+      // Setup
+      mockNotifier = MockPlaybackNotifier();
+      mockNotifier.setCurrentAudiobook(testAudiobook);
+
+      // Build with mobile constraints
+      await tester.pumpWidget(
+        createTestWidget(
+          child: SizedBox(
+            width: 375, // iPhone size
+            height: 812,
+            child: PlaybackScreen(audiobook: testAudiobook),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Verify mobile layout elements
+      expect(find.byType(PlaybackScreen), findsOneWidget);
+      expect(find.byType(FloatingActionButton), findsOneWidget);
+    });
+
+    testWidgets('should adapt layout for tablet screens', (
+      WidgetTester tester,
+    ) async {
+      // Setup
+      mockNotifier = MockPlaybackNotifier();
+      mockNotifier.setCurrentAudiobook(testAudiobook);
+
+      // Build with tablet constraints
+      await tester.pumpWidget(
+        createTestWidget(
+          child: SizedBox(
+            width: 768, // iPad size
+            height: 1024,
+            child: PlaybackScreen(audiobook: testAudiobook),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Verify tablet layout elements
+      expect(find.byType(PlaybackScreen), findsOneWidget);
+      expect(find.byType(FloatingActionButton), findsOneWidget);
     });
   });
 }

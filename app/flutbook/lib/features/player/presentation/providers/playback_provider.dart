@@ -7,7 +7,11 @@ import 'package:flutbook/features/player/data/repositories/playback_repository_i
 import 'package:flutbook/features/player/domain/entities/playback_session.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-// State classes for playback
+/// State class representing the current playback state of an audiobook.
+///
+/// This class contains all the necessary information about the playback state
+/// including whether audio is playing, current position, duration, playback speed,
+/// sleep timer status, loading state, and any error messages.
 class PlaybackState {
   const PlaybackState({
     required this.isPlaying,
@@ -18,8 +22,10 @@ class PlaybackState {
     required this.isLoading,
     this.sleepTimerDuration,
     this.errorMessage,
+    this.bufferedPosition,
   });
 
+  /// Creates an initial playback state with default values.
   factory PlaybackState.initial() {
     return const PlaybackState(
       isPlaying: false,
@@ -38,6 +44,7 @@ class PlaybackState {
   final Duration? sleepTimerDuration;
   final String? errorMessage;
   final bool isLoading;
+  final Duration? bufferedPosition;
 
   PlaybackState copyWith({
     bool? isPlaying,
@@ -48,6 +55,7 @@ class PlaybackState {
     Duration? sleepTimerDuration,
     String? errorMessage,
     bool? isLoading,
+    Duration? bufferedPosition,
   }) {
     return PlaybackState(
       isPlaying: isPlaying ?? this.isPlaying,
@@ -58,15 +66,28 @@ class PlaybackState {
       sleepTimerDuration: sleepTimerDuration ?? this.sleepTimerDuration,
       errorMessage: errorMessage ?? this.errorMessage,
       isLoading: isLoading ?? this.isLoading,
+      bufferedPosition: bufferedPosition ?? this.bufferedPosition,
     );
   }
 }
 
-// Main playback provider
+/// Main playback provider that manages the state and logic for audiobook playback.
+///
+/// This provider handles all playback operations including play, pause, seek,
+/// speed control, sleep timer management, and playback session persistence.
 final playbackProvider = NotifierProvider<PlaybackNotifier, PlaybackState>(
   PlaybackNotifier.new,
 );
 
+/// Notifier class that manages the playback state and business logic.
+///
+/// This class is responsible for:
+/// - Setting up and disposing of audio service resources
+/// - Managing playback state changes
+/// - Handling playback operations (play, pause, stop, seek)
+/// - Managing playback speed and sleep timer
+/// - Persisting playback sessions
+/// - Error handling and state management
 class PlaybackNotifier extends Notifier<PlaybackState> {
   late final AudioServiceHandler _audioService;
   late final PlaybackRepositoryImpl _playbackRepo;
@@ -85,6 +106,7 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
           currentPosition: playbackState.currentPosition,
           playbackSpeed: playbackState.playbackSpeed,
           sleepTimerActive: playbackState.sleepTimerActive,
+          bufferedPosition: playbackState.bufferedPosition,
         );
       },
       onError: (Object error) {
@@ -100,7 +122,15 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
     return PlaybackState.initial();
   }
 
-  // Set the current audiobook to play
+  /// Sets the current audiobook to play and loads any saved playback position.
+  ///
+  /// This method:
+  /// 1. Sets the audiobook in the audio service
+  /// 2. Loads any saved playback session from the repository
+  /// 3. Restores the playback position and settings if available
+  /// 4. Updates the playback state accordingly
+  ///
+  /// Throws: Exception if there's an error setting the audiobook or loading the session
   Future<void> setCurrentAudiobook(Audiobook audiobook) async {
     state = state.copyWith(isLoading: true);
     try {
@@ -117,47 +147,70 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
           sleepTimerActive: savedSession.sleepTimerActive,
           sleepTimerDuration: savedSession.sleepTimerDuration,
         );
+
+        // If sleep timer was active, restart it
+        if (savedSession.sleepTimerActive &&
+            savedSession.sleepTimerDuration != null) {
+          _audioService.setSleepTimer(savedSession.sleepTimerDuration!);
+        }
       } else {
         state = state.copyWith(duration: audiobook.duration);
       }
     } catch (e) {
       state = state.copyWith(errorMessage: e.toString());
+      rethrow; // Re-throw to allow UI to handle the error
     } finally {
       state = state.copyWith(isLoading: false);
     }
   }
 
-  // Start or resume playback
+  /// Starts or resumes playback.
+  ///
+  /// Throws: Exception if there's an error starting playback
   Future<void> play() async {
     try {
       await _audioService.play();
       state = state.copyWith(isPlaying: true);
     } catch (e) {
       state = state.copyWith(errorMessage: e.toString());
+      rethrow;
     }
   }
 
-  // Pause playback
+  /// Pauses playback.
+  ///
+  /// Throws: Exception if there's an error pausing playback
   Future<void> pause() async {
     try {
       await _audioService.pause();
       state = state.copyWith(isPlaying: false);
     } catch (e) {
       state = state.copyWith(errorMessage: e.toString());
+      rethrow;
     }
   }
 
-  // Stop playback
+  /// Stops playback completely.
+  ///
+  /// Throws: Exception if there's an error stopping playback
   Future<void> stop() async {
     try {
       await _audioService.stop();
       state = state.copyWith(isPlaying: false);
     } catch (e) {
       state = state.copyWith(errorMessage: e.toString());
+      rethrow;
     }
   }
 
-  // Seek to a specific position
+  /// Seeks to a specific position in the audiobook.
+  ///
+  /// This method:
+  /// 1. Seeks to the specified position using the audio service
+  /// 2. Updates the playback state with the new position
+  /// 3. Persists the playback session to the repository
+  ///
+  /// Throws: Exception if there's an error seeking or updating the session
   Future<void> seekTo(Duration position) async {
     try {
       await _audioService.seekTo(position);
@@ -185,10 +238,18 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
       }
     } catch (e) {
       state = state.copyWith(errorMessage: e.toString());
+      rethrow;
     }
   }
 
-  // Set playback speed
+  /// Sets the playback speed.
+  ///
+  /// This method:
+  /// 1. Sets the playback speed using the audio service
+  /// 2. Updates the playback state with the new speed
+  /// 3. Persists the playback speed to the repository
+  ///
+  /// Throws: Exception if there's an error setting the speed or updating the session
   Future<void> setSpeed(double speed) async {
     try {
       await _audioService.setSpeed(speed);
@@ -201,23 +262,32 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
       }
     } catch (e) {
       state = state.copyWith(errorMessage: e.toString());
+      rethrow;
     }
   }
 
-  // Set sleep timer
-  void setSleepTimer(Duration duration) {
+  /// Sets a sleep timer that will pause playback after the specified duration.
+  ///
+  /// The [duration] parameter specifies how long until playback should pause.
+  /// The [endOfChapter] parameter, when true, will pause playback at the end of the current chapter.
+  ///
+  /// Throws: Exception if there's an error setting the sleep timer
+  void setSleepTimer(Duration duration, {bool endOfChapter = false}) {
     try {
-      _audioService.setSleepTimer(duration);
+      _audioService.setSleepTimer(duration, endOfChapter: endOfChapter);
       state = state.copyWith(
         sleepTimerActive: true,
         sleepTimerDuration: duration,
       );
     } catch (e) {
       state = state.copyWith(errorMessage: e.toString());
+      rethrow;
     }
   }
 
-  // Cancel sleep timer
+  /// Cancels the active sleep timer.
+  ///
+  /// Throws: Exception if there's an error canceling the sleep timer
   void cancelSleepTimer() {
     try {
       _audioService.cancelSleepTimer();
@@ -226,10 +296,18 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
       );
     } catch (e) {
       state = state.copyWith(errorMessage: e.toString());
+      rethrow;
     }
   }
 
-  // Skip forward
+  /// Skips forward by the specified interval.
+  ///
+  /// This method:
+  /// 1. Calculates the new position by adding the interval to the current position
+  /// 2. Clamps the position to ensure it doesn't exceed the audiobook duration
+  /// 3. Seeks to the new position
+  ///
+  /// Throws: Exception if there's an error seeking to the new position
   Future<void> skipForward(Duration interval) async {
     final newPosition = state.currentPosition + interval;
     final clampedPosition = newPosition.compareTo(state.duration) > 0
@@ -239,7 +317,14 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
     await seekTo(clampedPosition);
   }
 
-  // Skip backward
+  /// Skips backward by the specified interval.
+  ///
+  /// This method:
+  /// 1. Calculates the new position by subtracting the interval from the current position
+  /// 2. Clamps the position to ensure it doesn't go below zero
+  /// 3. Seeks to the new position
+  ///
+  /// Throws: Exception if there's an error seeking to the new position
   Future<void> skipBackward(Duration interval) async {
     final newPosition = state.currentPosition - interval;
     final clampedPosition = newPosition.isNegative
@@ -248,15 +333,62 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
 
     await seekTo(clampedPosition);
   }
+
+  /// Clears any error message from the playback state.
+  void clearError() {
+    state = state.copyWith();
+  }
+
+  /// Gets the current playback session for the active audiobook.
+  ///
+  /// Returns: The current playback session, or null if no audiobook is active
+  Future<PlaybackSession?> getCurrentPlaybackSession() async {
+    final currentAudiobook = ref.read(currentAudiobookProvider);
+    if (currentAudiobook == null) return null;
+
+    return _playbackRepo.getPlaybackSession(currentAudiobook.id);
+  }
+
+  /// Updates the playback session with the current state.
+  ///
+  /// This method persists the current playback state to the repository.
+  ///
+  /// Throws: Exception if there's an error updating the playback session
+  Future<void> updatePlaybackSession() async {
+    final currentAudiobook = ref.read(currentAudiobookProvider);
+    if (currentAudiobook == null) return;
+
+    try {
+      final playbackSession = PlaybackSession(
+        audiobookId: currentAudiobook.id,
+        currentPosition: state.currentPosition,
+        playbackSpeed: state.playbackSpeed,
+        isPlaying: state.isPlaying,
+        lastPlayedAt: DateTime.now(),
+        sleepTimerActive: state.sleepTimerActive,
+        sleepTimerDuration: state.sleepTimerDuration,
+      );
+
+      await _playbackRepo.savePlaybackSession(playbackSession);
+    } catch (e) {
+      state = state.copyWith(errorMessage: e.toString());
+      rethrow;
+    }
+  }
 }
 
-// Provider for all playback sessions (history)
-final playbackHistoryProvider = FutureProvider<List<PlaybackSession>>((ref) async {
+/// Provider for all playback sessions (history).
+///
+/// This provider returns a list of all playback sessions stored in the repository,
+/// which can be used to display playback history or resume previous sessions.
+final playbackHistoryProvider = FutureProvider<List<PlaybackSession>>((
+  ref,
+) async {
   final repo = ref.read(playbackRepositoryProvider);
   return repo.getAllPlaybackSessions();
 });
 
-// Providers for dependencies
+/// Providers for dependencies
 final audioServiceProvider = Provider<AudioServiceHandler>((ref) {
   return AudioServiceHandler();
 });

@@ -99,7 +99,7 @@ class Material3Components {
         color: Colors.blue,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -165,7 +165,12 @@ class _BufferedSliderTrackPainter extends CustomPainter {
 
     // Draw the buffered portion (lighter shade)
     if (bufferedValue > 0) {
-      paint.color = Color.fromRGBO(activeColor.red, activeColor.green, activeColor.blue, 0.3);
+      paint.color = Color.fromRGBO(
+        (activeColor.red * 255.0).round().clamp(0, 255),
+        (activeColor.green * 255.0).round().clamp(0, 255),
+        (activeColor.blue * 255.0).round().clamp(0, 255),
+        0.3
+      );
       canvas.drawLine(
         Offset(0, size.height / 2),
         Offset(size.width * bufferedValue, size.height / 2),

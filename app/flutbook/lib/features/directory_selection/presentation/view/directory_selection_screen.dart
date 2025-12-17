@@ -62,8 +62,10 @@ class _DirectorySelectionScreenState extends ConsumerState<DirectorySelectionScr
   }
 
   Future<void> _handleContinuePressed() async {
+    final contextRef = context;
+
     if (_selectedDirectory == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(contextRef).showSnackBar(
         const SnackBar(content: Text('Please select a directory first')),
       );
       return;
@@ -74,7 +76,7 @@ class _DirectorySelectionScreenState extends ConsumerState<DirectorySelectionScr
     final directoryExists = await _validateDirectory(path);
 
     if (!directoryExists) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(contextRef).showSnackBar(
         SnackBar(content: Text('Directory does not exist or is not readable: $path')),
       );
       return;
@@ -86,8 +88,8 @@ class _DirectorySelectionScreenState extends ConsumerState<DirectorySelectionScr
 
     if (!hasPermission) {
       // Show permission rationale to user
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Storage permission is required to scan for audiobooks. Please grant permission in settings.')),
+      ScaffoldMessenger.of(contextRef).showSnackBar(
+        const SnackBar(content: Text('Storage permission is required to scan for audiobooks. Please grant permission in settings.')),
       );
       // Optionally, redirect to app settings
       return;
@@ -98,8 +100,8 @@ class _DirectorySelectionScreenState extends ConsumerState<DirectorySelectionScr
       final scanUseCase = await ref.read(scanLibraryUseCaseProvider.future);
 
       // Show loading indicator
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      if (!contextRef.mounted) return;
+      ScaffoldMessenger.of(contextRef).showSnackBar(
         SnackBar(
           content: Text('Scanning directory... $path'),
           duration: const Duration(milliseconds: 5000),
@@ -115,10 +117,10 @@ class _DirectorySelectionScreenState extends ConsumerState<DirectorySelectionScr
       print('Elapsed: ${result.elapsedTime}');
       print('Total size: ${result.totalSize}');
 
-      if (!mounted) return;
+      if (!contextRef.mounted) return;
 
       // Hide the loading snackbar
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(contextRef).hideCurrentSnackBar();
 
       // Show result
       String message;
@@ -128,23 +130,23 @@ class _DirectorySelectionScreenState extends ConsumerState<DirectorySelectionScr
         message = 'Scan completed with ${result.errors.length} errors. Check logs for details.';
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(contextRef).showSnackBar(
         SnackBar(content: Text(message)),
       );
 
       // Navigate to Library screen after successful scan
       if (result.scannedFiles > 0) {
-        Navigator.of(context).pushReplacementNamed('/library');
+        Navigator.of(contextRef).pushReplacementNamed('/library');
       }
     } catch (e) {
       print('Error during scan: $e');
-      if (!mounted) return;
+      if (!contextRef.mounted) return;
 
       // Hide the loading snackbar
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(contextRef).hideCurrentSnackBar();
 
       // Show error
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(contextRef).showSnackBar(
         SnackBar(content: Text('Error scanning directory: $e')),
       );
     }
@@ -261,9 +263,8 @@ class _DirectorySelectionScreenState extends ConsumerState<DirectorySelectionScr
             if (_selectedDirectory != null) ...[
               const SizedBox(height: 16),
               ElevatedButton(
-                onPressed: () {
-                  // Properly handle the Future returned by _handleContinuePressed
-                  unawaited(_handleContinuePressed());
+                onPressed: () async {
+                  await _handleContinuePressed();
                 },
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),

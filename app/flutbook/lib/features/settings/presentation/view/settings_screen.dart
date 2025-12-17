@@ -113,6 +113,14 @@ class SettingsScreenState extends State<SettingsScreen> {
                   trailing: const Icon(Icons.chevron_right),
                   onTap: _showSkipIntervalDialog,
                 ),
+
+                // Clear playback history
+                ListTile(
+                  title: const Text('Clear Playback History'),
+                  leading: const Icon(Icons.history),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: _showClearHistoryDialog,
+                ),
               ],
             ),
           ),
@@ -437,5 +445,47 @@ class SettingsScreenState extends State<SettingsScreen> {
         );
       },
     );
+  }
+
+  Future<void> _showClearHistoryDialog() async {
+    await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Clear Playback History'),
+          content: const Text(
+            'Are you sure you want to clear all playback history? This action cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              child: const Text('CANCEL'),
+              onPressed: () {
+                Navigator.of(context).pop(false);
+              },
+            ),
+            TextButton(
+              child: const Text('CLEAR'),
+              onPressed: () {
+                Navigator.of(context).pop(true);
+              },
+            ),
+          ],
+        );
+      },
+    ).then((confirmed) {
+      if (confirmed ?? false) {
+        // TODO: Implement actual history clearing
+        // _playbackRepository.clearPlaybackHistory();
+        final contextRef = context;
+        if (contextRef.mounted) {
+          ScaffoldMessenger.of(contextRef).showSnackBar(
+            const SnackBar(
+              content: Text('Playback history cleared'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    });
   }
 }

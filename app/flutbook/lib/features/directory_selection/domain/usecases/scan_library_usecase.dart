@@ -3,9 +3,11 @@
 import 'package:flutbook/features/directory_selection/data/datasources/metadat_extractor_ds.dart';
 import 'package:flutbook/features/library/data/datasources/audiobook_local_ds.dart';
 
-abstract class ScanLibraryUseCase {
+class ScanLibraryUseCase {
   /// Scans a directory and updates the local library
-  Future<ScanResult> execute(String directoryPath);
+  Future<ScanResult> execute(String directoryPath) async {
+    throw UnimplementedError();
+  }
 }
 
 class ScanResult {
@@ -48,12 +50,12 @@ class ScanLibraryUseCaseImpl implements ScanLibraryUseCase {
     try {
       // Step 1: Scan directory and extract metadata from all audio files
       final audioFiles = await extractor.scanDirectoryForAudioFiles(directoryPath);
-      final audiobooks = <dynamic>[];
+      final audiobooks = <Audiobook>[];
 
       // Step 2: Extract metadata for each file, collecting errors for individual files
       for (final filePath in audioFiles) {
         try {
-          final audiobook = await extractor.extractMetadata(filePath);
+          final Audiobook? audiobook = await extractor.extractMetadata(filePath);
           if (audiobook != null) {
             audiobooks.add(audiobook);
           }
@@ -65,13 +67,13 @@ class ScanLibraryUseCaseImpl implements ScanLibraryUseCase {
 
       // Step 3: Save all successfully extracted audiobooks to database
       if (audiobooks.isNotEmpty) {
-        await localDatasource.saveAudiobooks(audiobooks.cast());
+        await localDatasource.saveAudiobooks(audiobooks);
       }
 
       stopwatch.stop();
       final totalSize = audiobooks.fold<int>(
         0,
-        (sum, audiobook) => sum + (audiobook.totalSize as int),
+        (sum, audiobook) => sum + audiobook.totalSize,
       );
 
       return ScanResult(

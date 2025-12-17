@@ -18,7 +18,7 @@ void main() {
 
     // Stub the signInWithGoogle method to return a completed future
     when(mockAuthNotifier.signInWithGoogle()).thenAnswer((_) async {
-      return null;
+      return;
     });
 
     await tester.pumpWidget(

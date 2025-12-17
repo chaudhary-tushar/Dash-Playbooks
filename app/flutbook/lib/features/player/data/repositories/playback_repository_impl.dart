@@ -2,6 +2,7 @@
 import 'package:flutbook/core/error/exceptions.dart';
 import 'package:flutbook/features/player/data/datasources/playback_local_ds.dart';
 import 'package:flutbook/features/player/data/datasources/remote/firebase_playback_sync.dart';
+import 'package:flutbook/features/player/domain/entities/playback_history.dart';
 import 'package:flutbook/features/player/domain/entities/playback_session.dart';
 import 'package:flutbook/features/player/domain/repositories/playback_repository.dart';
 
@@ -88,7 +89,8 @@ class PlaybackRepositoryImpl implements PlaybackRepository {
       if (session != null) {
         final updatedSession = session.copyWith(
           currentPosition: Duration(
-            milliseconds: session.currentPosition.inMilliseconds, // Keep current position
+            milliseconds:
+                session.currentPosition.inMilliseconds, // Keep current position
           ),
         );
 
@@ -162,6 +164,60 @@ class PlaybackRepositoryImpl implements PlaybackRepository {
       );
 
       await savePlaybackSession(updatedSession);
+    } catch (e) {
+      throw StorageException(ErrorHandler.handleException(e));
+    }
+  }
+
+  @override
+  Future<void> savePlaybackHistory(PlaybackHistory history) async {
+    try {
+      await _localDatasource.savePlaybackHistory(history);
+    } catch (e) {
+      throw StorageException(ErrorHandler.handleException(e));
+    }
+  }
+
+  @override
+  Future<List<PlaybackHistory>> getPlaybackHistory(String audiobookId) async {
+    try {
+      return await _localDatasource.getPlaybackHistory(audiobookId);
+    } catch (e) {
+      throw StorageException(ErrorHandler.handleException(e));
+    }
+  }
+
+  @override
+  Future<List<PlaybackHistory>> getAllPlaybackHistory() async {
+    try {
+      return await _localDatasource.getAllPlaybackHistory();
+    } catch (e) {
+      throw StorageException(ErrorHandler.handleException(e));
+    }
+  }
+
+  @override
+  Future<void> clearPlaybackHistory() async {
+    try {
+      await _localDatasource.clearPlaybackHistory();
+    } catch (e) {
+      throw StorageException(ErrorHandler.handleException(e));
+    }
+  }
+
+  @override
+  Future<Duration?> getLastPlayedPosition(String audiobookId) async {
+    try {
+      return await _localDatasource.getLastPlayedPosition(audiobookId);
+    } catch (e) {
+      throw StorageException(ErrorHandler.handleException(e));
+    }
+  }
+
+  @override
+  Future<Duration> getTotalPlaybackTime(String audiobookId) async {
+    try {
+      return await _localDatasource.getTotalPlaybackTime(audiobookId);
     } catch (e) {
       throw StorageException(ErrorHandler.handleException(e));
     }
