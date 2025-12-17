@@ -61,7 +61,7 @@ class LoginButtons extends ConsumerWidget {
 
                     // Hide loading indicator
                     if (contextRef.mounted) {
-                      await messenger.hideCurrentSnackBar();
+                      messenger.hideCurrentSnackBar();
                     }
 
                     print('Scan completed: ${result.scannedFiles} files');
@@ -76,7 +76,7 @@ class LoginButtons extends ConsumerWidget {
                     } else {
                       // Show error message but still navigate
                       if (contextRef.mounted) {
-                        await messenger.showSnackBar(
+                        messenger.showSnackBar(
                           const SnackBar(
                             content: Text(
                               'Scan completed with errors. Check logs for details.',
@@ -91,10 +91,10 @@ class LoginButtons extends ConsumerWidget {
                     if (contextRef.mounted) {
                       // Hide loading indicator
                       final messenger = ScaffoldMessenger.of(contextRef);
-                      await messenger.hideCurrentSnackBar();
+                      messenger.hideCurrentSnackBar();
 
                       // Show error message
-                      await messenger.showSnackBar(
+                      messenger.showSnackBar(
                         SnackBar(
                           content: Text('Error during scan: $e'),
                         ),

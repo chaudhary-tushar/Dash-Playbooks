@@ -72,7 +72,9 @@ class AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
               const SizedBox(height: 8),
 
               Text(
-                widget.audiobook.author.isEmpty ? 'Unknown Author' : widget.audiobook.author,
+                widget.audiobook.author.isEmpty
+                    ? 'Unknown Author'
+                    : widget.audiobook.author,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
@@ -102,16 +104,26 @@ class AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
                       ),
                       _buildMetadataRow(
                         'Added',
-                        widget.audiobook.createdAt.toLocal().toString().split('.').first,
+                        widget.audiobook.createdAt
+                            .toLocal()
+                            .toString()
+                            .split('.')
+                            .first,
                       ),
                       if (widget.audiobook.lastPlayedAt != null)
                         _buildMetadataRow(
                           'Last Played',
-                          widget.audiobook.lastPlayedAt!.toLocal().toString().split('.').first,
+                          widget.audiobook.lastPlayedAt!
+                              .toLocal()
+                              .toString()
+                              .split('.')
+                              .first,
                         ),
                       _buildMetadataRow(
                         'Status',
-                        widget.audiobook.completed ? 'Completed' : 'In Progress',
+                        widget.audiobook.completed
+                            ? 'Completed'
+                            : 'In Progress',
                       ),
                     ],
                   ),
@@ -146,8 +158,10 @@ class AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
                           width:
                               0.6 *
                               MediaQuery.of(
-                                context,
-                              ).size.width, // Placeholder: actual progress would be dynamic
+                                    context,
+                                  )
+                                  .size
+                                  .width, // Placeholder: actual progress would be dynamic
                           height: 4,
                           decoration: BoxDecoration(
                             color: Theme.of(context).colorScheme.primary,
@@ -192,7 +206,11 @@ class AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
                     padding: const EdgeInsets.all(8),
                     child: Column(
                       children: [
-                        for (int i = 0; i < widget.audiobook.chapters.length; i++)
+                        for (
+                          int i = 0;
+                          i < widget.audiobook.chapters.length;
+                          i++
+                        )
                           ListTile(
                             title: Text(widget.audiobook.chapters[i].title),
                             subtitle: Text(

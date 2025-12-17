@@ -2,6 +2,7 @@
 
 import 'package:flutbook/features/directory_selection/data/datasources/metadat_extractor_ds.dart';
 import 'package:flutbook/features/library/data/datasources/audiobook_local_ds.dart';
+import 'package:flutbook/features/library/domain/entities/audiobook.dart';
 
 class ScanLibraryUseCase {
   /// Scans a directory and updates the local library

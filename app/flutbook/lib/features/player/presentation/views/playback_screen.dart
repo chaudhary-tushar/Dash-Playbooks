@@ -4,6 +4,7 @@ import 'package:flutbook/features/player/presentation/providers/playback_provide
 import 'package:flutbook/features/player/presentation/widgets/chapters_list.dart';
 import 'package:flutbook/features/player/presentation/widgets/progress_bar.dart';
 import 'package:flutbook/features/player/presentation/widgets/sleep_timer_dialog.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

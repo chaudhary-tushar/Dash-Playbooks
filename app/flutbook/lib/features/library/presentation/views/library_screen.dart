@@ -218,7 +218,7 @@ class LibraryScreen extends ConsumerWidget {
             ),
           ),
 
-          // Audiobook list
+          // Audiobook list with flexible height
           Expanded(
             child: _buildLibraryContent(
               context,
@@ -385,7 +385,7 @@ class LibraryScreen extends ConsumerWidget {
                       audiobook.lastPlayedAt != null &&
                           audiobook.duration.inSeconds > 0
                       ? (DateTime.now()
-                                    .difference(audiobook.lastPlayedAt)
+                                    .difference(audiobook.lastPlayedAt!)
                                     .inSeconds /
                                 audiobook.duration.inSeconds)
                             .clamp(0.0, 1.0)
@@ -426,7 +426,7 @@ class LibraryScreen extends ConsumerWidget {
                       audiobook.lastPlayedAt != null &&
                           audiobook.duration.inSeconds > 0
                       ? (DateTime.now()
-                                    .difference(audiobook.lastPlayedAt)
+                                    .difference(audiobook.lastPlayedAt!)
                                     .inSeconds /
                                 audiobook.duration.inSeconds)
                             .clamp(0.0, 1.0)

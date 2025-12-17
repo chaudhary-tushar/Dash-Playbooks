@@ -37,7 +37,7 @@ class MetadataExtractionDatasource {
       var author = '';
       const album = '';
       String? coverArtPath;
-      Duration duration = Duration.zero; // Initialize with zero as default
+      var duration = Duration.zero; // Initialize with zero as default
       var chapters = <Chapter>[];
 
       try {

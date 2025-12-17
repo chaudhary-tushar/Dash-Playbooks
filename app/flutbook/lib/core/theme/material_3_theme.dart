@@ -165,12 +165,10 @@ class _BufferedSliderTrackPainter extends CustomPainter {
 
     // Draw the buffered portion (lighter shade)
     if (bufferedValue > 0) {
-      paint.color = Color.fromRGBO(
-        (activeColor.red * 255.0).round().clamp(0, 255),
-        (activeColor.green * 255.0).round().clamp(0, 255),
-        (activeColor.blue * 255.0).round().clamp(0, 255),
-        0.3
-      );
+      int red = (activeColor.value >> 16) & 0xFF;
+      int green = (activeColor.value >> 8) & 0xFF;
+      int blue = activeColor.value & 0xFF;
+      paint.color = Color.fromRGBO(red, green, blue, 0.3);
       canvas.drawLine(
         Offset(0, size.height / 2),
         Offset(size.width * bufferedValue, size.height / 2),

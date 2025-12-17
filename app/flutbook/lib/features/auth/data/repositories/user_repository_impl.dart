@@ -182,7 +182,7 @@ class UserRepositoryImpl implements UserRepository {
       return UserSettings.fromMap(settings);
     } catch (e) {
       // Return default settings if none exist
-      return UserSettings.defaultSettings();
+      return UserSettings.defaults();
     }
   }
 
@@ -272,7 +272,7 @@ class UserRepositoryImpl implements UserRepository {
   }
 
   @override
-  Future<void> updateLocalData(String itemId, Object data) {
+  Future<void> updateLocalData(String itemId, dynamic data) {
     // TODO: implement updateLocalData
     throw UnimplementedError();
   }
@@ -284,7 +284,7 @@ class UserRepositoryImpl implements UserRepository {
   }
 
   @override
-  Future<void> updateRemoteData(String itemId, Object data) {
+  Future<void> updateRemoteData(String itemId, dynamic data) {
     // TODO: implement updateRemoteData
     throw UnimplementedError();
   }

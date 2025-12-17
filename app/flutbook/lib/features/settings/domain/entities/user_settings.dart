@@ -1,4 +1,6 @@
 class UserSettings {
+
+  UserSettings.defaults() : syncEnabled = true, localLibraryPath = null;
   UserSettings({
     required this.syncEnabled,
     this.localLibraryPath,
@@ -12,8 +14,6 @@ class UserSettings {
   }
   final bool syncEnabled;
   final String? localLibraryPath;
-
-  UserSettings.defaults() : syncEnabled = true, localLibraryPath = null;
 
   Map<String, dynamic> toMap() => {
     'syncEnabled': syncEnabled,

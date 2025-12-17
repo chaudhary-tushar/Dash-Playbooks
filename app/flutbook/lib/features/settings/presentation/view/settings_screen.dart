@@ -356,46 +356,18 @@ class SettingsScreenState extends State<SettingsScreen> {
           title: const Text('Default Skip Interval'),
           content: StatefulBuilder(
             builder: (BuildContext context, StateSetter setState) {
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  RadioListTile<int>(
-                    title: const Text('10 seconds'),
-                    value: 10,
-                    groupValue: currentInterval,
-                    onChanged: (int? value) {
-                      if (value != null) {
-                        setState(() {
-                          currentInterval = value;
-                        });
-                      }
-                    },
-                  ),
-                  RadioListTile<int>(
-                    title: const Text('15 seconds'),
-                    value: 15,
-                    groupValue: currentInterval,
-                    onChanged: (int? value) {
-                      if (value != null) {
-                        setState(() {
-                          currentInterval = value;
-                        });
-                      }
-                    },
-                  ),
-                  RadioListTile<int>(
-                    title: const Text('30 seconds'),
-                    value: 30,
-                    groupValue: currentInterval,
-                    onChanged: (int? value) {
-                      if (value != null) {
-                        setState(() {
-                          currentInterval = value;
-                        });
-                      }
-                    },
-                  ),
+              return SegmentedButton<int>(
+                segments: const [
+                  ButtonSegment(label: Text('10s'), value: 10),
+                  ButtonSegment(label: Text('15s'), value: 15),
+                  ButtonSegment(label: Text('30s'), value: 30),
                 ],
+                selected: {currentInterval},
+                onSelectionChanged: (Set<int> newSelection) {
+                  setState(() {
+                    currentInterval = newSelection.first;
+                  });
+                },
               );
             },
           ),

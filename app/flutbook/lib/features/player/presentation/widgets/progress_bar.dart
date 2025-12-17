@@ -1,6 +1,7 @@
 // lib/presentation/widgets/progress_bar.dart
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class ProgressBar extends StatefulWidget {
@@ -18,7 +19,7 @@ class ProgressBar extends StatefulWidget {
   final Duration currentPosition;
   final Duration totalDuration;
   final List<Duration> chapterMarkers; // Positions of chapters if available
-  final Function(Duration) onSeek;
+  final void Function(Duration) onSeek;
   final Future<void> Function()? onSeekStart;
   final Future<void> Function(Duration)? onSeekEnd;
   final bool isLoading;
@@ -314,4 +315,5 @@ class ProgressBarState extends State<ProgressBar> {
         : '$twoDigitMinutes:$twoDigitSeconds';
   }
 }
+
 

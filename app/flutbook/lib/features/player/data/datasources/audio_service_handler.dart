@@ -3,6 +3,7 @@ import 'dart:async';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
+import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 
 // Define a simple PlaybackState class for internal use that matches the expected structure
@@ -52,11 +53,12 @@ class AudioServiceHandler extends BaseAudioHandler {
   Timer? _sleepTimer;
   Timer? _sleepTimerCountdown;
   bool _sleepTimerActive = false;
+  bool _sleepTimerEndOfChapter = false;
 
   // Audio focus management
   bool _hasAudioFocus = false;
   Timer? _playPauseDebounceTimer;
-  bool _isPlayPauseActionInProgress = false;
+  final bool _isPlayPauseActionInProgress = false;
 
   @override
   Future<void> play() async {
