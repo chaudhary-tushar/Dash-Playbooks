@@ -1,11 +1,13 @@
 // lib/data/datasources/local/metadata_extraction_datasource.dart
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutbook/core/error/exceptions.dart';
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
 import 'package:flutbook/features/library/domain/entities/chapter.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
 
 /// Extracts metadata from audio files using various approaches depending on file format.
 ///
@@ -40,16 +42,44 @@ class MetadataExtractionDatasource {
       var chapters = <Chapter>[];
 
       try {
-        // Use just_audio to extract basic metadata including duration
-        final audioPlayer = AudioPlayer();
-        await audioPlayer.setFilePath(filePath);
-        duration = audioPlayer.duration ?? Duration.zero;
+        // For desktop platforms (Linux, Windows, macOS), we'll extract duration using file system approach
+        // just_audio doesn't have proper desktop implementation, so we'll fall back to file-based estimation
+        if (kIsWeb || (!Platform.isLinux && !Platform.isWindows && !Platform.isMacOS)) {
+          // Use just_audio for mobile and web platforms where it's properly implemented
+          final audioPlayer = AudioPlayer();
+          await audioPlayer.setFilePath(filePath);
+          duration = audioPlayer.duration ?? Duration.zero;
 
-        // Extract ID3 tags or other metadata if available
-        if (fileExtension == '.mp3' || fileExtension == '.m4a' || fileExtension == '.m4b') {
-          // For MP3 and M4A/M4B files, we'll use basic file parsing
-          // In a real implementation, we might use dart:mirrors or a metadata library
-          // For now, we'll derive basic info from filename and file properties
+          // Extract ID3 tags or other metadata if available
+          if (fileExtension == '.mp3' || fileExtension == '.m4a' || fileExtension == '.m4b') {
+            // For MP3 and M4A/M4B files, we'll use basic file parsing
+            // In a real implementation, we might use dart:mirrors or a metadata library
+            // For now, we'll derive basic info from filename and file properties
+
+            // Try to extract title/author from filename format like "Author - Title.mp3"
+            final extractedInfo = _extractInfoFromFilename(fileName);
+            if (extractedInfo.title.isNotEmpty) title = extractedInfo.title;
+            if (extractedInfo.author.isNotEmpty) author = extractedInfo.author;
+          }
+
+          // Additional processing for m4b files with chapter support
+          if (fileExtension == '.m4b') {
+            chapters = await _extractChaptersFromM4b(filePath, duration);
+          }
+
+          // Close the audio player
+          await audioPlayer.dispose();
+        } else {
+          // For desktop platforms, estimate duration based on file size and standard bitrates
+          // This is less accurate but prevents the MissingPluginException
+          final fileData = await file.readAsBytes();
+          final fileSizeInBytes = fileData.lengthInBytes;
+
+          // Estimate duration based on common audio bitrates
+          // 128 kbps (16 KB/s) is a common MP3 bitrate
+          // 256 kbps (32 KB/s) is common for higher quality
+          final estimatedDurationSeconds = (fileSizeInBytes / 32000).round();
+          duration = Duration(seconds: estimatedDurationSeconds);
 
           // Try to extract title/author from filename format like "Author - Title.mp3"
           final extractedInfo = _extractInfoFromFilename(fileName);
@@ -57,13 +87,6 @@ class MetadataExtractionDatasource {
           if (extractedInfo.author.isNotEmpty) author = extractedInfo.author;
         }
 
-        // Additional processing for m4b files with chapter support
-        if (fileExtension == '.m4b') {
-          chapters = await _extractChaptersFromM4b(filePath, duration);
-        }
-
-        // Close the audio player
-        await audioPlayer.dispose();
         coverArtPath = await _extractCoverArt(filePath);
       } catch (e) {
         // If metadata extraction fails, fall back to filename and basic info
@@ -170,9 +193,31 @@ class MetadataExtractionDatasource {
   /// Extracts cover art from audio file if available
   /// Returns path to temporary file with cover art, or null if none found
   Future<String?> _extractCoverArt(String filePath) async {
-    // TODO: Extract cover art using audio_tags or similar
-    // Save artwork bytes to temp file
-    return null;
+    try {
+      // For web, we might not be able to extract cover art from files
+      // This is an inherent limitation of web platform for security reasons
+      if (kIsWeb) {
+        // On web, we skip cover art extraction
+        return null;
+      }
+
+      // For MP3 files, we can use the just_audio library to extract ID3 artwork
+      // Note: just_audio doesn't expose cover art directly, so we'll need to use an alternative approach
+      // For now, we'll return null and suggest using a metadata library like audio_session
+      if (path.extension(filePath).toLowerCase() == '.mp3') {
+        // Using just_audio alone doesn't provide direct access to cover art
+        // A proper implementation would require using a dedicated metadata library
+        // that can extract ID3 tags from audio files
+      }
+
+      // For other file types, we could implement additional extraction methods
+      // For example, using a dedicated metadata library like audio_tags
+      // For now, we'll return null for all files
+      return null;
+    } catch (e) {
+      print('Error extracting cover art from $filePath: $e');
+      return null;
+    }
   }
 
   /// Validates if a file is accessible and readable

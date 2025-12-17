@@ -404,7 +404,7 @@
 │ Priority: 🟡 HIGH (core feature)                            │
 │ Estimated Time: 2-3 hours                                   │
 │ Dependencies: Phase 2 (auth) done, Phase 3 working          │
-│ Status: [ ] TODO / [ ] IN PROGRESS / [ ] COMPLETE          │
+│ Status: [ ] TODO / [ ] IN PROGRESS / [x] COMPLETE          │
 ├─────────────────────────────────────────────────────────────┤
 │ FILE TO UPDATE:                                             │
 │ lib/features/library/data/repositories/library_repository_impl.dart
@@ -453,44 +453,233 @@
 │ Priority: 🔴 CRITICAL (main feature)                        │
 │ Estimated Time: 2 hours                                     │
 │ Dependencies: Task 4.1 (logic)                              │
-│ Status: [ ] TODO / [ ] IN PROGRESS / [ ] COMPLETE          │
+│ Status: [ ] TODO / [ ] IN PROGRESS / [x] COMPLETE          │
 ├─────────────────────────────────────────────────────────────┤
 │ FILE TO UPDATE:                                             │
 │ lib/features/library/presentation/views/library_screen.dart│
 │                                                             │
 │ UI REQUIREMENTS:                                            │
-│ [ ] Displays audiobooks in grid or list                    │
-│ [ ] Grid view: cover art, title, author, progress         │
-│ [ ] List view: detailed information                        │
-│ [ ] Search functionality (in app bar)                      │
-│ [ ] Filter buttons (all/reading/completed)                 │
-│ [ ] Sort options (name/date/progress)                      │
-│ [ ] Empty state: "Scan Directory" button                   │
-│ [ ] Pull-to-refresh capability                             │
-│ [ ] Responsive on all screen sizes                         │
+│ [x] Displays audiobooks in grid or list                    │
+│ [x] Grid view: cover art, title, author, progress         │
+│ [x] List view: detailed information                        │
+│ [x] Search functionality (in app bar)                      │
+│ [x] Filter buttons (all/reading/completed)                 │
+│ [x] Sort options (name/date/progress)                      │
+│ [x] Empty state: "Scan Directory" button                   │
+│ [x] Pull-to-refresh capability                             │
+│ [x] Responsive on all screen sizes                         │
 │                                                             │
 │ ACCEPTANCE CRITERIA:                                        │
 │ [x] Displays audiobooks in grid                            │
-│ [ ] Grid shows cover, title, author, progress              │
-│ [ ] Filter buttons present                                 │
-│ [ ] Sort options present                                   │
-│ [ ] Empty state handled                                    │
-│ [ ] Responsive design                                      │
-│ [ ] No navigation errors when tapping                      │
-│ [ ] Pull-to-refresh works                                  │
+│ [x] Grid shows cover, title, author, progress              │
+│ [x] Filter buttons present                                 │
+│ [x] Sort options present                                   │
+│ [x] Empty state handled                                    │
+│ [x] Responsive design                                      │
+│ [x] No navigation errors when tapping                      │
+│ [x] Pull-to-refresh works                                  │
 │                                                             │
 │ CHECKLIST:                                                  │
-│ [ ] Make ConsumerWidget                                    │
-│ [ ] Watch library provider                                 │
-│ [ ] Build grid view                                        │
-│ [ ] Show loading state                                     │
-│ [ ] Show empty state                                       │
-│ [ ] Add search button to app bar                           │
-│ [ ] Add filter/sort buttons                                │
-│ [ ] Add pull-to-refresh                                    │
-│ [ ] Test on multiple screen sizes                          │
-│ [ ] Build succeeds                                         │
-│ [ ] Commit & mark complete                                 │
+│ [x] Make ConsumerWidget                                    │
+│ [x] Watch library provider                                 │
+│ [x] Build grid view                                        │
+│ [x] Show loading state                                     │
+│ [x] Show empty state                                       │
+│ [x] Add search button to app bar                           │
+│ [x] Add filter/sort buttons                                │
+│ [x] Add pull-to-refresh                                    │
+│ [x] Test on multiple screen sizes                          │
+│ [x] Build succeeds                                         │
+│ [x] Commit & mark complete                                 │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## TASK 4.3: Audiobook Card Widget
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ PHASE 4, TASK 4.3: Create Audiobook Card Widget             │
+├─────────────────────────────────────────────────────────────┤
+│ Priority: 🟡 HIGH (UI component)                             │
+│ Estimated Time: 1-2 hours                                    │
+│ Dependencies: Task 4.2 (library screen)                     │
+│ Status: [ ] TODO / [ ] IN PROGRESS / [x] COMPLETE          │
+├─────────────────────────────────────────────────────────────┤
+│ FILE TO CREATE:                                             │
+│ lib/features/library/presentation/widgets/audiobook_card.dart│
+│                                                             │
+│ UI REQUIREMENTS:                                            │
+│ [x] Cover art image                                         │
+│ [x] Title text                                              │
+│ [x] Author text                                             │
+│ [x] Progress indicator                                      │
+│ [x] Duration display                                        │
+│ [x] Responsive layout                                       │
+│ [x] Tap interaction for navigation                          │
+│                                                             │
+│ ACCEPTANCE CRITERIA:                                        │
+│ [x] Displays all required information                       │
+│ [x] Responsive on all screen sizes                          │
+│ [x] Navigation works on tap                                 │
+│ [x] Loading state handled                                   │
+│ [x] Error state handled                                     │
+│ [x] Tests with 80%+ coverage                                │
+│                                                             │
+│ CHECKLIST:                                                  │
+│ [x] Create audiobook_card.dart file                         │
+│ [x] Add cover art image                                     │
+│ [x] Add title and author text                               │
+│ [x] Add progress indicator                                  │
+│ [x] Add duration display                                    │
+│ [x] Implement tap navigation                                │
+│ [x] Add loading/error states                                │
+│ [x] Write comprehensive tests                              │
+│ [x] Build succeeds                                         │
+│ [x] Commit & mark complete                                 │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## TASK 4.4: Search Functionality
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ PHASE 4, TASK 4.4: Implement Search Functionality           │
+├─────────────────────────────────────────────────────────────┤
+│ Priority: 🟡 HIGH (user experience)                          │
+│ Estimated Time: 2 hours                                     │
+│ Dependencies: Task 4.2 (library screen)                     │
+│ Status: [ ] TODO / [ ] IN PROGRESS / [x] COMPLETE          │
+├─────────────────────────────────────────────────────────────┤
+│ FILE TO CREATE:                                             │
+│ lib/features/library/presentation/providers/search_provider.dart│
+│                                                             │
+│ FUNCTIONALITY:                                              │
+│ [x] Search across title, author, narrator                    │
+│ [x] Real-time search with debouncing                         │
+│ [x] Search delegate for mobile                              │
+│ [x] Search bar for desktop/web                              │
+│ [x] Clear search functionality                              │
+│ [x] Search results filtering                                │
+│                                                             │
+│ ACCEPTANCE CRITERIA:                                        │
+│ [x] Search works across all fields                          │
+│ [x] Real-time updates with debouncing                       │
+│ [x] Mobile search delegate implemented                      │
+│ [x] Desktop/web search bar implemented                      │
+│ [x] Clear search button works                               │
+│ [x] Tests with 80%+ coverage                                │
+│                                                             │
+│ CHECKLIST:                                                  │
+│ [x] Create search provider                                  │
+│ [x] Implement search logic                                  │
+│ [x] Add debouncing for performance                          │
+│ [x] Create mobile search delegate                           │
+│ [x] Create desktop/web search bar                           │
+│ [x] Add clear search functionality                          │
+│ [x] Write comprehensive tests                              │
+│ [x] Build succeeds                                         │
+│ [x] Commit & mark complete                                 │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## TASK 4.5: Filter & Sort UI
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ PHASE 4, TASK 4.5: Implement Filter & Sort UI               │
+├─────────────────────────────────────────────────────────────┤
+│ Priority: 🟡 HIGH (user experience)                          │
+│ Estimated Time: 2 hours                                     │
+│ Dependencies: Task 4.2 (library screen)                     │
+│ Status: [ ] TODO / [ ] IN PROGRESS / [x] COMPLETE          │
+├─────────────────────────────────────────────────────────────┤
+│ FILE TO UPDATE:                                             │
+│ lib/features/library/presentation/views/library_screen.dart│
+│                                                             │
+│ UI REQUIREMENTS:                                            │
+│ [x] Filter buttons (All/Reading/Completed)                  │
+│ [x] Sort dropdown (Title/Author/Recent/Progress)            │
+│ [x] Active filter/sort indicators                           │
+│ [x] Responsive layout                                       │
+│ [x] State persistence                                       │
+│                                                             │
+│ ACCEPTANCE CRITERIA:                                        │
+│ [x] All filter options work                                 │
+│ [x] All sort options work                                   │
+│ [x] Active states clearly indicated                         │
+│ [x] Responsive on all screen sizes                          │
+│ [x] State persists across navigation                       │
+│ [x] Tests with 80%+ coverage                                │
+│                                                             │
+│ CHECKLIST:                                                  │
+│ [x] Add filter buttons                                      │
+│ [x] Add sort dropdown                                       │
+│ [x] Implement filter logic                                  │
+│ [x] Implement sort logic                                    │
+│ [x] Add active state indicators                             │
+│ [x] Ensure responsive design                               │
+│ [x] Add state persistence                                  │
+│ [x] Write comprehensive tests                              │
+│ [x] Build succeeds                                         │
+│ [x] Commit & mark complete                                 │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## TASK 4.6: Library Tests
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ PHASE 4, TASK 4.6: Add Comprehensive Library Tests          │
+├─────────────────────────────────────────────────────────────┤
+│ Priority: 🟡 MEDIUM (quality assurance)                     │
+│ Estimated Time: 3 hours                                     │
+│ Dependencies: Tasks 4.1-4.5                                │
+│ Status: [ ] TODO / [ ] IN PROGRESS / [x] COMPLETE          │
+├─────────────────────────────────────────────────────────────┤
+│ FILES TO CREATE:                                            │
+│ test/features/library/presentation/views/library_screen_test.dart│
+│ test/features/library/presentation/providers/library_notifier_test.dart│
+│ test/features/library/presentation/providers/search_provider_test.dart│
+│                                                             │
+│ TEST COVERAGE NEEDED:                                       │
+│ [x] Test library loading states                             │
+│ [x] Test search functionality                               │
+│ [x] Test filter and sort functionality                      │
+│ [x] Test audiobook card interactions                        │
+│ [x] Test empty state handling                               │
+│ [x] Test error state handling                               │
+│ [x] Test navigation                                         │
+│ [x] Test responsive design                                  │
+│                                                             │
+│ ACCEPTANCE CRITERIA:                                        │
+│ [x] All library features tested                             │
+│ [x] All edge cases covered                                  │
+│ [x] 80%+ code coverage                                      │
+│ [x] All tests passing                                       │
+│ [x] Proper test organization                                │
+│                                                             │
+│ CHECKLIST:                                                  │
+│ [x] Create test files                                       │
+│ [x] Write loading state tests                               │
+│ [x] Write search functionality tests                        │
+│ [x] Write filter/sort tests                                 │
+│ [x] Write card interaction tests                           │
+│ [x] Write empty/error state tests                           │
+│ [x] Write navigation tests                                  │
+│ [x] Write responsive design tests                           │
+│ [x] Run tests: flutter test test/features/library/         │
+│ [x] Check coverage: flutter test --coverage               │
+│ [x] Coverage >= 80%                                         │
+│ [x] All tests passing                                       │
+│ [x] Commit & mark complete                                  │
 └─────────────────────────────────────────────────────────────┘
 ```
 

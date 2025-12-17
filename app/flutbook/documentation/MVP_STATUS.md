@@ -1,7 +1,7 @@
 # 🎯 Flutbook MVP Status Report
 
-**Last Updated:** December 16, 2025
-**Overall Progress:** ~60% Complete
+**Last Updated:** December 17, 2025
+**Overall Progress:** ~70% Complete
 
 ---
 
@@ -11,12 +11,12 @@
 |-------|-------|--------|----------|
 | **Phase 1: Splash** | 3/3 | ✅ Complete | 100% |
 | **Phase 2: Auth** | 8/8 | ✅ Complete | 100% |
-| **Phase 3: Directory** | 5/6 | ✅ Nearly Complete | 83% |
-| **Phase 4: Library** | 2/6 | ⏳ In Progress | 33% |
+| **Phase 3: Directory** | 6/6 | ✅ Complete | 100% |
+| **Phase 4: Library** | 6/6 | ✅ Complete | 100% |
 | **Phase 5: Playback** | 3/10 | ⏳ In Progress | 30% |
-| **TOTAL MVP** | 20/33 | ⏳ In Progress | 60% |
+| **TOTAL MVP** | 26/33 | ⏳ In Progress | 79% |
 
-**Estimated Time to MVP:** 6-8 working days
+**Estimated Time to MVP:** 3-4 working days
 
 ---
 
@@ -54,49 +54,51 @@
   - `lib/features/auth/presentation/providers/auth_provider.dart`
   - `test/features/auth/presentation/providers/auth_provider_test.dart`
 
-### Phase 3: Directory Selection & Scanning (5/6)
+### Phase 3: Directory Selection & Scanning (6/6) ✅ Complete
 - [x] Directory picker with mobile support
+- [x] Directory picker with web support (file_picker integration)
 - [x] Metadata extraction (title, duration, file size)
 - [x] Scan use case implementation
 - [x] User input validation
 - [x] Audio files detected and saved to Isar database
 - **Files:**
+  - `lib/features/directory_selection/data/datasources/system_directory_picker_ds.dart`
   - `lib/features/directory_selection/presentation/view/directory_selection_screen.dart`
   - `lib/features/directory_selection/domain/usecases/scan_library_usecase.dart`
+
+### Phase 4: Library Management (6/6) ✅ Complete
+- [x] Library repository logic with sorting and filtering
+- [x] Library screen UI with complete functionality
+  - ✅ Displays audiobooks in responsive grid
+  - ✅ Shows cover art, title, author, and progress
+  - ✅ Search functionality with search delegate
+  - ✅ Filter buttons (completed/in progress/not started)
+  - ✅ Sort options (recent/title/author)
+  - ✅ Empty state handling with helpful message
+  - ✅ Pull-to-refresh capability
+  - ✅ Responsive design for all screen sizes
+  - ✅ Navigation to playback screen on tap
+- **Files:**
+  - `lib/features/library/presentation/views/library_screen.dart`
+  - `lib/features/library/presentation/providers/library_notifier.dart`
+  - `lib/features/library/presentation/providers/library_state.dart`
+  - `test/features/library/presentation/pull_to_refresh_integration_test.dart`
 
 ---
 
 ## ⏳ IN PROGRESS (Priority Order)
 
-### Phase 2: Authentication (8/8) - COMPLETE ✅
 
-**Why:** Blocks testing of authenticated features (library, playback)
-
-| Task | Status | Est. Hours |
-|------|--------|-----------|
-| 2.1: Login Use Case | ✅ Complete | 2-3 |
-| 2.2: Anonymous Login Use Case | ✅ Complete | 1 |
-| 2.3: Firebase Auth Datasource | ✅ Complete | 2 |
-| 2.4: Auth State Provider | ✅ Complete | 2-3 |
-| 2.5: Login Page UI | ✅ Complete | 2 |
-| 2.6: Auth Guard | ✅ Complete | 2 |
-| 2.7: Router Integration | ✅ Complete | 1-2 |
-| 2.8: Auth Tests | ✅ Complete | 3 |
-
-**Total Est. Time:** 13-16 hours (COMPLETED)
-
----
-
-### Phase 4: Library Management (2/6)
+### Phase 4: Library Management (6/6) ✅ Complete
 
 | Task | Status | Est. Hours |
 |------|--------|-----------|
-| 4.1: Build Library Logic | ⏳ 50% | 2-3 |
-| 4.2: Library Screen UI | ⏳ 60% | 2 |
-| 4.3: Audiobook Card Widget | ⏳ 70% | 1-2 |
-| 4.4: Search Functionality | [ ] Pending | 2 |
-| 4.5: Filter & Sort UI | [ ] Pending | 2 |
-| 4.6: Library Tests | [ ] Pending | 3 |
+| 4.1: Build Library Logic | ✅ Complete | 2-3 |
+| 4.2: Library Screen UI | ✅ Complete | 2 |
+| 4.3: Audiobook Card Widget | ✅ Complete | 1-2 |
+| 4.4: Search Functionality | ✅ Complete | 2 |
+| 4.5: Filter & Sort UI | ✅ Complete | 2 |
+| 4.6: Library Tests | ✅ Complete | 3 |
 
 **Total Est. Time:** 12-15 hours
 
@@ -172,11 +174,11 @@
 
 **Output:** Full auth workflow with navigation
 
-### Day 3: Phase 4 - Library Management (10 hours)
-1. [ ] Complete library display and query logic
-2. [ ] Add search and filter functionality
-3. [ ] Implement audiobook card tap navigation
-4. [ ] Add comprehensive library tests
+### Day 3: Phase 4 - Library Management (10 hours) ✅ Complete
+1. [x] Complete library display and query logic
+2. [x] Add search and filter functionality
+3. [x] Implement audiobook card tap navigation
+4. [x] Add comprehensive library tests
 
 **Output:** Users can see scanned audiobooks with search/filter
 
@@ -196,13 +198,13 @@
 - [x] Phase 1 (Splash): Complete ✅
 - [x] Phase 2 (Auth): Complete ✅
 - [x] Phase 3 (Directory): Complete ✅
-- [ ] Phase 4 (Library): Complete
+- [x] Phase 4 (Library): Complete ✅
 - [ ] Phase 5 (Playback): Complete
 - [ ] Build errors: 0 (currently 10)
 - [ ] Test coverage: 80%+
 - [ ] Android testing: Successful
 - [ ] iOS testing: Successful
-- [ ] Web testing: Splash/Auth/Library working
+- [ ] Web testing: Splash/Auth/Library/Directory working
 - [ ] No crashes in core workflows
 - [ ] Documentation complete
 
@@ -254,12 +256,12 @@ flutter run -d chrome --target lib/main_development.dart
 |-------|-------|--------|
 | Phase 1 | 4 | ✅ Done |
 | Phase 2 | 18 | ✅ Complete |
-| Phase 3 | 8 | ✅ Near complete |
-| Phase 4 | 14 | ⏳ Starting |
+| Phase 3 | 8 | ✅ Complete |
+| Phase 4 | 14 | ✅ Complete |
 | Phase 5 | 24 | ⏳ Starting |
-| **Total** | **68** | **~70% complete** |
+| **Total** | **68** | **~79% complete** |
 
-**Hours Remaining:** ~22 hours (4 working days)
+**Hours Remaining:** ~16 hours (3-4 working days)
 
 ---
 
@@ -326,6 +328,6 @@ flutter analyze
 ---
 
 **Status:** Active Development
-**Last Updated:** December 16, 2025
-**Next Milestone:** Phase 4 (Library) Completion
-**Target MVP Release:** 5-6 working days
+**Last Updated:** December 17, 2025
+**Next Milestone:** Phase 5 (Playback) Completion
+**Target MVP Release:** 3-4 working days

@@ -250,6 +250,12 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
   }
 }
 
+// Provider for all playback sessions (history)
+final playbackHistoryProvider = FutureProvider<List<PlaybackSession>>((ref) async {
+  final repo = ref.read(playbackRepositoryProvider);
+  return repo.getAllPlaybackSessions();
+});
+
 // Providers for dependencies
 final audioServiceProvider = Provider<AudioServiceHandler>((ref) {
   return AudioServiceHandler();

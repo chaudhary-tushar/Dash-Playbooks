@@ -9,10 +9,6 @@ library;
 
 import 'package:flutbook/core/services/database_service.dart';
 import 'package:flutbook/core/services/json_storage_service.dart';
-import 'package:flutbook/features/directory_selection/data/datasources/metadat_extractor_ds.dart';
-import 'package:flutbook/features/directory_selection/domain/usecases/scan_library_usecase.dart';
-import 'package:flutbook/features/library/data/datasources/audiobook_local_ds.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutbook/features/auth/data/datasources/firebase_auth_datasource.dart';
 import 'package:flutbook/features/auth/data/repositories/user_repository_impl.dart';
 import 'package:flutbook/features/auth/domain/repositories/user_repository.dart';
@@ -21,9 +17,19 @@ import 'package:flutbook/features/auth/domain/usecases/get_current_user_usecase.
 import 'package:flutbook/features/auth/domain/usecases/google_signin_usecase.dart';
 import 'package:flutbook/features/auth/domain/usecases/login_usecase.dart';
 import 'package:flutbook/features/auth/domain/usecases/logout_usecase.dart';
-import 'package:flutbook/features/settings/data/datasources/preferences_datasource.dart';
+import 'package:flutbook/features/directory_selection/data/datasources/metadat_extractor_ds.dart';
+import 'package:flutbook/features/directory_selection/domain/usecases/scan_library_usecase.dart';
+import 'package:flutbook/features/library/data/datasources/audiobook_local_ds.dart';
 import 'package:flutbook/features/library/data/datasources/remote/firebase_library_sync.dart';
+import 'package:flutbook/features/library/data/repositories/library_repository_impl.dart';
+import 'package:flutbook/features/library/domain/repositories/library_repository.dart';
 import 'package:flutbook/features/player/data/datasources/remote/firebase_playback_sync.dart';
+import 'package:flutbook/features/settings/data/datasources/preferences_datasource.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+// Export library provider from its own file
+export 'package:flutbook/features/library/presentation/providers/library_provider.dart'
+    show libraryProvider;
 
 // =============================================================================
 // DATABASE SERVICE PROVIDER
@@ -56,9 +62,10 @@ final jsonStorageProvider = Provider<JsonStorage>((ref) {
 /// - Scans directories for audio files
 /// - Extracts metadata from individual files
 /// - Does NOT depend on the database
-final metadataExtractionDatasourceProvider = Provider<MetadataExtractionDatasource>((ref) {
-  return MetadataExtractionDatasource();
-});
+final metadataExtractionDatasourceProvider =
+    Provider<MetadataExtractionDatasource>((ref) {
+      return MetadataExtractionDatasource();
+    });
 
 // =============================================================================
 // AUDIOBOOK LOCAL DATASOURCE PROVIDER
@@ -72,16 +79,17 @@ final metadataExtractionDatasourceProvider = Provider<MetadataExtractionDatasour
 /// - Does NOT depend on metadata extraction
 ///
 /// **Important**: The DatabaseService must be initialized before this datasource is used.
-final audiobookLocalDatasourceProvider = FutureProvider<AudiobookLocalDatasource>((ref) async {
-  // Wait for database service to be initialized
-  final databaseService = await ref.watch(databaseServiceProvider.future);
-  final jsonStorage = ref.watch(jsonStorageProvider);
+final audiobookLocalDatasourceProvider =
+    FutureProvider<AudiobookLocalDatasource>((ref) async {
+      // Wait for database service to be initialized
+      final databaseService = await ref.watch(databaseServiceProvider.future);
+      final jsonStorage = ref.watch(jsonStorageProvider);
 
-  return AudiobookLocalDatasource(
-    databaseService.isar,
-    jsonStorage: jsonStorage,
-  );
-});
+      return AudiobookLocalDatasource(
+        databaseService.isar,
+        jsonStorage: jsonStorage,
+      );
+    });
 
 // =============================================================================
 // SCAN LIBRARY USE CASE PROVIDER
@@ -105,13 +113,17 @@ final preferencesDatasourceProvider = Provider<PreferencesDatasource>((ref) {
 
 /// Provides the Library Remote datasource.
 /// This handles remote library operations with Firebase.
-final libraryRemoteDatasourceProvider = Provider<LibraryRemoteDatasource>((ref) {
+final libraryRemoteDatasourceProvider = Provider<LibraryRemoteDatasource>((
+  ref,
+) {
   return LibraryRemoteDatasource();
 });
 
 /// Provides the Playback Remote datasource.
 /// This handles remote playback progress operations with Firebase.
-final playbackRemoteDatasourceProvider = Provider<PlaybackRemoteDatasource>((ref) {
+final playbackRemoteDatasourceProvider = Provider<PlaybackRemoteDatasource>((
+  ref,
+) {
   return PlaybackRemoteDatasource();
 });
 
@@ -157,6 +169,27 @@ final getCurrentUserUsecaseProvider = Provider<GetCurrentUserUsecase>((ref) {
 });
 
 // =============================================================================
+// LIBRARY REPOSITORY PROVIDER
+// =============================================================================
+
+/// Provides the Library Repository implementation.
+/// This handles all library operations and depends on the audiobook datasource.
+final libraryRepositoryProvider = Provider<LibraryRepository>((ref) {
+  // Watch the future provider and get the actual datasource
+  final localDatasource = ref.watch(audiobookLocalDatasourceProvider).value;
+  final remoteDatasource = ref.watch(libraryRemoteDatasourceProvider);
+
+  if (localDatasource == null) {
+    throw Exception('Audiobook local datasource not initialized');
+  }
+
+  return LibraryRepositoryImpl(
+    localDatasource: localDatasource,
+    remoteDatasource: remoteDatasource,
+  );
+});
+
+// =============================================================================
 // SCAN LIBRARY USE CASE PROVIDER
 // =============================================================================
 
@@ -172,9 +205,13 @@ final getCurrentUserUsecaseProvider = Provider<GetCurrentUserUsecase>((ref) {
 /// 1. Extract metadata from all audio files in a directory
 /// 2. Save successfully extracted audiobooks to Isar
 /// 3. Return results including any per-file errors
-final scanLibraryUseCaseProvider = FutureProvider<ScanLibraryUseCaseImpl>((ref) async {
+final scanLibraryUseCaseProvider = FutureProvider<ScanLibraryUseCaseImpl>((
+  ref,
+) async {
   final extractor = ref.watch(metadataExtractionDatasourceProvider);
-  final localDatasource = await ref.watch(audiobookLocalDatasourceProvider.future);
+  final localDatasource = await ref.watch(
+    audiobookLocalDatasourceProvider.future,
+  );
 
   return ScanLibraryUseCaseImpl(
     extractor: extractor,

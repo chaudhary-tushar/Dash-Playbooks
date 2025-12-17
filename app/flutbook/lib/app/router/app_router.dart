@@ -23,7 +23,8 @@ class AppRouter {
     final canActivate = AuthGuard.canActivate(settings.name ?? '/', authState);
 
     // If cannot activate and not already on auth page, redirect to auth
-    if (!canActivate && settings.name != '/auth') {
+    // But allow development bypass for specific routes
+    if (!canActivate && settings.name != '/auth' && settings.name != 'dev_directory') {
       return MaterialPageRoute(builder: (_) => const LoginPage());
     }
 
@@ -36,10 +37,11 @@ class AppRouter {
       case '/library':
         return MaterialPageRoute(builder: (_) => const LibraryScreen());
       case '/directory':
-        final args = settings.arguments! as Map<String, dynamic>;
+      case 'dev_directory': // Development bypass route
+        final args = settings.arguments as Map<String, dynamic>?;
         return MaterialPageRoute(
           builder: (_) => DirectorySelectionScreen(
-            initialDirectory: args['initialDirectory'] as String?,
+            initialDirectory: args?['initialDirectory'] as String?,
           ),
         );
       case '/playback':

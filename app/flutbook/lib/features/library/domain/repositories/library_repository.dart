@@ -27,6 +27,17 @@ abstract class LibraryRepository {
   /// Searches for audiobooks in the library
   Future<List<Audiobook>> searchInLibrary(String query);
 
+  /// Gets audiobooks with optional sorting and filtering
+  Future<List<Audiobook>> getAudiobooks({
+    String? sortBy,
+    bool sortAscending = true,
+    bool? completed,
+    bool? inProgress,
+    String? title,
+    String? author,
+    int? limit,
+  });
+
   /// Filters audiobooks in the library
   Future<List<Audiobook>> filterInLibrary(AudiobookFilter filter);
 

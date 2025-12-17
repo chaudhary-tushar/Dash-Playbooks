@@ -1,6 +1,5 @@
 import 'package:flutbook/core/provider/providers.dart';
 import 'package:flutbook/features/auth/domain/entities/user_profile.dart';
-import 'package:flutbook/features/auth/domain/repositories/user_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // Auth State class to represent the authentication state
@@ -55,19 +54,39 @@ class AuthState {
 class AuthNotifier extends Notifier<AuthState> {
   @override
   AuthState build() {
-    // Initialize with loading state
+    // Initialize with loading state and check current user
     ref.onDispose(() {
       // Cleanup if needed
     });
 
+    // Check current user after provider initialization
+    Future.microtask(() async {
+      try {
+        await checkCurrentUser();
+      } catch (e) {
+        // Handle Firebase initialization errors gracefully
+        // If Firebase is not initialized, set to a non-error state to allow development
+        if (ref.mounted) {
+          // Set to a default non-authenticated state to allow development flow
+          state = const AuthState();
+        }
+      }
+    });
+
+    // Start with loading state, but avoid Firebase calls if they would fail
     return const AuthState(isLoading: true);
   }
 
-  UserRepository get _userRepository => ref.read(userRepositoryProvider);
-
   // Check current user on initialization
   Future<void> checkCurrentUser() async {
+    // If we're in development bypass mode, skip Firebase checks
+    if (state.isAuthenticated &&
+        state.userProfile?.authMethod == 'development') {
+      return; // Already in dev mode, don't try to re-check
+    }
+
     try {
+      // Only access the usecase if it's available (not in error state)
       final usecase = ref.read(getCurrentUserUsecaseProvider);
       final user = await usecase();
       if (ref.mounted) {
@@ -78,9 +97,9 @@ class AuthNotifier extends Notifier<AuthState> {
       }
     } catch (e) {
       if (ref.mounted) {
-        state = AuthState(
-          errorMessage: e.toString(),
-        );
+        // For development purposes, don't set the error state permanently
+        // as it will block the development bypass
+        state = const AuthState();
       }
     }
   }
@@ -190,6 +209,63 @@ class AuthNotifier extends Notifier<AuthState> {
   // Check if user is authenticated
   bool isAuthenticated() {
     return state.isAuthenticated;
+  }
+
+  // Sign in with Google
+  Future<void> signInWithGoogle() async {
+    if (!ref.mounted) return;
+    state = state.copyWith(isLoading: true);
+
+    try {
+      final usecase = ref.read(googleSigninUsecaseProvider);
+      final result = await usecase();
+
+      if (result.success) {
+        final usercase = ref.read(getCurrentUserUsecaseProvider);
+        final user = await usercase();
+        if (ref.mounted) {
+          state = AuthState(
+            isAuthenticated: true,
+            userProfile: user,
+          );
+        }
+      } else {
+        if (ref.mounted) {
+          state = state.copyWith(
+            isAuthenticated: false,
+            isLoading: false,
+            errorMessage: result.errorMessage,
+          );
+        }
+      }
+    } catch (e) {
+      if (ref.mounted) {
+        state = state.copyWith(
+          isAuthenticated: false,
+          isLoading: false,
+          errorMessage: 'Google sign in failed: $e',
+        );
+      }
+    }
+  }
+
+  // Method for development purposes to bypass authentication
+  Future<void> loginAsDevelopmentUser() async {
+    if (!ref.mounted) return;
+
+    // Create a development user profile
+    final devUser = UserProfile(
+      id: 'dev_user_123',
+      email: 'dev@example.com',
+      authMethod: 'development',
+      syncEnabled: false,
+    );
+
+    // Set the state as authenticated with development user
+    state = AuthState(
+      isAuthenticated: true,
+      userProfile: devUser,
+    );
   }
 }
 

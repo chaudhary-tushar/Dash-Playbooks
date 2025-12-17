@@ -101,7 +101,6 @@ void main() {
       ).thenAnswer((_) async => const AuthResult(
         success: true,
         userId: 'some-anonymous-id',
-        errorMessage: null,
       ));
 
       // Act

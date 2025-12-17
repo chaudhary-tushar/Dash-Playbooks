@@ -16,6 +16,7 @@ class App extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Use a guarded watch to handle provider errors gracefully
     final authState = ref.watch(authProvider);
     final router = AppRouter(authState);
 

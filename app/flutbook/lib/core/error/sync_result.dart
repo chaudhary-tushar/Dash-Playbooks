@@ -2,9 +2,8 @@
 class SyncResult {
   const SyncResult({
     required this.success,
-    this.message,
+    required this.itemsSynced, this.message,
     this.errorMessage,
-    required this.itemsSynced,
   });
   final bool success;
   final String? message;

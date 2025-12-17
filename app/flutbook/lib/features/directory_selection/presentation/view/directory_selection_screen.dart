@@ -1,9 +1,11 @@
 // lib/presentation/screens/directory_selection_screen.dart
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutbook/core/provider/providers.dart';
+import 'package:flutbook/features/directory_selection/data/datasources/system_directory_picker_ds.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -67,7 +69,29 @@ class _DirectorySelectionScreenState extends ConsumerState<DirectorySelectionScr
       return;
     }
 
+    // Validate that the directory exists and is readable
     final path = mapHostPathToContainer(_selectedDirectory!);
+    final directoryExists = await _validateDirectory(path);
+
+    if (!directoryExists) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Directory does not exist or is not readable: $path')),
+      );
+      return;
+    }
+
+    // Request storage permission if not already granted
+    final ds = SystemDirectoryPickerDatasource();
+    final hasPermission = await ds.requestStoragePermission();
+
+    if (!hasPermission) {
+      // Show permission rationale to user
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Storage permission is required to scan for audiobooks. Please grant permission in settings.')),
+      );
+      // Optionally, redirect to app settings
+      return;
+    }
 
     try {
       // Get the use case from Riverpod
@@ -97,9 +121,12 @@ class _DirectorySelectionScreenState extends ConsumerState<DirectorySelectionScr
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
       // Show result
-      final message = result.success
-          ? 'Scanned ${result.scannedFiles} files in ${result.elapsedTime.inSeconds}s'
-          : 'Scan completed with errors. Check logs for details.';
+      String message;
+      if (result.success) {
+        message = 'Scanned ${result.scannedFiles} files in ${result.elapsedTime.inSeconds}s';
+      } else {
+        message = 'Scan completed with ${result.errors.length} errors. Check logs for details.';
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message)),
@@ -120,6 +147,24 @@ class _DirectorySelectionScreenState extends ConsumerState<DirectorySelectionScr
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error scanning directory: $e')),
       );
+    }
+  }
+
+  /// Validates that the directory exists and is readable
+  Future<bool> _validateDirectory(String directoryPath) async {
+    try {
+      final directory = Directory(directoryPath);
+      if (!await directory.exists()) {
+        print('Directory does not exist: $directoryPath');
+        return false;
+      }
+
+      // Try to list contents to verify read access
+      await directory.list().first;
+      return true;
+    } catch (e) {
+      print('Directory is not readable: $directoryPath, Error: $e');
+      return false;
     }
   }
 

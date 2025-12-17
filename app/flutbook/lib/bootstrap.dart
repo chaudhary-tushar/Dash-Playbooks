@@ -6,10 +6,12 @@ library;
 import 'dart:async';
 import 'dart:developer';
 
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutbook/core/provider/providers.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'firebase_options.dart';
 
 /// Custom observer for Riverpod provider state changes.
 /// Logs all provider lifecycle events for debugging and monitoring.
@@ -58,6 +60,15 @@ Future<void> bootstrap(FutureOr<Widget> Function() builder) async {
     await container.read(databaseServiceProvider.future);
   } catch (e) {
     print('Warning: Database initialization failed in bootstrap: $e');
+  }
+
+  // Initialize Firebase for the app
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    print('Warning: Firebase initialization failed in bootstrap: $e');
   }
 
   // Add cross-flavor configuration here

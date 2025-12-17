@@ -1,3 +1,4 @@
+import 'package:flutbook/core/error/sync_result.dart';
 import 'package:flutbook/features/auth/data/datasources/firebase_auth_datasource.dart';
 import 'package:flutbook/features/auth/domain/entities/auth_result.dart';
 import 'package:flutbook/features/auth/domain/entities/user_profile.dart';
@@ -7,7 +8,6 @@ import 'package:flutbook/features/library/data/datasources/remote/firebase_libra
 import 'package:flutbook/features/player/data/datasources/remote/firebase_playback_sync.dart';
 import 'package:flutbook/features/settings/data/datasources/preferences_datasource.dart';
 import 'package:flutbook/features/settings/domain/entities/sync_status.dart';
-import 'package:flutbook/core/error/sync_result.dart';
 import 'package:flutbook/features/settings/domain/entities/user_settings.dart';
 
 class UserRepositoryImpl implements UserRepository {

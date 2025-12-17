@@ -1,8 +1,6 @@
 import 'package:flutbook/core/provider/providers.dart';
 import 'package:flutbook/features/auth/domain/entities/auth_result.dart';
-import 'package:flutbook/features/auth/domain/repositories/user_repository.dart';
 import 'package:flutbook/features/auth/domain/usecases/login_usecase.dart';
-import 'package:flutbook/features/auth/presentation/providers/auth_provider.dart';
 import 'package:flutbook/features/auth/presentation/providers/login_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

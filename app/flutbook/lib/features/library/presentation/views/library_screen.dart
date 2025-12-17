@@ -1,84 +1,35 @@
 // lib/presentation/screens/library_screen.dart
-import 'package:flutbook/features/library/domain/entities/audiobook.dart';
-import 'package:flutbook/features/library/presentation/widgets/audiobook_card.dart';
-import 'package:flutter/material.dart';
 import 'dart:async';
 
-class LibraryScreen extends StatefulWidget {
+import 'package:flutbook/features/library/domain/entities/audiobook.dart';
+import 'package:flutbook/features/library/presentation/providers/library_notifier.dart';
+import 'package:flutbook/features/library/presentation/providers/library_provider.dart';
+import 'package:flutbook/features/library/presentation/providers/library_state.dart'
+    show AudiobookFilter, LibraryState;
+import 'package:flutbook/features/library/presentation/widgets/audiobook_card.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+class LibraryScreen extends ConsumerWidget {
   const LibraryScreen({super.key});
 
   @override
-  LibraryScreenState createState() => LibraryScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Watch the library provider to get the current state
+    final libraryState = ref.watch(libraryProvider);
+    final libraryNotifier = ref.read(libraryProvider.notifier);
+    final searchNotifier = ref.read(searchQueryProvider.notifier);
+    final filteredAudiobooks = ref.watch(filteredAudiobooksProvider);
 
-class LibraryScreenState extends State<LibraryScreen> {
-  // Temporary: Will be replaced with Riverpod state management
-  List<Audiobook> _audiobooks = [];
-  String _searchQuery = '';
-  bool _showCompleted = true;
-  bool _showInProgress = true;
-  bool _showNotStarted = true;
-  String _sortBy = 'recent'; // Options: 'recent', 'title', 'author'
+    // Get current filter and sort settings from state
+    final currentFilter = libraryState.filter ?? const AudiobookFilter();
+    final currentSortBy = libraryState.sortBy ?? 'recent';
+    final currentSearchQuery = ref.watch(searchQueryProvider);
 
-  @override
-  void initState() {
-    super.initState();
-    // Load library from repository
-    _loadLibrary();
-  }
+    // Get current filter status
+    final currentStatusFilter = currentFilter.statusFilter ?? 'all';
+    final currentViewType = libraryState.viewType ?? 'list';
 
-  Future<void> _loadLibrary() async {
-    // TODO: Connect to actual repository once implemented
-    // For now, we'll use mock data to demonstrate the UI
-    setState(() {
-      _audiobooks = _mockAudiobooks;
-    });
-  }
-
-  Future<void> _refreshLibrary() async {
-    // TODO: Refresh library from file system
-    _loadLibrary();
-  }
-
-  List<Audiobook> get _filteredAudiobooks {
-    final filtered = _audiobooks.where((book) {
-      final matchesSearch =
-          _searchQuery.isEmpty ||
-          book.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          book.author.toLowerCase().contains(_searchQuery.toLowerCase());
-
-      final matchesStatus =
-          (book.completed && _showCompleted) ||
-          (!book.completed && book.lastPlayedAt != null && _showInProgress) ||
-          (!book.completed && book.lastPlayedAt == null && _showNotStarted);
-
-      return matchesSearch && matchesStatus;
-    }).toList();
-
-    // Sort the results
-    switch (_sortBy) {
-      case 'title':
-        filtered.sort(
-          (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
-        );
-      case 'author':
-        filtered.sort(
-          (a, b) => a.author.toLowerCase().compareTo(b.author.toLowerCase()),
-        );
-      case 'recent':
-      default:
-        filtered.sort(
-          (a, b) => (b.lastPlayedAt ?? b.createdAt).compareTo(
-            a.lastPlayedAt ?? a.createdAt,
-          ),
-        );
-    }
-
-    return filtered;
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Your Library'),
@@ -90,7 +41,7 @@ class LibraryScreenState extends State<LibraryScreen> {
               showSearch(
                 context: context,
                 delegate: _AudiobookSearchDelegate(
-                  audiobooks: _audiobooks,
+                  audiobooks: libraryState.audiobooks,
                 ),
               );
             },
@@ -99,7 +50,7 @@ class LibraryScreenState extends State<LibraryScreen> {
             icon: const Icon(Icons.filter_list),
             onSelected: (value) {
               if (value == 'refresh') {
-                unawaited(_refreshLibrary());
+                unawaited(libraryNotifier.refreshLibrary());
               } else if (value == 'settings') {
                 // Navigate to settings
                 unawaited(Navigator.pushNamed(context, '/settings'));
@@ -144,94 +95,119 @@ class LibraryScreenState extends State<LibraryScreen> {
                     decoration: InputDecoration(
                       hintText: 'Search audiobooks...',
                       prefixIcon: const Icon(Icons.search),
+                      suffixIcon: currentSearchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                searchNotifier.updateSearchQuery('');
+                              },
+                            )
+                          : null,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    onChanged: (value) {
-                      setState(() {
-                        _searchQuery = value;
-                      });
-                    },
+                    controller: TextEditingController(text: currentSearchQuery),
+                    onChanged: searchNotifier.updateSearchQuery,
                   ),
 
                   const SizedBox(height: 16),
 
-                  // Status filters
-                  Text(
-                    'Show:',
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
+                  // Filter buttons: All/Reading/Completed/Wishlist
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      FilterChip(
-                        label: const Text('Completed'),
-                        selected: _showCompleted,
-                        onSelected: (selected) {
-                          setState(() {
-                            _showCompleted = selected;
-                          });
-                        },
+                      _buildFilterButton(
+                        context,
+                        'All',
+                        'all',
+                        currentStatusFilter,
+                        libraryNotifier,
                       ),
-                      FilterChip(
-                        label: const Text('In Progress'),
-                        selected: _showInProgress,
-                        onSelected: (selected) {
-                          setState(() {
-                            _showInProgress = selected;
-                          });
-                        },
+                      _buildFilterButton(
+                        context,
+                        'Reading',
+                        'reading',
+                        currentStatusFilter,
+                        libraryNotifier,
                       ),
-                      FilterChip(
-                        label: const Text('Not Started'),
-                        selected: _showNotStarted,
-                        onSelected: (selected) {
-                          setState(() {
-                            _showNotStarted = selected;
-                          });
-                        },
+                      _buildFilterButton(
+                        context,
+                        'Completed',
+                        'completed',
+                        currentStatusFilter,
+                        libraryNotifier,
+                      ),
+                      _buildFilterButton(
+                        context,
+                        'Wishlist',
+                        'wishlist',
+                        currentStatusFilter,
+                        libraryNotifier,
                       ),
                     ],
                   ),
 
                   const SizedBox(height: 16),
 
-                  // Sort options
-                  Wrap(
-                    spacing: 8,
+                  // Sort dropdown and view toggle row
+                  Row(
                     children: [
-                      ChoiceChip(
-                        label: const Text('Recent'),
-                        selected: _sortBy == 'recent',
-                        onSelected: (selected) {
-                          if (selected) {
-                            setState(() {
-                              _sortBy = 'recent';
-                            });
-                          }
-                        },
+                      // Sort dropdown
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: _mapSortValueToUi(currentSortBy),
+                          decoration: InputDecoration(
+                            labelText: 'Sort by',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                            ),
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'name',
+                              child: Text('Name'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'date',
+                              child: Text('Date Added'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'progress',
+                              child: Text('Progress'),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) {
+                              libraryNotifier.updateSorting(value);
+                            }
+                          },
+                        ),
                       ),
-                      ChoiceChip(
-                        label: const Text('Title'),
-                        selected: _sortBy == 'title',
-                        onSelected: (selected) {
-                          if (selected) {
-                            setState(() {
-                              _sortBy = 'title';
-                            });
-                          }
-                        },
-                      ),
-                      ChoiceChip(
-                        label: const Text('Author'),
-                        selected: _sortBy == 'author',
-                        onSelected: (selected) {
-                          if (selected) {
-                            setState(() {
-                              _sortBy = 'author';
-                            });
+
+                      const SizedBox(width: 16),
+
+                      // View toggle: Grid/List
+                      SegmentedButton<String>(
+                        segments: const [
+                          ButtonSegment(
+                            value: 'list',
+                            icon: Icon(Icons.list),
+                            label: Text('List'),
+                          ),
+                          ButtonSegment(
+                            value: 'grid',
+                            icon: Icon(Icons.grid_view),
+                            label: Text('Grid'),
+                          ),
+                        ],
+                        selected: {currentViewType},
+                        onSelectionChanged: (Set<String> newSelection) {
+                          if (newSelection.isNotEmpty) {
+                            libraryNotifier.updateViewType(newSelection.first);
                           }
                         },
                       ),
@@ -244,77 +220,241 @@ class LibraryScreenState extends State<LibraryScreen> {
 
           // Audiobook list
           Expanded(
-            child: _filteredAudiobooks.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.library_books_outlined,
-                          size: 80,
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withAlpha(100),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          _searchQuery.isNotEmpty
-                              ? 'No audiobooks match your search'
-                              : 'No audiobooks in your library',
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurface.withAlpha(150),
-                          ),
-                        ),
-                        if (_searchQuery.isEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: Text(
-                              'Use the directory selector to add audiobooks',
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  )
-                : RefreshIndicator(
-                    onRefresh: _refreshLibrary,
-                    child: ListView.builder(
-                      itemCount: _filteredAudiobooks.length,
-                      itemBuilder: (context, index) {
-                        final audiobook = _filteredAudiobooks[index];
-                        return AudiobookCard(
-                          title: audiobook.title,
-                          author: audiobook.author,
-                          coverArtPath: audiobook.coverArtPath,
-                          duration: audiobook.duration,
-                          isCompleted: audiobook.completed,
-                          progress:
-                              audiobook.lastPlayedAt != null && audiobook.duration.inSeconds > 0
-                              ? (DateTime.now().difference(audiobook.lastPlayedAt!).inSeconds /
-                                        audiobook.duration.inSeconds)
-                                    .clamp(0.0, 1.0)
-                              : null,
-                          onTap: () {
-                            // Navigate to playback screen
-                            unawaited(
-                              Navigator.pushNamed(
-                                context,
-                                '/playback',
-                                arguments: audiobook,
-                              ),
-                            );
-                          },
-                        );
-                      },
-                    ),
-                  ),
+            child: _buildLibraryContent(
+              context,
+              libraryState,
+              libraryNotifier,
+              filteredAudiobooks,
+              currentSearchQuery,
+              currentViewType,
+            ),
           ),
+        ],
+      ),
+    );
+  }
+
+  // Helper method to map backend sort values to UI values
+  String _mapSortValueToUi(String? sortValue) {
+    if (sortValue == null) return 'name';
+
+    // Map backend values to UI values
+    switch (sortValue) {
+      case 'title':
+        return 'name';
+      case 'recent':
+        return 'date';
+      case 'progress':
+        return 'progress';
+      default:
+        return sortValue; // Return as-is if already a UI value
+    }
+  }
+
+  // Helper method to build filter buttons with visual feedback
+  Widget _buildFilterButton(
+    BuildContext context,
+    String label,
+    String filterValue,
+    String currentFilter,
+    LibraryNotifier notifier,
+  ) {
+    final isActive = currentFilter == filterValue;
+
+    return Expanded(
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: isActive
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).colorScheme.surfaceContainerHighest,
+          foregroundColor: isActive
+              ? Theme.of(context).colorScheme.onPrimary
+              : Theme.of(context).colorScheme.onSurfaceVariant,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+        ),
+        onPressed: () {
+          notifier.updateStatusFilter(filterValue);
+        },
+        child: Text(label),
+      ),
+    );
+  }
+
+  Widget _buildLibraryContent(
+    BuildContext context,
+    LibraryState libraryState,
+    LibraryNotifier libraryNotifier,
+    List<Audiobook> filteredAudiobooks,
+    String currentSearchQuery,
+    String currentViewType,
+  ) {
+    if (libraryState.isLoading && libraryState.audiobooks.isEmpty) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
+    if (libraryState.errorMessage != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 80,
+              color: Theme.of(context).colorScheme.error,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Error loading library',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                color: Theme.of(context).colorScheme.error,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              libraryState.errorMessage!,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => libraryNotifier.refreshLibrary(),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (filteredAudiobooks.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.library_books_outlined,
+              size: 80,
+              color: Theme.of(context).colorScheme.onSurface.withAlpha(100),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              currentSearchQuery.isNotEmpty
+                  ? 'No audiobooks match your search'
+                  : 'No audiobooks in your library',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface.withAlpha(150),
+              ),
+            ),
+            if (currentSearchQuery.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  'Use the directory selector to add audiobooks',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: libraryNotifier.refreshLibrary,
+      child: Stack(
+        children: [
+          if (currentViewType == 'list')
+            ListView.builder(
+              itemCount: filteredAudiobooks.length,
+              itemBuilder: (context, index) {
+                final audiobook = filteredAudiobooks[index];
+                return AudiobookCard(
+                  title: audiobook.title,
+                  author: audiobook.author,
+                  coverArtPath: audiobook.coverArtPath,
+                  duration: audiobook.duration,
+                  isCompleted: audiobook.completed,
+                  progress:
+                      audiobook.lastPlayedAt != null &&
+                          audiobook.duration.inSeconds > 0
+                      ? (DateTime.now()
+                                    .difference(audiobook.lastPlayedAt!)
+                                    .inSeconds /
+                                audiobook.duration.inSeconds)
+                            .clamp(0.0, 1.0)
+                      : null,
+                  onTap: () {
+                    // Navigate to playback screen
+                    unawaited(
+                      Navigator.pushNamed(
+                        context,
+                        '/playback',
+                        arguments: audiobook,
+                      ),
+                    );
+                  },
+                );
+              },
+            )
+          else
+            // Grid view
+            GridView.builder(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                childAspectRatio: 0.7,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+              ),
+              padding: const EdgeInsets.all(16),
+              itemCount: filteredAudiobooks.length,
+              itemBuilder: (context, index) {
+                final audiobook = filteredAudiobooks[index];
+                return AudiobookCard(
+                  title: audiobook.title,
+                  author: audiobook.author,
+                  coverArtPath: audiobook.coverArtPath,
+                  duration: audiobook.duration,
+                  isCompleted: audiobook.completed,
+                  progress:
+                      audiobook.lastPlayedAt != null &&
+                          audiobook.duration.inSeconds > 0
+                      ? (DateTime.now()
+                                    .difference(audiobook.lastPlayedAt!)
+                                    .inSeconds /
+                                audiobook.duration.inSeconds)
+                            .clamp(0.0, 1.0)
+                      : null,
+                  onTap: () {
+                    // Navigate to playback screen
+                    unawaited(
+                      Navigator.pushNamed(
+                        context,
+                        '/playback',
+                        arguments: audiobook,
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          // Show loading indicator at top when refreshing with existing data
+          if (libraryState.isLoading && libraryState.audiobooks.isNotEmpty)
+            const Positioned(
+              top: 16,
+              right: 16,
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
         ],
       ),
     );
@@ -396,45 +536,3 @@ class _AudiobookSearchDelegate extends SearchDelegate<Audiobook> {
     );
   }
 }
-
-// Mock data for demonstration
-final List<Audiobook> _mockAudiobooks = [
-  Audiobook(
-    id: '1',
-    title: 'The Great Gatsby',
-    author: 'F. Scott Fitzgerald',
-    album: 'Classic Literature',
-    duration: const Duration(hours: 5, minutes: 10),
-    filePath: '/storage/emulated/0/Audiobooks/great-gatsby.mp3',
-    chapters: [],
-    createdAt: DateTime.now().subtract(const Duration(days: 5)),
-    lastPlayedAt: DateTime.now().subtract(const Duration(minutes: 30)),
-    completed: false,
-    totalSize: 24567890,
-  ),
-  Audiobook(
-    id: '2',
-    title: 'To Kill a Mockingbird',
-    author: 'Harper Lee',
-    album: 'Classic Literature',
-    duration: const Duration(hours: 10, minutes: 33),
-    filePath: '/storage/emulated/0/Audiobooks/mockinbird.mp3',
-    chapters: [],
-    createdAt: DateTime.now().subtract(const Duration(days: 2)),
-    lastPlayedAt: DateTime.now().subtract(const Duration(days: 1)),
-    completed: true,
-    totalSize: 48765432,
-  ),
-  Audiobook(
-    id: '3',
-    title: '1984',
-    author: 'George Orwell',
-    album: 'Dystopian Fiction',
-    duration: const Duration(hours: 8, minutes: 47),
-    filePath: '/storage/emulated/0/Audiobooks/1984.mp3',
-    chapters: [],
-    createdAt: DateTime.now().subtract(const Duration(days: 10)),
-    completed: false,
-    totalSize: 40987654,
-  ),
-];

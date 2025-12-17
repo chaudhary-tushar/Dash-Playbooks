@@ -34,4 +34,17 @@ class PlaybackLocalDatasource {
       throw DatabaseException('Failed to retrieve playback session: $e');
     }
   }
+
+  /// Gets all playback sessions from Isar database
+  Future<List<PlaybackSession>> getAllPlaybackSessions() async {
+    try {
+      final sessionModels = await _isar.playbackSessionModels
+          .where()
+          .findAll();
+
+      return sessionModels.map((model) => model.toDomain()).toList();
+    } catch (e) {
+      throw DatabaseException('Failed to retrieve playback sessions: $e');
+    }
+  }
 }

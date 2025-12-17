@@ -74,10 +74,7 @@ class PlaybackRepositoryImpl implements PlaybackRepository {
   @override
   Future<List<PlaybackSession>> getAllPlaybackSessions() async {
     try {
-      // In the current implementation, we'll get all sessions from the local datasource
-      // This would require extending the local datasource interface to support this
-      // For now, we'll return an empty list until we implement this functionality
-      return [];
+      return await _localDatasource.getAllPlaybackSessions();
     } catch (e) {
       throw StorageException(ErrorHandler.handleException(e));
     }

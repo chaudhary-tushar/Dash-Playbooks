@@ -1,4 +1,5 @@
 import 'package:flutbook/core/provider/providers.dart';
+import 'package:flutbook/features/auth/presentation/providers/auth_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -14,7 +15,9 @@ class LoginButtons extends ConsumerWidget {
         _LoginButton(
           iconPath: 'assets/icons/google.png',
           label: 'Continue with Google',
-          onTap: () {},
+          onTap: () async {
+            await ref.read(authProvider.notifier).signInWithGoogle();
+          },
         ),
         const SizedBox(height: 12),
         _LoginButton(
@@ -50,7 +53,9 @@ class LoginButtons extends ConsumerWidget {
                     messenger.showSnackBar(snackBar);
 
                     // call your scan use case here
-                    final scanUseCase = await ref.read(scanLibraryUseCaseProvider.future);
+                    final scanUseCase = await ref.read(
+                      scanLibraryUseCaseProvider.future,
+                    );
 
                     final result = await scanUseCase.execute(path);
 
@@ -73,7 +78,9 @@ class LoginButtons extends ConsumerWidget {
                       if (contextRef.mounted) {
                         messenger.showSnackBar(
                           const SnackBar(
-                            content: Text('Scan completed with errors. Check logs for details.'),
+                            content: Text(
+                              'Scan completed with errors. Check logs for details.',
+                            ),
                           ),
                         );
                         Navigator.pushNamed(contextRef, '/library');
@@ -102,6 +109,35 @@ class LoginButtons extends ConsumerWidget {
         ),
         const SizedBox(height: 24),
         const Divider(),
+        const SizedBox(height: 24),
+        // Skip button for development
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: ElevatedButton(
+            onPressed: () async {
+              // First, log in as development user using the auth provider
+              await ref.read(authProvider.notifier).loginAsDevelopmentUser();
+
+              // Then navigate to the development route
+              Navigator.pushNamed(
+                context,
+                'dev_directory',
+                arguments: {
+                  'initialDirectory': '',
+                },
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.grey[300],
+              foregroundColor: Colors.black87,
+            ),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(vertical: 14),
+              child: Text('Skip for Development'),
+            ),
+          ),
+        ),
       ],
     );
   }

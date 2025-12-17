@@ -18,19 +18,19 @@ class LoginForm extends ConsumerWidget {
         TextField(
           controller: emailController,
           keyboardType: TextInputType.emailAddress,
-          decoration: InputDecoration(
+          decoration: const InputDecoration(
             labelText: 'Email address',
-            border: const OutlineInputBorder(),
+            border: OutlineInputBorder(),
           ),
         ),
         const SizedBox(height: 16),
         TextField(
           controller: passwordController,
           obscureText: true,
-          decoration: InputDecoration(
+          decoration: const InputDecoration(
             labelText: 'Password',
-            border: const OutlineInputBorder(),
-            suffixIcon: const Icon(Icons.visibility_off),
+            border: OutlineInputBorder(),
+            suffixIcon: Icon(Icons.visibility_off),
           ),
         ),
         const SizedBox(height: 8),
@@ -60,33 +60,36 @@ class LoginForm extends ConsumerWidget {
           width: double.infinity,
           child: ElevatedButton(
             onPressed: authState.isLoading
-              ? null  // Disable button when loading
-              : () async {
-                  // Perform validation
-                  final email = emailController.text.trim();
-                  final password = passwordController.text.trim();
+                ? null // Disable button when loading
+                : () async {
+                    // Perform validation
+                    final email = emailController.text.trim();
+                    final password = passwordController.text.trim();
 
-                  // Check if email is empty or invalid format
-                  if (email.isEmpty || !RegExp(r'^[\w-\.]+@([\w-\.]+)+\.[\w-]{2,4}$').hasMatch(email)) {
-                    // Just return without doing anything, error will be shown by the auth provider
-                    return;
-                  }
+                    // Check if email is empty or invalid format
+                    if (email.isEmpty ||
+                        !RegExp(
+                          r'^[\w-\.]+@([\w-\.]+)+\.[\w-]{2,4}$',
+                        ).hasMatch(email)) {
+                      // Just return without doing anything, error will be shown by the auth provider
+                      return;
+                    }
 
-                  // Check if password is empty or less than 6 chars
-                  if (password.isEmpty || password.length < 6) {
-                    // Just return without doing anything, error will be shown by the auth provider
-                    return;
-                  }
+                    // Check if password is empty or less than 6 chars
+                    if (password.isEmpty || password.length < 6) {
+                      // Just return without doing anything, error will be shown by the auth provider
+                      return;
+                    }
 
-                  // Call auth provider to login
-                  await authNotifier.login(email, password);
-                },
+                    // Call auth provider to login
+                    await authNotifier.login(email, password);
+                  },
             child: authState.isLoading
-              ? const CircularProgressIndicator()
-              : const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 14),
-                  child: Text('Login'),
-                ),
+                ? const CircularProgressIndicator()
+                : const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 14),
+                    child: Text('Login'),
+                  ),
           ),
         ),
 
@@ -97,19 +100,37 @@ class LoginForm extends ConsumerWidget {
           width: double.infinity,
           child: OutlinedButton(
             onPressed: authState.isLoading
-              ? null  // Disable button when loading
-              : () async {
-                  // Call auth provider to login anonymously
-                  await authNotifier.loginAnonymously();
-                },
+                ? null // Disable button when loading
+                : () async {
+                    // Call auth provider to login anonymously
+                    await authNotifier.loginAnonymously();
+                  },
             child: authState.isLoading
-              ? const CircularProgressIndicator()
-              : const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 14),
-                  child: Text('Continue as Guest'),
-                ),
+                ? const CircularProgressIndicator()
+                : const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 14),
+                    child: Text('Continue as Guest'),
+                  ),
           ),
         ),
+
+        // Skip button for development
+        // const SizedBox(height: 16),
+        // SizedBox(
+        //   width: double.infinity,
+        //   child: TextButton(
+        //     onPressed: () {
+        //       // Navigate directly to directory selection
+        //       Navigator.pushNamed(context, '/directory', arguments: {
+        //         'initialDirectory': '',
+        //       });
+        //     },
+        //     child: const Padding(
+        //       padding: EdgeInsets.symmetric(vertical: 14),
+        //       child: Text('Skip for Development'),
+        //     ),
+        //   ),
+        // ),
       ],
     );
   }

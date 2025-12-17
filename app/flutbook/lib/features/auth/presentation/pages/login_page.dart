@@ -268,6 +268,24 @@ class _LoginFormState extends ConsumerState<_LoginForm> {
               ),
             ),
           ),
+
+          const SizedBox(height: 16),
+
+          // Skip Button for Development
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: () {
+                // Navigate directly to directory selection screen bypassing auth guard
+                Navigator.of(context).pushReplacementNamed('dev_directory',
+                  arguments: {'initialDirectory': null});
+              },
+              child: const Padding(
+                padding: EdgeInsets.symmetric(vertical: 14),
+                child: Text('Skip Login (Development)'),
+              ),
+            ),
+          ),
         ],
       ),
     );

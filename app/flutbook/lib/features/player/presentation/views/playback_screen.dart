@@ -1,60 +1,25 @@
-// lib/presentation/screens/playback_screen.dart
-import 'package:flutbook/features/library/data/models/audiobook_model.dart';
+// lib/features/player/presentation/views/playback_screen.dart
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
+import 'package:flutbook/features/player/presentation/providers/playback_provider.dart';
+import 'package:flutbook/features/player/presentation/widgets/chapters_list.dart';
 import 'package:flutbook/features/player/presentation/widgets/playback_controls.dart';
 import 'package:flutbook/features/player/presentation/widgets/progress_bar.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class PlaybackScreen extends StatefulWidget {
+class PlaybackScreen extends ConsumerWidget {
   const PlaybackScreen({
     required this.audiobook,
     super.key,
   });
-  final AudiobookModel audiobook;
+  final Audiobook audiobook;
 
   @override
-  PlaybackScreenState createState() => PlaybackScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Initialize the playback provider with the audiobook
+    ref.read(playbackProvider.notifier).setCurrentAudiobook(audiobook);
 
-class PlaybackScreenState extends State<PlaybackScreen> {
-  late Audiobook audiobook;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Get the audiobook from the route arguments
-    final args = ModalRoute.of(context)!.settings.arguments;
-    if (args is Audiobook) {
-      audiobook = args;
-    } else {
-      // Default audiobook in case arguments are not passed correctly
-      audiobook = Audiobook(
-        id: 'default',
-        title: 'Default Title',
-        author: 'Default Author',
-        album: 'Default Album',
-        duration: Duration.zero,
-        filePath: '',
-        chapters: [],
-        createdAt: DateTime.now(),
-        completed: false,
-        totalSize: 0,
-      );
-    }
-  }
-
-  // These would connect to actual playback state providers in a complete implementation
-  bool _isPlaying = false;
-  double _playbackSpeed = 1;
-  bool _sleepTimerActive = false;
-  final Duration _sleepTimerDuration = const Duration(minutes: 30);
-  Duration _currentPosition = Duration.zero;
-  Duration _scrubPosition = Duration.zero;
-  bool _isScrubbing = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final _ = Theme.of(context);
+    final playbackState = ref.watch(playbackProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -152,28 +117,19 @@ class PlaybackScreenState extends State<PlaybackScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             width: double.infinity,
             child: ProgressBar(
-              currentPosition: _isScrubbing ? _scrubPosition : _currentPosition,
-              totalDuration: audiobook.duration,
+              currentPosition: playbackState.currentPosition,
+              totalDuration: playbackState.duration,
               chapterMarkers: audiobook.chapters
                   .map((chapter) => chapter.startTime)
                   .toList(),
               onSeek: (newPosition) {
-                setState(() {
-                  _scrubPosition = newPosition;
-                });
+                ref.read(playbackProvider.notifier).seekTo(newPosition);
               },
               onSeekStart: () async {
-                setState(() {
-                  _isScrubbing = true;
-                });
+                // Handle seek start if needed
               },
               onSeekEnd: (finalPosition) async {
-                setState(() {
-                  _currentPosition = finalPosition;
-                  _isScrubbing = false;
-                  // In a real implementation, this would update the playback position
-                  print('Seek to: ${_formatDuration(finalPosition)}');
-                });
+                ref.read(playbackProvider.notifier).seekTo(finalPosition);
               },
             ),
           ),
@@ -181,67 +137,56 @@ class PlaybackScreenState extends State<PlaybackScreen> {
           const SizedBox(height: 24),
 
           // Playback controls
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: PlaybackControls(
+              isPlaying: playbackState.isPlaying,
+              playbackSpeed: playbackState.playbackSpeed,
+              sleepTimerActive: playbackState.sleepTimerActive,
+              sleepTimerDuration: playbackState.sleepTimerDuration ?? const Duration(minutes: 30),
+              onPlayPause: () {
+                final notifier = ref.read(playbackProvider.notifier);
+                if (playbackState.isPlaying) {
+                  notifier.pause();
+                } else {
+                  notifier.play();
+                }
+              },
+              onSpeedChanged: (newSpeed) {
+                ref.read(playbackProvider.notifier).setSpeed(newSpeed);
+              },
+              onSleepTimerToggle: (active) {
+                final notifier = ref.read(playbackProvider.notifier);
+                if (active) {
+                  notifier.setSleepTimer(const Duration(minutes: 30)); // Default 30 minutes
+                } else {
+                  notifier.cancelSleepTimer();
+                }
+              },
+              onSkipForward: (duration) {
+                ref.read(playbackProvider.notifier).skipForward(duration);
+              },
+              onSkipBackward: (duration) {
+                ref.read(playbackProvider.notifier).skipBackward(duration);
+              },
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Chapters list
           Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: PlaybackControls(
-                isPlaying: _isPlaying,
-                playbackSpeed: _playbackSpeed,
-                sleepTimerActive: _sleepTimerActive,
-                sleepTimerDuration: _sleepTimerDuration,
-                onPlayPause: () {
-                  setState(() {
-                    _isPlaying = !_isPlaying;
-                  });
-                  // In a real implementation, this would trigger playback/pause
-                },
-                onSpeedChanged: (newSpeed) {
-                  setState(() {
-                    _playbackSpeed = newSpeed;
-                  });
-                  // In a real implementation, this would update the playback speed
-                },
-                onSleepTimerToggle: (active) {
-                  setState(() {
-                    _sleepTimerActive = active;
-                  });
-                  // In a real implementation, this would activate/deactivate the sleep timer
-                },
-                onSkipForward: (duration) {
-                  setState(() {
-                    final newPosition = _currentPosition + duration;
-                    _currentPosition =
-                        newPosition.compareTo(audiobook.duration) > 0
-                        ? audiobook.duration
-                        : newPosition;
-                  });
-                  // In a real implementation, this would skip forward in playback
-                },
-                onSkipBackward: (duration) {
-                  setState(() {
-                    final newPosition = _currentPosition - duration;
-                    _currentPosition = newPosition.isNegative
-                        ? Duration.zero
-                        : newPosition;
-                  });
-                  // In a real implementation, this would skip backward in playback
-                },
-              ),
+            flex: 2,
+            child: ChaptersList(
+              audiobook: audiobook,
+              currentPosition: playbackState.currentPosition,
+              onChapterTap: (chapter) {
+                ref.read(playbackProvider.notifier).seekTo(chapter.startTime);
+              },
             ),
           ),
         ],
       ),
     );
-  }
-
-  String _formatDuration(Duration duration) {
-    String twoDigits(int n) => n.toString().padLeft(2, '0');
-    final twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
-    final twoDigitHours = twoDigits(duration.inHours);
-    final twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
-
-    return duration.inHours > 0
-        ? '$twoDigitHours:$twoDigitMinutes:$twoDigitSeconds'
-        : '$twoDigitMinutes:$twoDigitSeconds';
   }
 }

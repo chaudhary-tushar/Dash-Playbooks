@@ -193,6 +193,155 @@ class LibraryRepositoryImpl implements LibraryRepository {
     throw UnimplementedError();
   }
 
+  // Cache for audiobooks to improve performance
+  List<Audiobook>? _audiobooksCache;
+  DateTime? _cacheTimestamp;
+
+  // Cache expiration time (5 minutes)
+  static const Duration _cacheExpiration = Duration(minutes: 5);
+
+  @override
+  Future<List<Audiobook>> getAudiobooks({
+    String? sortBy,
+    bool sortAscending = true,
+    bool? completed,
+    bool? inProgress,
+    String? title,
+    String? author,
+    int? limit,
+  }) async {
+    try {
+      // Check if cache is valid
+      if (_audiobooksCache == null ||
+          _cacheTimestamp == null ||
+          DateTime.now().difference(_cacheTimestamp!) > _cacheExpiration) {
+        // Cache expired or doesn't exist, fetch from datasource
+        _audiobooksCache = await _localDatasource.getAudiobooks();
+        _cacheTimestamp = DateTime.now();
+      }
+
+      // Handle empty library case
+      if (_audiobooksCache!.isEmpty) {
+        print('Info: Library is empty - no audiobooks found');
+        return [];
+      }
+
+      // Start with cached audiobooks
+      var result = List<Audiobook>.from(_audiobooksCache!);
+
+      // Apply title filter if provided
+      if (title != null && title.isNotEmpty) {
+        result = result
+            .where(
+              (book) => book.title.toLowerCase().contains(title.toLowerCase()),
+            )
+            .toList();
+      }
+
+      // Apply author filter if provided
+      if (author != null && author.isNotEmpty) {
+        result = result
+            .where(
+              (book) =>
+                  book.author.toLowerCase().contains(author.toLowerCase()),
+            )
+            .toList();
+      }
+
+      // Apply completed filter if provided
+      if (completed != null) {
+        result = result.where((book) => book.completed == completed).toList();
+      }
+
+      // Apply inProgress filter if provided
+      if (inProgress != null) {
+        if (inProgress) {
+          // In progress means not completed but has been played
+          result = result
+              .where((book) => !book.completed && book.lastPlayedAt != null)
+              .toList();
+        } else {
+          // Not in progress means either completed or never played
+          result = result
+              .where((book) => book.completed || book.lastPlayedAt == null)
+              .toList();
+        }
+      }
+
+      // Apply sorting
+      if (sortBy != null && sortBy.isNotEmpty) {
+        result.sort((a, b) {
+          switch (sortBy) {
+            case 'title':
+              return sortAscending
+                  ? a.title.compareTo(b.title)
+                  : b.title.compareTo(a.title);
+            case 'author':
+              return sortAscending
+                  ? a.author.compareTo(b.author)
+                  : b.author.compareTo(a.author);
+            case 'lastPlayed':
+              // Handle null lastPlayedAt by sorting them to the end
+              if (a.lastPlayedAt == null && b.lastPlayedAt == null) return 0;
+              if (a.lastPlayedAt == null) return sortAscending ? 1 : -1;
+              if (b.lastPlayedAt == null) return sortAscending ? -1 : 1;
+              return sortAscending
+                  ? a.lastPlayedAt!.compareTo(b.lastPlayedAt!)
+                  : b.lastPlayedAt!.compareTo(a.lastPlayedAt!);
+            case 'dateAdded':
+              return sortAscending
+                  ? a.createdAt.compareTo(b.createdAt)
+                  : b.createdAt.compareTo(a.createdAt);
+            case 'progress':
+              // Calculate progress as percentage
+              final progressA = _calculateProgress(a);
+              final progressB = _calculateProgress(b);
+              return sortAscending
+                  ? progressA.compareTo(progressB)
+                  : progressB.compareTo(progressA);
+            default:
+              // Default to title sorting
+              return sortAscending
+                  ? a.title.compareTo(b.title)
+                  : b.title.compareTo(a.title);
+          }
+        });
+      }
+
+      // Apply limit if provided
+      if (limit != null && limit > 0 && result.length > limit) {
+        result = result.sublist(0, limit);
+      }
+
+      return result;
+    } catch (e) {
+      throw StorageException(ErrorHandler.handleException(e));
+    }
+  }
+
+  /// Calculates progress percentage for an audiobook
+  /// Returns 0 for books never played, 100 for completed books
+  double _calculateProgress(Audiobook audiobook) {
+    if (audiobook.completed) return 100;
+    if (audiobook.lastPlayedAt == null) return 0;
+
+    // For simplicity, we'll calculate based on last played position
+    // In a real implementation, this would come from playback tracking
+    // For now, we'll use a simple heuristic based on lastPlayedAt
+    final durationMs = audiobook.duration.inMilliseconds;
+    if (durationMs <= 0) return 0;
+
+    // Calculate time since last played as a proxy for progress
+    final timeSinceLastPlayed = DateTime.now().difference(
+      audiobook.lastPlayedAt!,
+    );
+    final hoursSinceLastPlayed = timeSinceLastPlayed.inHours;
+
+    // Simple heuristic: assume 1 hour of listening = 10% progress, capped at 99%
+    final progress = (hoursSinceLastPlayed * 10).toDouble().clamp(0.0, 99.0);
+    return progress;
+  }
+
   @override
   Future<List<Audiobook>> searchInLibrary(String query) {
     // TODO: implement searchInLibrary
