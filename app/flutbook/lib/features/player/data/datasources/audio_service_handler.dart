@@ -3,7 +3,6 @@ import 'dart:async';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
-import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 
 // Define a simple PlaybackState class for internal use that matches the expected structure

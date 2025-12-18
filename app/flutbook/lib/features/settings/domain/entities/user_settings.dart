@@ -1,10 +1,10 @@
 class UserSettings {
-
-  UserSettings.defaults() : syncEnabled = true, localLibraryPath = null;
   UserSettings({
     required this.syncEnabled,
     this.localLibraryPath,
   });
+
+  UserSettings.defaults() : syncEnabled = true, localLibraryPath = null;
 
   factory UserSettings.fromMap(Map<String, dynamic> map) {
     return UserSettings(

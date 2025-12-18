@@ -10,6 +10,8 @@ import 'package:flutbook/features/library/presentation/widgets/audiobook_card.da
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+// SliverRefreshControl is available in the material package
+
 class LibraryScreen extends ConsumerWidget {
   const LibraryScreen({super.key});
 
@@ -81,10 +83,41 @@ class LibraryScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Filters and sorting options
-          Card(
+      body: RefreshIndicator(
+        onRefresh: libraryNotifier.refreshLibrary,
+        child: _buildLibraryBody(
+          context,
+          libraryState,
+          libraryNotifier,
+          filteredAudiobooks,
+          currentSearchQuery,
+          currentSortBy,
+          currentStatusFilter,
+          currentViewType,
+          searchNotifier,
+        ),
+      ),
+    );
+  }
+
+  // Helper method to build the main body of the library screen
+  Widget _buildLibraryBody(
+    BuildContext context,
+    LibraryState libraryState,
+    LibraryNotifier libraryNotifier,
+    List<Audiobook> filteredAudiobooks,
+    String currentSearchQuery,
+    String currentSortBy,
+    String currentStatusFilter,
+    String currentViewType,
+    SearchQueryNotifier searchNotifier,
+  ) {
+    // Use a CustomScrollView to allow scrolling of the entire content
+    return CustomScrollView(
+      slivers: [
+        // Filter section as a sliver
+        SliverToBoxAdapter(
+          child: Card(
             margin: const EdgeInsets.all(16),
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -217,20 +250,181 @@ class LibraryScreen extends ConsumerWidget {
               ),
             ),
           ),
+        ),
 
-          // Audiobook list with flexible height
-          Expanded(
-            child: _buildLibraryContent(
-              context,
-              libraryState,
-              libraryNotifier,
-              filteredAudiobooks,
-              currentSearchQuery,
-              currentViewType,
+        // Conditionally show loading indicator at top when refreshing with existing data
+        if (libraryState.isLoading && libraryState.audiobooks.isNotEmpty)
+          // Show loading indicator at top when refreshing with existing data
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.only(top: 16, right: 16),
+              child: Align(
+                alignment: Alignment.topRight,
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
             ),
           ),
-        ],
-      ),
+        if (libraryState.isLoading && libraryState.audiobooks.isEmpty)
+          // Loading state
+          const SliverFillRemaining(
+            child: Center(
+              child: CircularProgressIndicator(),
+            ),
+          )
+        else if (libraryState.errorMessage != null)
+          // Error state
+          SliverFillRemaining(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    size: 80,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Error loading library',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    libraryState.errorMessage!,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => libraryNotifier.refreshLibrary(),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else if (filteredAudiobooks.isEmpty)
+          // Empty state
+          SliverFillRemaining(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.library_books_outlined,
+                    size: 80,
+                    color: Theme.of(context).colorScheme.onSurface.withAlpha(100),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    currentSearchQuery.isNotEmpty
+                        ? 'No audiobooks match your search'
+                        : 'No audiobooks in your library',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface.withAlpha(150),
+                    ),
+                  ),
+                  if (currentSearchQuery.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        'Use the directory selector to add audiobooks',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          )
+        else if (currentViewType == 'list')
+          // Audiobook list content
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                final audiobook = filteredAudiobooks[index];
+                return AudiobookCard(
+                  title: audiobook.title,
+                  author: audiobook.author,
+                  coverArtPath: audiobook.coverArtPath,
+                  duration: audiobook.duration,
+                  isCompleted: audiobook.completed,
+                  progress:
+                      audiobook.lastPlayedAt != null &&
+                          audiobook.duration.inSeconds > 0
+                      ? (DateTime.now()
+                                    .difference(audiobook.lastPlayedAt!)
+                                    .inSeconds /
+                                audiobook.duration.inSeconds)
+                            .clamp(0.0, 1.0)
+                      : null,
+                  onTap: () {
+                    // Navigate to playback screen
+                    unawaited(
+                      Navigator.pushNamed(
+                        context,
+                        '/playback',
+                        arguments: audiobook,
+                      ),
+                    );
+                  },
+                );
+              },
+              childCount: filteredAudiobooks.length,
+            ),
+          )
+        else
+          // Grid view using SliverGrid (default case)
+          SliverGrid(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              childAspectRatio: 0.7,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+            ),
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                final audiobook = filteredAudiobooks[index];
+                return AudiobookCard(
+                  title: audiobook.title,
+                  author: audiobook.author,
+                  coverArtPath: audiobook.coverArtPath,
+                  duration: audiobook.duration,
+                  isCompleted: audiobook.completed,
+                  progress:
+                      audiobook.lastPlayedAt != null &&
+                          audiobook.duration.inSeconds > 0
+                      ? (DateTime.now()
+                                    .difference(audiobook.lastPlayedAt!)
+                                    .inSeconds /
+                                audiobook.duration.inSeconds)
+                            .clamp(0.0, 1.0)
+                      : null,
+                  onTap: () {
+                    // Navigate to playback screen
+                    unawaited(
+                      Navigator.pushNamed(
+                        context,
+                        '/playback',
+                        arguments: audiobook,
+                      ),
+                    );
+                  },
+                );
+              },
+              childCount: filteredAudiobooks.length,
+            ),
+          ),
+      ],
     );
   }
 
@@ -283,182 +477,6 @@ class LibraryScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildLibraryContent(
-    BuildContext context,
-    LibraryState libraryState,
-    LibraryNotifier libraryNotifier,
-    List<Audiobook> filteredAudiobooks,
-    String currentSearchQuery,
-    String currentViewType,
-  ) {
-    if (libraryState.isLoading && libraryState.audiobooks.isEmpty) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
-    }
-
-    if (libraryState.errorMessage != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.error_outline,
-              size: 80,
-              color: Theme.of(context).colorScheme.error,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Error loading library',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: Theme.of(context).colorScheme.error,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              libraryState.errorMessage!,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => libraryNotifier.refreshLibrary(),
-              child: const Text('Retry'),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (filteredAudiobooks.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.library_books_outlined,
-              size: 80,
-              color: Theme.of(context).colorScheme.onSurface.withAlpha(100),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              currentSearchQuery.isNotEmpty
-                  ? 'No audiobooks match your search'
-                  : 'No audiobooks in your library',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withAlpha(150),
-              ),
-            ),
-            if (currentSearchQuery.isEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  'Use the directory selector to add audiobooks',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-          ],
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: libraryNotifier.refreshLibrary,
-      child: Stack(
-        children: [
-          if (currentViewType == 'list')
-            ListView.builder(
-              itemCount: filteredAudiobooks.length,
-              itemBuilder: (context, index) {
-                final audiobook = filteredAudiobooks[index];
-                return AudiobookCard(
-                  title: audiobook.title,
-                  author: audiobook.author,
-                  coverArtPath: audiobook.coverArtPath,
-                  duration: audiobook.duration,
-                  isCompleted: audiobook.completed,
-                  progress:
-                      audiobook.lastPlayedAt != null &&
-                          audiobook.duration.inSeconds > 0
-                      ? (DateTime.now()
-                                    .difference(audiobook.lastPlayedAt!)
-                                    .inSeconds /
-                                audiobook.duration.inSeconds)
-                            .clamp(0.0, 1.0)
-                      : null,
-                  onTap: () {
-                    // Navigate to playback screen
-                    unawaited(
-                      Navigator.pushNamed(
-                        context,
-                        '/playback',
-                        arguments: audiobook,
-                      ),
-                    );
-                  },
-                );
-              },
-            )
-          else
-            // Grid view
-            GridView.builder(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 0.7,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-              ),
-              padding: const EdgeInsets.all(16),
-              itemCount: filteredAudiobooks.length,
-              itemBuilder: (context, index) {
-                final audiobook = filteredAudiobooks[index];
-                return AudiobookCard(
-                  title: audiobook.title,
-                  author: audiobook.author,
-                  coverArtPath: audiobook.coverArtPath,
-                  duration: audiobook.duration,
-                  isCompleted: audiobook.completed,
-                  progress:
-                      audiobook.lastPlayedAt != null &&
-                          audiobook.duration.inSeconds > 0
-                      ? (DateTime.now()
-                                    .difference(audiobook.lastPlayedAt!)
-                                    .inSeconds /
-                                audiobook.duration.inSeconds)
-                            .clamp(0.0, 1.0)
-                      : null,
-                  onTap: () {
-                    // Navigate to playback screen
-                    unawaited(
-                      Navigator.pushNamed(
-                        context,
-                        '/playback',
-                        arguments: audiobook,
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-          // Show loading indicator at top when refreshing with existing data
-          if (libraryState.isLoading && libraryState.audiobooks.isNotEmpty)
-            const Positioned(
-              top: 16,
-              right: 16,
-              child: SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
 }
 
 // Search delegate for audiobook search
