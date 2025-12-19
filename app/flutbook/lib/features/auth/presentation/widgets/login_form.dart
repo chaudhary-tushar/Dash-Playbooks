@@ -1,3 +1,4 @@
+import 'package:flutbook/core/services/navigation_service.dart';
 import 'package:flutbook/features/auth/presentation/providers/auth_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -83,6 +84,11 @@ class LoginForm extends ConsumerWidget {
 
                     // Call auth provider to login
                     await authNotifier.login(email, password);
+                    // After successful login, navigate to library
+                    final authState = ref.read(authProvider);
+                    if (authState.isAuthenticated) {
+                      await NavigationService.navigateToLibrary();
+                    }
                   },
             child: authState.isLoading
                 ? const CircularProgressIndicator()
@@ -104,7 +110,11 @@ class LoginForm extends ConsumerWidget {
                 : () async {
                     // Call auth provider to login anonymously
                     await ref.read(authProvider.notifier).loginAnonymously();
-                    // await authNotifier.loginAnonymously();
+                    // After successful anonymous login, navigate to library
+                    final authState = ref.read(authProvider);
+                    if (authState.isAuthenticated) {
+                      await NavigationService.navigateToLibrary();
+                    }
                   },
             child: authState.isLoading
                 ? const CircularProgressIndicator()

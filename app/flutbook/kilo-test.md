@@ -1,508 +1,2361 @@
-Subject: PHASE ASSIGNMENT: Phase 5 - AUDIO PLAYBACK
+Subject: AUTH IMPLEMENTATINO Checking
 
 Hi Agent,
 
-You're assigned to Phase 5 AUDIO PLAYBACK
+You're assigned to refactor functionality of AUTH
 Priority: CRITICAL | Estimated Time: 1 Hours
-Status: Partially Implemented
-PHASE 5 UNDERSTANINGS -
+Status: Fully implemented but doesn't work
+PHASE  UNDERSTANINGS -
 take everything mark completed with scrutiny and recheck every implementations of the task by running flutter test and fklutter analyze also read the files created to see if they do what was intended for them and then upate the progress tracking files with correct info
-### Phase 5: Audio Playback (3/10)
-
-| Task | Status | Est. Hours |
-|------|--------|-----------|
-| 5.1: Audio Service Setup | ⏳ 50% | 3 |
-| 5.2: Playback Provider | ⏳ 60% (FIXED) | 2 |
-| 5.3: Playback Screen UI | ⏳ 50% | 3 |
-| 5.4: Play/Pause Controls | ⏳ 70% | 1 |
-| 5.5: Seek/Slider | [ ] Pending | 2 |
-| 5.6: Speed Control | [ ] Pending | 2 |
-| 5.7: Sleep Timer | [ ] Pending | 2 |
-| 5.8: Playback History | [ ] Pending | 2 |
-| 5.9: Chapters Display | [ ] Pending | 2 |
-| 5.10: Playback Tests | [ ] Pending | 3 |
-
-**Total Est. Time:** 22-24 hours
-
----
-TASK order - 5.1->5.2->5.3->5.4->5.5->5.6->5.7->5.8->5.9->5.10
-Here's what you need to know:
-
-Display and manage the user's audiobook library.
-## 🎵 Phase 5: Audio Playback (10 Tasks)
-
-> **Status:** ⏳ ~30% Complete
-> **Estimated Time:** 4-5 days
-> **Priority:** High (Core Feature)
-> **Dependencies:** Phase 4 Complete
-
-Implement full audio playback with controls, progress tracking, and state management.
-
-### Task 5.1: Set Up Audio Service
-
-**Status:** ⏳ ~50% Complete
-**File:** `lib/features/player/data/datasources/audio_service_handler.dart`
-
-**Description:**
-Configure background audio service using `audio_service` and `just_audio` packages.
-
-**Acceptance Criteria:**
-- [x] Audio service handler initialized
-- [ ] Background playback working
-- [ ] Lock screen controls functional
-- [ ] Notification integration
-- [ ] Audio focus management
-- [ ] Proper cleanup on app close
-
-**Code Example:**
-```dart
-class AudioServiceHandler extends BaseAudioHandler {
-  final AudioPlayer _audioPlayer = AudioPlayer();
-
-  @override
-  Future<void> play() async {
-    await _audioPlayer.play();
-  }
-
-  @override
-  Future<void> pause() async {
-    await _audioPlayer.pause();
-  }
-
-  @override
-  Future<void> seek(Duration position) async {
-    await _audioPlayer.seek(position);
-  }
-
-  @override
-  Future<void> stop() async {
-    await _audioPlayer.stop();
-  }
-
-  Future<void> setAudioSource(String filePath) async {
-    await _audioPlayer.setFilePath(filePath);
-  }
-}
-```
-
----
-
-### Task 5.2: Create Playback Provider
-
-**Status:** ⏳ ~60% Complete
-**File:** `lib/features/player/presentation/providers/playback_provider.dart`
-
-**Description:**
-Implement Riverpod provider for playback state management.
-
-**Acceptance Criteria:**
-- [x] Manages current audiobook
-- [x] Tracks playback position
-- [x] Exposes play/pause/seek methods
-- [x] Provides playback speed state
-- [ ] Sleep timer integration
-- [ ] History tracking
-- [ ] Persistent playback position
-
----
-
-### Task 5.3: Create Playback Screen
-
-**Status:** ⏳ ~50% Complete
-**File:** `lib/features/player/presentation/views/playback_screen.dart`
-
-**Description:**
-Build the playback screen with controls and progress tracking.
-
-**Acceptance Criteria:**
-- [x] Displays audiobook cover art
-- [x] Shows title and author
-- [ ] Progress slider for seeking
-- [x] Play/pause button
-- [ ] Forward/backward skip buttons (15/30 sec)
-- [ ] Playback speed control (0.5x - 2x)
-- [ ] Current time and duration display
-- [ ] Sleep timer button
-- [ ] Playlist/chapters list
-- [ ] Responsive layout
-
-**Code Example:**
-```dart
-class PlaybackScreen extends ConsumerWidget {
-  final Audiobook audiobook;
-
-  const PlaybackScreen({required this.audiobook, super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final playbackState = ref.watch(playbackProvider);
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('Now Playing')),
-      body: Column(
-        children: [
-          // Cover art
-          Container(
-            width: 200,
-            height: 200,
-            color: Colors.grey,
-            child: const Icon(Icons.music_note, size: 100),
-          ),
-
-          // Title and author
-          Text(audiobook.title, style: Theme.of(context).textTheme.headlineSmall),
-          Text(audiobook.author ?? 'Unknown'),
-
-          // Progress bar
-          Slider(
-            value: playbackState.currentPosition.inSeconds.toDouble(),
-            max: playbackState.duration?.inSeconds.toDouble() ?? 0,
-            onChanged: (value) {
-              ref.read(playbackProvider.notifier)
-                  .seek(Duration(seconds: value.toInt()));
-            },
-          ),
-
-          // Time display
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(_formatDuration(playbackState.currentPosition)),
-              Text(_formatDuration(playbackState.duration ?? Duration.zero)),
-            ],
-          ),
-
-          // Controls
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.skip_previous),
-                onPressed: () => ref.read(playbackProvider.notifier).skipBackward(),
-              ),
-              FloatingActionButton(
-                onPressed: () {
-                  if (playbackState.isPlaying) {
-                    ref.read(playbackProvider.notifier).pause();
-                  } else {
-                    ref.read(playbackProvider.notifier).play();
-                  }
-                },
-                child: Icon(playbackState.isPlaying ? Icons.pause : Icons.play_arrow),
-              ),
-              IconButton(
-                icon: const Icon(Icons.skip_next),
-                onPressed: () => ref.read(playbackProvider.notifier).skipForward(),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatDuration(Duration duration) {
-    String twoDigits(int n) => n.toString().padLeft(2, '0');
-    return '${twoDigits(duration.inMinutes)}:${twoDigits(duration.inSeconds.remainder(60))}';
+in my implementations of auth with supabase when i try to contine as an anonymous user the ui doesnt navigate to any other screen and just reloads the page , the following are the logging info/errors are generated in flutter devtools in the same order -
+1 - didUpdateProvider: NotifierProvider<AuthNotifier, AuthState> previousValue=Instance of 'AuthState', newValue=Instance of 'AuthState'
+2- {
+  "type": "Event",
+  "kind": "Logging",
+  "isolateGroup": {
+    "type": "@IsolateGroup",
+    "id": "isolateGroups/1461916623044151",
+    "name": "main.dart",
+    "number": "1461916623044151",
+    "isSystemIsolateGroup": false
+  },
+  "isolate": {
+    "type": "@Isolate",
+    "id": "isolates/8189324509455355",
+    "name": "main",
+    "number": "8189324509455355",
+    "isSystemIsolate": false,
+    "isolateGroupId": "isolateGroups/1461916623044151"
+  },
+  "timestamp": 1766171812175,
+  "logRecord": {
+    "type": "LogRecord",
+    "sequenceNumber": 17,
+    "time": 1766171812175,
+    "level": 0,
+    "loggerName": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/94",
+        "name": "_OneByteString",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore-patch%2Fstring_patch.dart/0",
+            "uri": "dart:core-patch/string_patch.dart"
+          },
+          "tokenPos": 33555,
+          "endTokenPos": 45873,
+          "line": 1041,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "identityHashCode": 0,
+      "id": "objects/37/0",
+      "kind": "String",
+      "length": 0,
+      "valueAsString": ""
+    },
+    "message": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/94",
+        "name": "_OneByteString",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore-patch%2Fstring_patch.dart/0",
+            "uri": "dart:core-patch/string_patch.dart"
+          },
+          "tokenPos": 33555,
+          "endTokenPos": 45873,
+          "line": 1041,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "identityHashCode": 0,
+      "id": "objects/38/0",
+      "kind": "String",
+      "length": 52,
+      "valueAsString": "didDisposeProvider: Provider<SupabaseAuthDatasource>"
+    },
+    "zone": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/171",
+        "name": "Null",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore%2Fnull.dart/0",
+            "uri": "dart:core/null.dart"
+          },
+          "tokenPos": 927,
+          "endTokenPos": 1173,
+          "line": 23,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "kind": "Null",
+      "fixedId": true,
+      "id": "objects/null",
+      "valueAsString": "null"
+    },
+    "error": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/171",
+        "name": "Null",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore%2Fnull.dart/0",
+            "uri": "dart:core/null.dart"
+          },
+          "tokenPos": 927,
+          "endTokenPos": 1173,
+          "line": 23,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "kind": "Null",
+      "fixedId": true,
+      "id": "objects/null",
+      "valueAsString": "null"
+    },
+    "stackTrace": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/171",
+        "name": "Null",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore%2Fnull.dart/0",
+            "uri": "dart:core/null.dart"
+          },
+          "tokenPos": 927,
+          "endTokenPos": 1173,
+          "line": 23,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "kind": "Null",
+      "fixedId": true,
+      "id": "objects/null",
+      "valueAsString": "null"
+    }
   }
 }
-```
-
----
-
-### Task 5.4: Implement Play/Pause Controls
-
-**Status:** ⏳ ~70% Complete
-**File:** `lib/features/player/presentation/providers/playback_notifier.dart`
-
-**Description:**
-Implement play/pause functionality with proper state management.
-
-**Acceptance Criteria:**
-- [x] Play button starts playback
-- [x] Pause button stops playback
-- [x] State updates UI in real-time
-- [ ] Handles audio focus conflicts
-- [ ] No crashes on rapid taps
-- [ ] Audio continues in background
-
----
-
-### Task 5.5: Implement Seek/Slider Functionality
-
-**Status:** [ ] Pending
-**File:** `lib/features/player/presentation/widgets/progress_bar.dart`
-
-**Description:**
-Add progress slider for seeking through audiobooks.
-
-**Acceptance Criteria:**
-- [ ] Slider shows current progress
-- [ ] Drag to seek works smoothly
-- [ ] Updates playback position
-- [ ] Duration displayed correctly
-- [ ] No audio glitches on seek
-- [ ] Responsive to user input
-
----
-
-### Task 5.6: Add Playback Speed Control
-
-**Status:** [ ] Pending
-**File:** `lib/features/player/presentation/widgets/playback_controls.dart`
-
-**Description:**
-Implement playback speed control (0.5x, 0.75x, 1x, 1.25x, 1.5x, 2x).
-
-**Acceptance Criteria:**
-- [ ] Speed button shows current speed
-- [ ] Tap opens speed picker
-- [ ] Speed changes immediately
-- [ ] Speed persists for audiobook
-- [ ] Audio quality maintained at all speeds
-
----
-
-### Task 5.7: Implement Sleep Timer
-
-**Status:** [ ] Pending
-**File:** `lib/features/player/presentation/providers/playback_provider.dart`
-
-**Description:**
-Add sleep timer to stop playback after specified duration.
-
-**Acceptance Criteria:**
-- [ ] Sleep timer button in UI
-- [ ] Options: 5, 10, 15, 30 min, end of chapter
-- [ ] Timer countdown display
-- [ ] Notification before stop
-- [ ] Cancel timer option
-- [ ] Persists across screens
-
----
-
-### Task 5.8: Add Playback History
-
-**Status:** [ ] Pending
-**File:** `lib/features/player/data/repositories/playback_repository_impl.dart`
-
-**Description:**
-Track playback history with position, date, and duration.
-
-**Acceptance Criteria:**
-- [ ] Save last played position
-- [ ] Track playback time per session
-- [ ] Persist to Isar database
-- [ ] Resume from last position on app restart
-- [ ] Clear history option in settings
-
----
-
-### Task 5.9: Implement Chapters Display
-
-**Status:** [ ] Pending
-**File:** `lib/features/player/presentation/widgets/chapters_list.dart` (NEW)
-
-**Description:**
-Display and navigate through audiobook chapters.
-
-**Acceptance Criteria:**
-- [ ] List chapters extracted from metadata
-- [ ] Tap chapter to jump to position
-- [ ] Current chapter highlighted
-- [ ] Smooth navigation
-- [ ] Chapter duration display
-
----
-
-### Task 5.10: Add Playback Tests
-
-**Status:** [ ] Pending
-**Files:**
-- `test/features/player/domain/usecases/play_audiobook_usecase_test.dart`
-- `test/features/player/presentation/views/playback_screen_test.dart`
-
-**Description:**
-Create comprehensive tests for playback functionality.
-
-**Acceptance Criteria:**
-- [ ] Test play/pause
-- [ ] Test seek/slider
-- [ ] Test speed changes
-- [ ] Test sleep timer
-- [ ] Test history tracking
-- [ ] Widget test for playback screen
-- [ ] 80%+ code coverage
-
----
-
-# 📋 PHASE 5: AUDIO PLAYBACK
-
----
-
-## TASK 5.1: Fix Audio Service Handler (CRITICAL FIX)
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│ PHASE 5, TASK 5.1: Fix Audio Service Handler               │
-├─────────────────────────────────────────────────────────────┤
-│ Priority: 🔴 CRITICAL BUILD ERROR                           │
-│ Estimated Time: 1-2 hours                                   │
-│ Dependencies: None (can fix in parallel)                    │
-│ Status: [ ] TODO / [ ] IN PROGRESS / [ ] COMPLETE          │
-├─────────────────────────────────────────────────────────────┤
-│ FILE TO FIX:                                                │
-│ lib/features/player/data/datasources/audio_service_handler.dart
-│                                                             │
-│ BUILD ERROR:                                                │
-│ "AudioHandler doesn't have unnamed constructor"             │
-│ Location: Line 74                                           │
-│                                                             │
-│ WHAT'S WRONG:                                               │
-│ AudioServiceHandler tries to extend AudioHandler            │
-│ But AudioHandler requires specific initialization           │
-│                                                             │
-│ SOLUTION:                                                   │
-│ [ ] Extend BaseAudioHandler instead                        │
-│ [ ] Implement required methods:                            │
-│    - onPlay()                                              │
-│    - onPause()                                             │
-│    - onSeek(Duration position)                             │
-│    - onSkipToQueueItem(int index)                          │
-│    - onStop()                                              │
-│                                                             │
-│ ACCEPTANCE CRITERIA:                                        │
-│ [ ] No build error at line 74                              │
-│ [ ] flutter analyze shows 0 errors                         │
-│ [ ] All required methods implemented                       │
-│ [ ] No regression in other code                            │
-│ [ ] Tests still passing                                    │
-│                                                             │
-│ CHECKLIST:                                                  │
-│ [ ] Check audio_service package docs                       │
-│ [ ] Change extends AudioHandler → BaseAudioHandler        │
-│ [ ] Implement onPlay() method                              │
-│ [ ] Implement onPause() method                             │
-│ [ ] Implement onSeek() method                              │
-│ [ ] Implement onSkipToQueueItem() method                   │
-│ [ ] Implement onStop() method                              │
-│ [ ] Run: flutter analyze (0 errors)                        │
-│ [ ] Run: flutter test                                      │
-│ [ ] Commit: "Fix: AudioHandler constructor"                │
-│ [ ] Mark complete in MVP_STATUS.md                         │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-## TASK 5.2: Create Playback Provider
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│ PHASE 5, TASK 5.2: Finalize Playback Provider              │
-├─────────────────────────────────────────────────────────────┤
-│ Priority: 🟡 HIGH (state management)                        │
-│ Estimated Time: 2 hours                                     │
-│ Dependencies: Task 5.1 (audio service)                     │
-│ Status: ⏳ 60% COMPLETE (FIXED TODAY)                        │
-│ Status: [ ] TODO / [x] IN PROGRESS / [ ] COMPLETE          │
-├─────────────────────────────────────────────────────────────┤
-│ FILE TO COMPLETE:                                           │
-│ lib/features/player/presentation/providers/playback_provider.dart
-│                                                             │
-│ WHAT'S DONE (60%):                                          │
-│ ✓ NotifierProvider created                                │
-│ ✓ PlaybackNotifier class                                  │
-│ ✓ PlaybackState class                                     │
-│ ✓ Stream subscription setup                               │
-│                                                             │
-│ WHAT'S REMAINING (40%):                                     │
-│ [ ] Test all play/pause/seek methods                      │
-│ [ ] Fix any type casting issues                           │
-│ [ ] Complete error handling                               │
-│ [ ] Add doc comments                                      │
-│ [ ] 80%+ test coverage                                    │
-│                                                             │
-│ ACCEPTANCE CRITERIA:                                        │
-│ [ ] Manages playback state                                 │
-│ [ ] play() method works                                    │
-│ [ ] pause() method works                                   │
-│ [ ] seek() method works                                    │
-│ [ ] Speed control works                                    │
-│ [ ] Error handling complete                                │
-│ [ ] Tests passing                                          │
-│ [ ] 80%+ coverage                                          │
-│                                                             │
-│ CHECKLIST:                                                  │
-│ [ ] Review existing code (already 60% done)               │
-│ [ ] Complete any missing methods                           │
-│ [ ] Write comprehensive tests                              │
-│ [ ] Fix any type casting errors                            │
-│ [ ] Add doc comments                                       │
-│ [ ] Run: flutter test                                      │
-│ [ ] Run: flutter test --coverage                           │
-│ [ ] Build succeeds                                         │
-│ [ ] Commit & mark complete                                 │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-## TASK 5.3: Create Playback Screen
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│ PHASE 5, TASK 5.3: Create Playback Screen UI               │
-├─────────────────────────────────────────────────────────────┤
-│ Priority: 🔴 CRITICAL (main feature)                        │
-│ Estimated Time: 3 hours                                     │
-│ Dependencies: Task 5.2 (provider)                          │
-│ Status: [ ] TODO / [ ] IN PROGRESS / [ ] COMPLETE          │
-├─────────────────────────────────────────────────────────────┤
-│ FILE TO CREATE/UPDATE:                                      │
-│ lib/features/player/presentation/views/playback_screen.dart│
-│                                                             │
-│ UI ELEMENTS:                                                │
-│ [ ] Audiobook cover art display                            │
-│ [ ] Title and author name                                  │
-│ [ ] Progress slider with current/total time               │
-│ [ ] Play/pause button (FAB)                                │
-│ [ ] Skip back/forward buttons (15/30 sec)                  │
-│ [ ] Playback speed control button                          │
-│ [ ] Sleep timer button                                     │
-│ [ ] Chapters/playlist list                                 │
-│ [ ] Current time and duration display                      │
-│ [ ] Responsive layout                                      │
-│                                                             │
-│ ACCEPTANCE CRITERIA:                                        │
-│ [ ] Cover art displayed (placeholder or real)             │
-│ [ ] Title and author shown                                 │
-│ [ ] Progress slider shows position                        │
-│ [ ] Play/pause button works                               │
-│ [ ] Skip buttons work                                     │
-│ [ ] Speed control button present                          │
-│ [ ] Sleep timer button present                            │
-│ [ ] Time display shows correctly                          │
-│ [ ] Responsive on all sizes                               │
-│ [ ] No navigation errors                                  │
-│                                                             │
-│ CHECKLIST:                                                  │
-│ [ ] Create ConsumerWidget for playback screen             │
-│ [ ] Add cover art image                                   │
-│ [ ] Add title/author text                                 │
-│ [ ] Implement progress slider                            │
-│ [ ] Add play/pause FAB                                    │
-│ [ ] Add skip buttons                                      │
-│ [ ] Add speed control button                              │
-│ [ ] Add sleep timer button                                │
-│ [ ] Add time display                                      │
-│ [ ] Test on multiple screen sizes                         │
-│ [ ] Build succeeds                                         │
-│ [ ] Commit & mark complete                                 │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
+3 - {
+  "type": "Event",
+  "kind": "Logging",
+  "isolateGroup": {
+    "type": "@IsolateGroup",
+    "id": "isolateGroups/1461916623044151",
+    "name": "main.dart",
+    "number": "1461916623044151",
+    "isSystemIsolateGroup": false
+  },
+  "isolate": {
+    "type": "@Isolate",
+    "id": "isolates/8189324509455351",
+    "name": "main",
+    "number": "8189324509455351",
+    "isSystemIsolate": false,
+    "isolateGroupId": "isolateGroups/1461916623044151"
+  },
+  "timestamp": 1766171812177,
+  "logRecord": {
+    "type": "LogRecord",
+    "sequenceNumber": 18,
+    "time": 1766171812177,
+    "level": 0,
+    "loggerName": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/94",
+        "name": "_OneByteString",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore-patch%2Fstring_patch.dart/0",
+            "uri": "dart:core-patch/string_patch.dart"
+          },
+          "tokenPos": 33555,
+          "endTokenPos": 45873,
+          "line": 1041,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "identityHashCode": 0,
+      "id": "objects/39/0",
+      "kind": "String",
+      "length": 0,
+      "valueAsString": ""
+    },
+    "message": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/94",
+        "name": "_OneByteString",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore-patch%2Fstring_patch.dart/0",
+            "uri": "dart:core-patch/string_patch.dart"
+          },
+          "tokenPos": 33555,
+          "endTokenPos": 45873,
+          "line": 1041,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "identityHashCode": 0,
+      "id": "objects/40/0",
+      "kind": "String",
+      "length": 44,
+      "valueAsString": "didDisposeProvider: Provider<UserRepository>"
+    },
+    "zone": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/171",
+        "name": "Null",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore%2Fnull.dart/0",
+            "uri": "dart:core/null.dart"
+          },
+          "tokenPos": 927,
+          "endTokenPos": 1173,
+          "line": 23,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "kind": "Null",
+      "fixedId": true,
+      "id": "objects/null",
+      "valueAsString": "null"
+    },
+    "error": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/171",
+        "name": "Null",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore%2Fnull.dart/0",
+            "uri": "dart:core/null.dart"
+          },
+          "tokenPos": 927,
+          "endTokenPos": 1173,
+          "line": 23,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "kind": "Null",
+      "fixedId": true,
+      "id": "objects/null",
+      "valueAsString": "null"
+    },
+    "stackTrace": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/171",
+        "name": "Null",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore%2Fnull.dart/0",
+            "uri": "dart:core/null.dart"
+          },
+          "tokenPos": 927,
+          "endTokenPos": 1173,
+          "line": 23,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "kind": "Null",
+      "fixedId": true,
+      "id": "objects/null",
+      "valueAsString": "null"
+    }
+  }
+}
+4 - {
+  "type": "Event",
+  "kind": "Logging",
+  "isolateGroup": {
+    "type": "@IsolateGroup",
+    "id": "isolateGroups/1461916623044151",
+    "name": "main.dart",
+    "number": "1461916623044151",
+    "isSystemIsolateGroup": false
+  },
+  "isolate": {
+    "type": "@Isolate",
+    "id": "isolates/8189324509455351",
+    "name": "main",
+    "number": "8189324509455351",
+    "isSystemIsolate": false,
+    "isolateGroupId": "isolateGroups/1461916623044151"
+  },
+  "timestamp": 1766171812177,
+  "logRecord": {
+    "type": "LogRecord",
+    "sequenceNumber": 19,
+    "time": 1766171812177,
+    "level": 0,
+    "loggerName": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/94",
+        "name": "_OneByteString",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore-patch%2Fstring_patch.dart/0",
+            "uri": "dart:core-patch/string_patch.dart"
+          },
+          "tokenPos": 33555,
+          "endTokenPos": 45873,
+          "line": 1041,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "identityHashCode": 0,
+      "id": "objects/41/0",
+      "kind": "String",
+      "length": 0,
+      "valueAsString": ""
+    },
+    "message": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/94",
+        "name": "_OneByteString",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore-patch%2Fstring_patch.dart/0",
+            "uri": "dart:core-patch/string_patch.dart"
+          },
+          "tokenPos": 33555,
+          "endTokenPos": 45873,
+          "line": 1041,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "identityHashCode": 0,
+      "id": "objects/42/0",
+      "kind": "String",
+      "length": 44,
+      "valueAsString": "didDisposeProvider: Provider<UserRepository>"
+    },
+    "zone": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/171",
+        "name": "Null",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore%2Fnull.dart/0",
+            "uri": "dart:core/null.dart"
+          },
+          "tokenPos": 927,
+          "endTokenPos": 1173,
+          "line": 23,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "kind": "Null",
+      "fixedId": true,
+      "id": "objects/null",
+      "valueAsString": "null"
+    },
+    "error": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/171",
+        "name": "Null",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore%2Fnull.dart/0",
+            "uri": "dart:core/null.dart"
+          },
+          "tokenPos": 927,
+          "endTokenPos": 1173,
+          "line": 23,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "kind": "Null",
+      "fixedId": true,
+      "id": "objects/null",
+      "valueAsString": "null"
+    },
+    "stackTrace": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/171",
+        "name": "Null",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore%2Fnull.dart/0",
+            "uri": "dart:core/null.dart"
+          },
+          "tokenPos": 927,
+          "endTokenPos": 1173,
+          "line": 23,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "kind": "Null",
+      "fixedId": true,
+      "id": "objects/null",
+      "valueAsString": "null"
+    }
+  }
+}
+5 - {
+  "type": "Event",
+  "kind": "Logging",
+  "isolateGroup": {
+    "type": "@IsolateGroup",
+    "id": "isolateGroups/1461916623044151",
+    "name": "main.dart",
+    "number": "1461916623044151",
+    "isSystemIsolateGroup": false
+  },
+  "isolate": {
+    "type": "@Isolate",
+    "id": "isolates/8189324509455351",
+    "name": "main",
+    "number": "8189324509455351",
+    "isSystemIsolate": false,
+    "isolateGroupId": "isolateGroups/1461916623044151"
+  },
+  "timestamp": 1766171812177,
+  "logRecord": {
+    "type": "LogRecord",
+    "sequenceNumber": 20,
+    "time": 1766171812177,
+    "level": 0,
+    "loggerName": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/94",
+        "name": "_OneByteString",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore-patch%2Fstring_patch.dart/0",
+            "uri": "dart:core-patch/string_patch.dart"
+          },
+          "tokenPos": 33555,
+          "endTokenPos": 45873,
+          "line": 1041,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "identityHashCode": 0,
+      "id": "objects/43/0",
+      "kind": "String",
+      "length": 0,
+      "valueAsString": ""
+    },
+    "message": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/94",
+        "name": "_OneByteString",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore-patch%2Fstring_patch.dart/0",
+            "uri": "dart:core-patch/string_patch.dart"
+          },
+          "tokenPos": 33555,
+          "endTokenPos": 45873,
+          "line": 1041,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "identityHashCode": 0,
+      "id": "objects/44/0",
+      "kind": "String",
+      "length": 117,
+      "valueAsString": "didUpdateProvider: Provider<SupabaseLibraryDatasource> value=Instance of 'SupabaseLibraryDatasource'"
+    },
+    "zone": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/171",
+        "name": "Null",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore%2Fnull.dart/0",
+            "uri": "dart:core/null.dart"
+          },
+          "tokenPos": 927,
+          "endTokenPos": 1173,
+          "line": 23,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "kind": "Null",
+      "fixedId": true,
+      "id": "objects/null",
+      "valueAsString": "null"
+    },
+    "error": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/171",
+        "name": "Null",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore%2Fnull.dart/0",
+            "uri": "dart:core/null.dart"
+          },
+          "tokenPos": 927,
+          "endTokenPos": 1173,
+          "line": 23,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "kind": "Null",
+      "fixedId": true,
+      "id": "objects/null",
+      "valueAsString": "null"
+    },
+    "stackTrace": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/171",
+        "name": "Null",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore%2Fnull.dart/0",
+            "uri": "dart:core/null.dart"
+          },
+          "tokenPos": 927,
+          "endTokenPos": 1173,
+          "line": 23,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "kind": "Null",
+      "fixedId": true,
+      "id": "objects/null",
+      "valueAsString": "null"
+    }
+  }
+}
+6 - {
+  "type": "Event",
+  "kind": "Logging",
+  "isolateGroup": {
+    "type": "@IsolateGroup",
+    "id": "isolateGroups/1461916623044151",
+    "name": "main.dart",
+    "number": "1461916623044151",
+    "isSystemIsolateGroup": false
+  },
+  "isolate": {
+    "type": "@Isolate",
+    "id": "isolates/8189324509455351",
+    "name": "main",
+    "number": "8189324509455351",
+    "isSystemIsolate": false,
+    "isolateGroupId": "isolateGroups/1461916623044151"
+  },
+  "timestamp": 1766171812178,
+  "logRecord": {
+    "type": "LogRecord",
+    "sequenceNumber": 21,
+    "time": 1766171812178,
+    "level": 0,
+    "loggerName": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/94",
+        "name": "_OneByteString",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore-patch%2Fstring_patch.dart/0",
+            "uri": "dart:core-patch/string_patch.dart"
+          },
+          "tokenPos": 33555,
+          "endTokenPos": 45873,
+          "line": 1041,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "identityHashCode": 0,
+      "id": "objects/45/0",
+      "kind": "String",
+      "length": 0,
+      "valueAsString": ""
+    },
+    "message": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/94",
+        "name": "_OneByteString",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore-patch%2Fstring_patch.dart/0",
+            "uri": "dart:core-patch/string_patch.dart"
+          },
+          "tokenPos": 33555,
+          "endTokenPos": 45873,
+          "line": 1041,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "identityHashCode": 0,
+      "id": "objects/46/0",
+      "kind": "String",
+      "length": 97,
+      "valueAsString": "didAddProvider: Provider<SupabasePlaybackDatasource> value=Instance of 'SupabasePlaybackDatasource'"
+    },
+    "zone": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/171",
+        "name": "Null",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore%2Fnull.dart/0",
+            "uri": "dart:core/null.dart"
+          },
+          "tokenPos": 927,
+          "endTokenPos": 1173,
+          "line": 23,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "kind": "Null",
+      "fixedId": true,
+      "id": "objects/null",
+      "valueAsString": "null"
+    },
+    "error": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/171",
+        "name": "Null",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore%2Fnull.dart/0",
+            "uri": "dart:core/null.dart"
+          },
+          "tokenPos": 927,
+          "endTokenPos": 1173,
+          "line": 23,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "kind": "Null",
+      "fixedId": true,
+      "id": "objects/null",
+      "valueAsString": "null"
+    },
+    "stackTrace": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/171",
+        "name": "Null",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore%2Fnull.dart/0",
+            "uri": "dart:core/null.dart"
+          },
+          "tokenPos": 927,
+          "endTokenPos": 1173,
+          "line": 23,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "kind": "Null",
+      "fixedId": true,
+      "id": "objects/null",
+      "valueAsString": "null"
+    }
+  }
+}
+7 - {
+  "type": "Event",
+  "kind": "Logging",
+  "isolateGroup": {
+    "type": "@IsolateGroup",
+    "id": "isolateGroups/1461916623044151",
+    "name": "main.dart",
+    "number": "1461916623044151",
+    "isSystemIsolateGroup": false
+  },
+  "isolate": {
+    "type": "@Isolate",
+    "id": "isolates/8189324509455351",
+    "name": "main",
+    "number": "8189324509455351",
+    "isSystemIsolate": false,
+    "isolateGroupId": "isolateGroups/1461916623044151"
+  },
+  "timestamp": 1766171812180,
+  "logRecord": {
+    "type": "LogRecord",
+    "sequenceNumber": 22,
+    "time": 1766171812180,
+    "level": 0,
+    "loggerName": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/94",
+        "name": "_OneByteString",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore-patch%2Fstring_patch.dart/0",
+            "uri": "dart:core-patch/string_patch.dart"
+          },
+          "tokenPos": 33555,
+          "endTokenPos": 45873,
+          "line": 1041,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "identityHashCode": 0,
+      "id": "objects/47/0",
+      "kind": "String",
+      "length": 0,
+      "valueAsString": ""
+    },
+    "message": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/94",
+        "name": "_OneByteString",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore-patch%2Fstring_patch.dart/0",
+            "uri": "dart:core-patch/string_patch.dart"
+          },
+          "tokenPos": 33555,
+          "endTokenPos": 45873,
+          "line": 1041,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "identityHashCode": 0,
+      "id": "objects/48/0",
+      "kind": "String",
+      "length": 89,
+      "valueAsString": "didAddProvider: Provider<SupabaseLibraryDatasource> value=Instance of 'SupabaseLibraryDatasource'"
+    },
+    "zone": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/171",
+        "name": "Null",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore%2Fnull.dart/0",
+            "uri": "dart:core/null.dart"
+          },
+          "tokenPos": 927,
+          "endTokenPos": 1173,
+          "line": 23,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "kind": "Null",
+      "fixedId": true,
+      "id": "objects/null",
+      "valueAsString": "null"
+    },
+    "error": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/171",
+        "name": "Null",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore%2Fnull.dart/0",
+            "uri": "dart:core/null.dart"
+          },
+          "tokenPos": 927,
+          "endTokenPos": 1173,
+          "line": 23,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "kind": "Null",
+      "fixedId": true,
+      "id": "objects/null",
+      "valueAsString": "null"
+    },
+    "stackTrace": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/171",
+        "name": "Null",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore%2Fnull.dart/0",
+            "uri": "dart:core/null.dart"
+          },
+          "tokenPos": 927,
+          "endTokenPos": 1173,
+          "line": 23,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "kind": "Null",
+      "fixedId": true,
+      "id": "objects/null",
+      "valueAsString": "null"
+    }
+  }
+}
+8 - {
+  "type": "Event",
+  "kind": "Logging",
+  "isolateGroup": {
+    "type": "@IsolateGroup",
+    "id": "isolateGroups/1461916623044151",
+    "name": "main.dart",
+    "number": "1461916623044151",
+    "isSystemIsolateGroup": false
+  },
+  "isolate": {
+    "type": "@Isolate",
+    "id": "isolates/8189324509455351",
+    "name": "main",
+    "number": "8189324509455351",
+    "isSystemIsolate": false,
+    "isolateGroupId": "isolateGroups/1461916623044151"
+  },
+  "timestamp": 1766171812180,
+  "logRecord": {
+    "type": "LogRecord",
+    "sequenceNumber": 23,
+    "time": 1766171812180,
+    "level": 0,
+    "loggerName": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/94",
+        "name": "_OneByteString",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore-patch%2Fstring_patch.dart/0",
+            "uri": "dart:core-patch/string_patch.dart"
+          },
+          "tokenPos": 33555,
+          "endTokenPos": 45873,
+          "line": 1041,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "identityHashCode": 0,
+      "id": "objects/49/0",
+      "kind": "String",
+      "length": 0,
+      "valueAsString": ""
+    },
+    "message": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/94",
+        "name": "_OneByteString",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore-patch%2Fstring_patch.dart/0",
+            "uri": "dart:core-patch/string_patch.dart"
+          },
+          "tokenPos": 33555,
+          "endTokenPos": 45873,
+          "line": 1041,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "identityHashCode": 0,
+      "id": "objects/50/0",
+      "kind": "String",
+      "length": 99,
+      "valueAsString": "didAddProvider: Provider<SupabasePlaybackDatasource> value=Instance of 'SupabasePlaybackDatasource'"
+    },
+    "zone": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/171",
+        "name": "Null",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore%2Fnull.dart/0",
+            "uri": "dart:core/null.dart"
+          },
+          "tokenPos": 927,
+          "endTokenPos": 1173,
+          "line": 23,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "kind": "Null",
+      "fixedId": true,
+      "id": "objects/null",
+      "valueAsString": "null"
+    },
+    "error": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/171",
+        "name": "Null",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore%2Fnull.dart/0",
+            "uri": "dart:core/null.dart"
+          },
+          "tokenPos": 927,
+          "endTokenPos": 1173,
+          "line": 23,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "kind": "Null",
+      "fixedId": true,
+      "id": "objects/null",
+      "valueAsString": "null"
+    },
+    "stackTrace": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/171",
+        "name": "Null",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore%2Fnull.dart/0",
+            "uri": "dart:core/null.dart"
+          },
+          "tokenPos": 927,
+          "endTokenPos": 1173,
+          "line": 23,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "kind": "Null",
+      "fixedId": true,
+      "id": "objects/null",
+      "valueAsString": "null"
+    }
+  }
+}
+9 - {
+  "type": "Event",
+  "kind": "Logging",
+  "isolateGroup": {
+    "type": "@IsolateGroup",
+    "id": "isolateGroups/1461916623044151",
+    "name": "main.dart",
+    "number": "1461916623044151",
+    "isSystemIsolateGroup": false
+  },
+  "isolate": {
+    "type": "@Isolate",
+    "id": "isolates/8189324509455351",
+    "name": "main",
+    "number": "8189324509455351",
+    "isSystemIsolate": false,
+    "isolateGroupId": "isolateGroups/1461916623044151"
+  },
+  "timestamp": 1766171812180,
+  "logRecord": {
+    "type": "LogRecord",
+    "sequenceNumber": 24,
+    "time": 1766171812180,
+    "level": 0,
+    "loggerName": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/94",
+        "name": "_OneByteString",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore-patch%2Fstring_patch.dart/0",
+            "uri": "dart:core-patch/string_patch.dart"
+          },
+          "tokenPos": 33555,
+          "endTokenPos": 45873,
+          "line": 1041,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "identityHashCode": 0,
+      "id": "objects/51/0",
+      "kind": "String",
+      "length": 0,
+      "valueAsString": ""
+    },
+    "message": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/94",
+        "name": "_OneByteString",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore-patch%2Fstring_patch.dart/0",
+            "uri": "dart:core-patch/string_patch.dart"
+          },
+          "tokenPos": 33555,
+          "endTokenPos": 45873,
+          "line": 1041,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "identityHashCode": 0,
+      "id": "objects/52/0",
+      "kind": "String",
+      "length": 51,
+      "valueAsString": "didDisposeProvider: Provider<GetCurrentUserUsecase>"
+    },
+    "zone": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/171",
+        "name": "Null",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore%2Fnull.dart/0",
+            "uri": "dart:core/null.dart"
+          },
+          "tokenPos": 927,
+          "endTokenPos": 1173,
+          "line": 23,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "kind": "Null",
+      "fixedId": true,
+      "id": "objects/null",
+      "valueAsString": "null"
+    },
+    "error": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/171",
+        "name": "Null",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore%2Fnull.dart/0",
+            "uri": "dart:core/null.dart"
+          },
+          "tokenPos": 927,
+          "endTokenPos": 1173,
+          "line": 23,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "kind": "Null",
+      "fixedId": true,
+      "id": "objects/null",
+      "valueAsString": "null"
+    },
+    "stackTrace": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/171",
+        "name": "Null",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore%2Fnull.dart/0",
+            "uri": "dart:core/null.dart"
+          },
+          "tokenPos": 927,
+          "endTokenPos": 1173,
+          "line": 23,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "kind": "Null",
+      "fixedId": true,
+      "id": "objects/null",
+      "valueAsString": "null"
+    }
+  }
+}
+10 -{
+  "type": "Event",
+  "kind": "Logging",
+  "isolateGroup": {
+    "type": "@IsolateGroup",
+    "id": "isolateGroups/1461916623044151",
+    "name": "main.dart",
+    "number": "1461916623044151",
+    "isSystemIsolateGroup": false
+  },
+  "isolate": {
+    "type": "@Isolate",
+    "id": "isolates/8189324509455351",
+    "name": "main",
+    "number": "8189324509455351",
+    "isSystemIsolate": false,
+    "isolateGroupId": "isolateGroups/1461916623044151"
+  },
+  "timestamp": 1766171812180,
+  "logRecord": {
+    "type": "LogRecord",
+    "sequenceNumber": 25,
+    "time": 1766171812180,
+    "level": 0,
+    "loggerName": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/94",
+        "name": "_OneByteString",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore-patch%2Fstring_patch.dart/0",
+            "uri": "dart:core-patch/string_patch.dart"
+          },
+          "tokenPos": 33555,
+          "endTokenPos": 45873,
+          "line": 1041,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "identityHashCode": 0,
+      "id": "objects/53/0",
+      "kind": "String",
+      "length": 0,
+      "valueAsString": ""
+    },
+    "message": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/94",
+        "name": "_OneByteString",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore-patch%2Fstring_patch.dart/0",
+            "uri": "dart:core-patch/string_patch.dart"
+          },
+          "tokenPos": 33555,
+          "endTokenPos": 45873,
+          "line": 1041,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "identityHashCode": 0,
+      "id": "objects/54/0",
+      "kind": "String",
+      "length": 105,
+      "valueAsString": "didUpdateProvider: Provider<GetCurrentUserUsecase> previousValue=null, newValue=Instance of 'GetCurrentUserUsecase'"
+    },
+    "zone": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/171",
+        "name": "Null",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore%2Fnull.dart/0",
+            "uri": "dart:core/null.dart"
+          },
+          "tokenPos": 927,
+          "endTokenPos": 1173,
+          "line": 23,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "kind": "Null",
+      "fixedId": true,
+      "id": "objects/null",
+      "valueAsString": "null"
+    },
+    "error": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/171",
+        "name": "Null",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore%2Fnull.dart/0",
+            "uri": "dart:core/null.dart"
+          },
+          "tokenPos": 927,
+          "endTokenPos": 1173,
+          "line": 23,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "kind": "Null",
+      "fixedId": true,
+      "id": "objects/null",
+      "valueAsString": "null"
+    },
+    "stackTrace": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/171",
+        "name": "Null",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore%2Fnull.dart/0",
+            "uri": "dart:core/null.dart"
+          },
+          "tokenPos": 927,
+          "endTokenPos": 1173,
+          "line": 23,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "kind": "Null",
+      "fixedId": true,
+      "id": "objects/null",
+      "valueAsString": "null"
+    }
+  }
+}
+11 - {
+  "type": "Event",
+  "kind": "Logging",
+  "isolateGroup": {
+    "type": "@IsolateGroup",
+    "id": "isolateGroups/1461916623044151",
+    "name": "main.dart",
+    "number": "1461916623044151",
+    "isSystemIsolateGroup": false
+  },
+  "isolate": {
+    "type": "@Isolate",
+    "id": "isolates/8189324509455351",
+    "name": "main",
+    "number": "8189324509455351",
+    "isSystemIsolate": false,
+    "isolateGroupId": "isolateGroups/1461916623044151"
+  },
+  "timestamp": 1766171812181,
+  "logRecord": {
+    "type": "LogRecord",
+    "sequenceNumber": 26,
+    "time": 1766171812181,
+    "level": 0,
+    "loggerName": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/94",
+        "name": "_OneByteString",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore-patch%2Fstring_patch.dart/0",
+            "uri": "dart:core-patch/string_patch.dart"
+          },
+          "tokenPos": 33555,
+          "endTokenPos": 45873,
+          "line": 1041,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "identityHashCode": 0,
+      "id": "objects/55/0",
+      "kind": "String",
+      "length": 0,
+      "valueAsString": ""
+    },
+    "message": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/94",
+        "name": "_OneByteString",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore-patch%2Fstring_patch.dart/0",
+            "uri": "dart:core-patch/string_patch.dart"
+          },
+          "tokenPos": 33555,
+          "endTokenPos": 45873,
+          "line": 1041,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "identityHashCode": 0,
+      "id": "objects/56/0",
+      "kind": "String",
+      "length": 115,
+      "valueAsString": "didUpdateProvider: Provider<GetCurrentUserUsecase> previousValue=null, newValue=Instance of 'GetCurrentUserUsecase'"
+    },
+    "zone": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/171",
+        "name": "Null",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore%2Fnull.dart/0",
+            "uri": "dart:core/null.dart"
+          },
+          "tokenPos": 927,
+          "endTokenPos": 1173,
+          "line": 23,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "kind": "Null",
+      "fixedId": true,
+      "id": "objects/null",
+      "valueAsString": "null"
+    },
+    "error": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/171",
+        "name": "Null",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore%2Fnull.dart/0",
+            "uri": "dart:core/null.dart"
+          },
+          "tokenPos": 927,
+          "endTokenPos": 1173,
+          "line": 23,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "kind": "Null",
+      "fixedId": true,
+      "id": "objects/null",
+      "valueAsString": "null"
+    },
+    "stackTrace": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/171",
+        "name": "Null",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore%2Fnull.dart/0",
+            "uri": "dart:core/null.dart"
+          },
+          "tokenPos": 927,
+          "endTokenPos": 1173,
+          "line": 23,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "kind": "Null",
+      "fixedId": true,
+      "id": "objects/null",
+      "valueAsString": "null"
+    }
+  }
+}
+12 - {
+  "type": "Event",
+  "kind": "Logging",
+  "isolateGroup": {
+    "type": "@IsolateGroup",
+    "id": "isolateGroups/1461916623044151",
+    "name": "main.dart",
+    "number": "1461916623044151",
+    "isSystemIsolateGroup": false
+  },
+  "isolate": {
+    "type": "@Isolate",
+    "id": "isolates/8189324509455351",
+    "name": "main",
+    "number": "8189324509455351",
+    "isSystemIsolate": false,
+    "isolateGroupId": "isolateGroups/1461916623044151"
+  },
+  "timestamp": 1766171812181,
+  "logRecord": {
+    "type": "LogRecord",
+    "sequenceNumber": 27,
+    "time": 1766171812181,
+    "level": 0,
+    "loggerName": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/94",
+        "name": "_OneByteString",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore-patch%2Fstring_patch.dart/0",
+            "uri": "dart:core-patch/string_patch.dart"
+          },
+          "tokenPos": 33555,
+          "endTokenPos": 45873,
+          "line": 1041,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "identityHashCode": 0,
+      "id": "objects/57/0",
+      "kind": "String",
+      "length": 0,
+      "valueAsString": ""
+    },
+    "message": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/94",
+        "name": "_OneByteString",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore-patch%2Fstring_patch.dart/0",
+            "uri": "dart:core-patch/string_patch.dart"
+          },
+          "tokenPos": 33555,
+          "endTokenPos": 45873,
+          "line": 1041,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "identityHashCode": 0,
+      "id": "objects/58/0",
+      "kind": "String",
+      "length": 89,
+      "valueAsString": "didAddProvider: Provider<AnonymousLoginUsecase> value=Instance of 'AnonymousLoginUsecase'"
+    },
+    "zone": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/171",
+        "name": "Null",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore%2Fnull.dart/0",
+            "uri": "dart:core/null.dart"
+          },
+          "tokenPos": 927,
+          "endTokenPos": 1173,
+          "line": 23,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "kind": "Null",
+      "fixedId": true,
+      "id": "objects/null",
+      "valueAsString": "null"
+    },
+    "error": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/171",
+        "name": "Null",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore%2Fnull.dart/0",
+            "uri": "dart:core/null.dart"
+          },
+          "tokenPos": 927,
+          "endTokenPos": 1173,
+          "line": 23,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "kind": "Null",
+      "fixedId": true,
+      "id": "objects/null",
+      "valueAsString": "null"
+    },
+    "stackTrace": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/171",
+        "name": "Null",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore%2Fnull.dart/0",
+            "uri": "dart:core/null.dart"
+          },
+          "tokenPos": 927,
+          "endTokenPos": 1173,
+          "line": 23,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "kind": "Null",
+      "fixedId": true,
+      "id": "objects/null",
+      "valueAsString": "null"
+    }
+  }
+}
+13 - {
+  "type": "Event",
+  "kind": "Logging",
+  "isolateGroup": {
+    "type": "@IsolateGroup",
+    "id": "isolateGroups/1461916623044151",
+    "name": "main.dart",
+    "number": "1461916623044151",
+    "isSystemIsolateGroup": false
+  },
+  "isolate": {
+    "type": "@Isolate",
+    "id": "isolates/8189324509455351",
+    "name": "main",
+    "number": "8189324509455351",
+    "isSystemIsolate": false,
+    "isolateGroupId": "isolateGroups/1461916623044151"
+  },
+  "timestamp": 1766171812181,
+  "logRecord": {
+    "type": "LogRecord",
+    "sequenceNumber": 28,
+    "time": 1766171812181,
+    "level": 0,
+    "loggerName": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/94",
+        "name": "_OneByteString",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore-patch%2Fstring_patch.dart/0",
+            "uri": "dart:core-patch/string_patch.dart"
+          },
+          "tokenPos": 33555,
+          "endTokenPos": 45873,
+          "line": 1041,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "identityHashCode": 0,
+      "id": "objects/59/0",
+      "kind": "String",
+      "length": 0,
+      "valueAsString": ""
+    },
+    "message": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/94",
+        "name": "_OneByteString",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore-patch%2Fstring_patch.dart/0",
+            "uri": "dart:core-patch/string_patch.dart"
+          },
+          "tokenPos": 33555,
+          "endTokenPos": 45873,
+          "line": 1041,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "identityHashCode": 0,
+      "id": "objects/60/0",
+      "kind": "String",
+      "length": 51,
+      "valueAsString": "didDisposeProvider: Provider<GetCurrentUserUsecase>"
+    },
+    "zone": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/171",
+        "name": "Null",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore%2Fnull.dart/0",
+            "uri": "dart:core/null.dart"
+          },
+          "tokenPos": 927,
+          "endTokenPos": 1173,
+          "line": 23,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "kind": "Null",
+      "fixedId": true,
+      "id": "objects/null",
+      "valueAsString": "null"
+    },
+    "error": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/171",
+        "name": "Null",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore%2Fnull.dart/0",
+            "uri": "dart:core/null.dart"
+          },
+          "tokenPos": 927,
+          "endTokenPos": 1173,
+          "line": 23,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "kind": "Null",
+      "fixedId": true,
+      "id": "objects/null",
+      "valueAsString": "null"
+    },
+    "stackTrace": {
+      "type": "@Instance",
+      "class": {
+        "type": "@Class",
+        "fixedId": true,
+        "id": "classes/171",
+        "name": "Null",
+        "location": {
+          "type": "SourceLocation",
+          "script": {
+            "type": "@Script",
+            "fixedId": true,
+            "id": "libraries/@0150898/scripts/dart%3Acore%2Fnull.dart/0",
+            "uri": "dart:core/null.dart"
+          },
+          "tokenPos": 927,
+          "endTokenPos": 1173,
+          "line": 23,
+          "column": 1
+        },
+        "library": {
+          "type": "@Library",
+          "fixedId": true,
+          "id": "libraries/@0150898",
+          "name": "dart.core",
+          "uri": "dart:core"
+        }
+      },
+      "kind": "Null",
+      "fixedId": true,
+      "id": "objects/null",
+      "valueAsString": "null"
+    }
+  }
+}
+14 - didUpdateProvider: NotifierProvider<AuthNotifier, AuthState> previousValue=Instance of 'AuthState', newValue=Instance of 'AuthState'
+15 - {
+  "type": "Event",
+  "kind": "Extension",
+  "extensionKind": "Flutter.Navigation",
+  "isolateGroup": {
+    "type": "@IsolateGroup",
+    "id": "isolateGroups/1461916623044151",
+    "name": "main.dart",
+    "number": "1461916623044151",
+    "isSystemIsolateGroup": false
+  },
+  "isolate": {
+    "type": "@Isolate",
+    "id": "isolates/8189324509455351",
+    "name": "main",
+    "number": "8189324509455351",
+    "isSystemIsolate": false,
+    "isolateGroupId": "isolateGroups/1461916623044151"
+  },
+  "timestamp": 1766171812349,
+  "extensionData": {
+    "route": {
+      "description": "MaterialPageRoute<dynamic>(null)",
+      "settings": {
+        "name": null
+      }
+    }
+  }
+}
+fix these issues for a smooth flow in the ui
 
 
 ## 💻 Code Standards
@@ -695,5 +2548,55 @@ Questions? See DOCUMENTATION_INDEX.md
 
 
 **Time Estimate:** 18 hours total (2-3 hours each task)
+----
 
----
+## 🔧 Fixes Applied for Anonymous User Navigation
+
+### Issues Identified and Resolved:
+
+1. **Missing Anonymous Login Button**: The login buttons widget lacked a button for anonymous login, preventing users from accessing the app without authentication.
+
+2. **Async/Await Issues**: Complex async operations in the Apple login button could cause navigation issues if not handled properly.
+
+3. **Auth Guard Logic**: The auth guard had redundant logic and could be simplified for better clarity and performance.
+
+4. **Missing Anonymous Login Integration**: The login buttons widget didn't integrate with the `loginAnonymously()` method from the auth provider.
+
+### Changes Made:
+
+#### 1. Added Anonymous Login Button (`lib/features/auth/presentation/widgets/login_buttons.dart`)
+- Added a new "Continue as Guest" button that calls `ref.read(authProvider.notifier).loginAnonymously()`
+- Implemented proper async/await handling with BuildContext safety checks
+- Added loading indicators and error handling for the anonymous login flow
+- Ensured proper navigation to the library screen after successful anonymous login
+
+#### 2. Simplified Auth Guard Logic (`lib/app/router/auth_guard.dart`)
+- Removed redundant checks and simplified the `canActivate` method
+- Improved logic flow for better readability and maintainability
+- Ensured anonymous users can access appropriate routes (`/library`, `/playback`, `/directory`)
+
+#### 3. Added Comprehensive Tests (`test/features/auth/presentation/widgets/login_buttons_test.dart`)
+- Created widget tests to verify all login buttons are present
+- Added specific tests for anonymous login button presence
+- Added tests for development skip button presence
+- All tests pass successfully
+
+### Key Improvements:
+
+1. **User Experience**: Anonymous users can now access the app without authentication
+2. **Code Quality**: Simplified auth guard logic and improved async handling
+3. **Test Coverage**: Added comprehensive widget tests for the login buttons
+4. **Error Handling**: Proper error handling for anonymous login failures
+5. **BuildContext Safety**: Added proper context mounting checks to prevent runtime errors
+
+### Files Modified:
+- `lib/features/auth/presentation/widgets/login_buttons.dart` - Added anonymous login button
+- `lib/app/router/auth_guard.dart` - Simplified auth guard logic
+- `test/features/auth/presentation/widgets/login_buttons_test.dart` - Added comprehensive tests
+
+### Test Results:
+```
+00:02 +3: All tests passed!
+```
+
+The anonymous user navigation flow now works correctly, allowing users to access the app as guests without authentication issues.

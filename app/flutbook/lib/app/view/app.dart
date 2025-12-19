@@ -4,6 +4,7 @@
 library;
 
 import 'package:flutbook/app/router/app_router.dart';
+import 'package:flutbook/core/services/navigation_service.dart';
 import 'package:flutbook/core/theme/app_theme.dart';
 import 'package:flutbook/features/auth/presentation/providers/auth_provider.dart';
 import 'package:flutbook/l10n/l10n.dart';
@@ -32,6 +33,7 @@ class App extends ConsumerWidget {
       ],
       supportedLocales: AppLocalizations.supportedLocales,
       debugShowCheckedModeBanner: false,
+      navigatorKey: NavigationService.navigatorKey,
       initialRoute: '/',
       onGenerateRoute: router.generateRoute,
     );

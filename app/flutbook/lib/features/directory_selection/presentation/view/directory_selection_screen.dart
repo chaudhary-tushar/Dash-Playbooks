@@ -25,10 +25,12 @@ class DirectorySelectionScreen extends ConsumerStatefulWidget {
   final String? initialDirectory;
 
   @override
-  ConsumerState<DirectorySelectionScreen> createState() => _DirectorySelectionScreenState();
+  ConsumerState<DirectorySelectionScreen> createState() =>
+      _DirectorySelectionScreenState();
 }
 
-class _DirectorySelectionScreenState extends ConsumerState<DirectorySelectionScreen> {
+class _DirectorySelectionScreenState
+    extends ConsumerState<DirectorySelectionScreen> {
   late String? _selectedDirectory;
 
   @override
@@ -77,7 +79,9 @@ class _DirectorySelectionScreenState extends ConsumerState<DirectorySelectionScr
 
     if (!directoryExists) {
       ScaffoldMessenger.of(contextRef).showSnackBar(
-        SnackBar(content: Text('Directory does not exist or is not readable: $path')),
+        SnackBar(
+          content: Text('Directory does not exist or is not readable: $path'),
+        ),
       );
       return;
     }
@@ -89,7 +93,11 @@ class _DirectorySelectionScreenState extends ConsumerState<DirectorySelectionScr
     if (!hasPermission) {
       // Show permission rationale to user
       ScaffoldMessenger.of(contextRef).showSnackBar(
-        const SnackBar(content: Text('Storage permission is required to scan for audiobooks. Please grant permission in settings.')),
+        const SnackBar(
+          content: Text(
+            'Storage permission is required to scan for audiobooks. Please grant permission in settings.',
+          ),
+        ),
       );
       // Optionally, redirect to app settings
       return;
@@ -125,9 +133,11 @@ class _DirectorySelectionScreenState extends ConsumerState<DirectorySelectionScr
       // Show result
       String message;
       if (result.success) {
-        message = 'Scanned ${result.scannedFiles} files in ${result.elapsedTime.inSeconds}s';
+        message =
+            'Scanned ${result.scannedFiles} files in ${result.elapsedTime.inSeconds}s';
       } else {
-        message = 'Scan completed with ${result.errors.length} errors. Check logs for details.';
+        message =
+            'Scan completed with ${result.errors.length} errors. Check logs for details.';
       }
 
       ScaffoldMessenger.of(contextRef).showSnackBar(
@@ -234,7 +244,9 @@ class _DirectorySelectionScreenState extends ConsumerState<DirectorySelectionScr
                         color: Theme.of(context).cardTheme.color,
                       ),
                       child: Text(
-                        _selectedDirectory != null ? _selectedDirectory! : 'No directory selected',
+                        _selectedDirectory != null
+                            ? _selectedDirectory!
+                            : 'No directory selected',
                         style: TextStyle(
                           fontSize: 16,
                           color: _selectedDirectory != null

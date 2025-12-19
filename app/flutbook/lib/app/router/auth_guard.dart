@@ -13,40 +13,29 @@ class AuthGuard {
     }
 
     // Allow development bypass for specific routes
-    // This allows unauthenticated users to access development routes
-    if (route == 'dev_directory' ||
-        (route == '/directory' && authState.userProfile?.authMethod == 'development')) {
+    if (route == 'dev_directory') {
       return true;
     }
 
-    // If there's an error state in auth or auth is still loading,
-    // allow development bypass for specific routes
-    if (authState.errorMessage != null || authState.isLoading) {
-      if (route == 'dev_directory') {
-        return true;
-      }
+    // If auth is still loading, allow access to prevent UI flickering
+    if (authState.isLoading) {
+      return true;
     }
 
     // Check if user is authenticated
     if (!authState.isAuthenticated) {
-      // Unauthenticated users get redirected to auth page
-      // Except for development routes which are handled above
+      // Unauthenticated users can only access public routes (handled above)
       return false;
     }
 
-    // Anonymous users have limited access
-    if (isAnonymousUser(authState) && !isAnonymousAllowedRoute(route)) {
-      // Anonymous users can only access limited routes
-      return false;
+    // Authenticated users: check specific route permissions
+    if (isProtectedRoute(route)) {
+      // Protected routes require non-anonymous authentication
+      return !isAnonymousUser(authState);
     }
 
-    // Authenticated users (not anonymous) can access protected routes
-    if (isProtectedRoute(route) && !isAnonymousUser(authState)) {
-      return true;
-    }
-
-    // For routes accessible by any authenticated user (including anonymous)
-    if (isAnyAuthRoute(route)) {
+    if (isAnonymousAllowedRoute(route)) {
+      // Routes that allow anonymous users
       return true;
     }
 

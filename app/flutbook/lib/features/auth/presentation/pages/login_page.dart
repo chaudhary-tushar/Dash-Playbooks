@@ -1,3 +1,4 @@
+import 'package:flutbook/core/services/navigation_service.dart';
 import 'package:flutbook/features/auth/presentation/providers/login_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -254,12 +255,17 @@ class _LoginFormState extends ConsumerState<_LoginForm> {
             child: ElevatedButton(
               onPressed: () async {
                 if (formKey.currentState!.validate()) {
-                  await ref
+                  final userProfile = await ref
                       .read(loginProvider.notifier)
                       .login(
                         emailController.text.trim(),
                         passwordController.text.trim(),
                       );
+
+                  // If login was successful, navigate to the library screen
+                  if (userProfile != null) {
+                    await NavigationService.navigateToLibrary();
+                  }
                 }
               },
               child: const Padding(
@@ -277,8 +283,10 @@ class _LoginFormState extends ConsumerState<_LoginForm> {
             child: OutlinedButton(
               onPressed: () async {
                 // Navigate directly to directory selection screen bypassing auth guard
-                await Navigator.of(context).pushReplacementNamed('dev_directory',
-                  arguments: {'initialDirectory': null});
+                await Navigator.of(context).pushReplacementNamed(
+                  'dev_directory',
+                  arguments: {'initialDirectory': null},
+                );
               },
               child: const Padding(
                 padding: EdgeInsets.symmetric(vertical: 14),

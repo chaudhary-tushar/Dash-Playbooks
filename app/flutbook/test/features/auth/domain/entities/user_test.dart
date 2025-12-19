@@ -7,91 +7,88 @@ void main() {
       // Arrange
       const userId = 'user123';
       const email = 'test@example.com';
-      const displayName = 'Test User';
-      const authMethod = 'email_password';
-      const createdAt = '2023-01-01T00:00:00Z';
-      const updatedAt = '2023-01-02T00:00:00Z';
+      const name = 'Test User';
+      const photo = 'https://example.com/photo.jpg';
 
       // Act
-      final user = User(
+      const user = User(
         id: userId,
         email: email,
-        displayName: displayName,
-        authMethod: authMethod,
-        createdAt: createdAt,
-        updatedAt: updatedAt,
+        name: name,
+        photo: photo,
       );
 
       // Assert
       expect(user.id, userId);
       expect(user.email, email);
-      expect(user.displayName, displayName);
-      expect(user.authMethod, authMethod);
-      expect(user.createdAt, createdAt);
-      expect(user.updatedAt, updatedAt);
+      expect(user.name, name);
+      expect(user.photo, photo);
     });
 
     test('should create User with optional fields', () {
       // Act
-      final user = User(
+      const user = User(
         id: 'user123',
-        email: 'test@example.com',
-        displayName: null,
-        authMethod: 'email_password',
-        createdAt: null,
-        updatedAt: null,
       );
 
       // Assert
       expect(user.id, 'user123');
-      expect(user.email, 'test@example.com');
-      expect(user.displayName, isNull);
-      expect(user.authMethod, 'email_password');
-      expect(user.createdAt, isNull);
-      expect(user.updatedAt, isNull);
+      expect(user.email, isNull);
+      expect(user.name, isNull);
+      expect(user.photo, isNull);
     });
 
     test('should support value comparison', () {
       // Arrange
-      final user1 = User(
+      const user1 = User(
         id: 'user123',
         email: 'test@example.com',
-        displayName: 'Test User',
-        authMethod: 'email_password',
+        name: 'Test User',
+        photo: 'https://example.com/photo.jpg',
       );
 
-      final user2 = User(
+      const user2 = User(
         id: 'user123',
         email: 'test@example.com',
-        displayName: 'Test User',
-        authMethod: 'email_password',
+        name: 'Test User',
+        photo: 'https://example.com/photo.jpg',
       );
 
       // Assert
       expect(user1, equals(user2));
     });
 
-    test('should support JSON serialization', () {
-      // Arrange
-      final user = User(
-        id: 'user123',
-        email: 'test@example.com',
-        displayName: 'Test User',
-        authMethod: 'email_password',
-        createdAt: '2023-01-01T00:00:00Z',
-        updatedAt: '2023-01-02T00:00:00Z',
-      );
-
+    test('should support empty user', () {
       // Act
-      final json = user.toJson();
-      final fromJson = User.fromJson(json);
+      const emptyUser = User.empty;
 
       // Assert
-      expect(fromJson, equals(user));
-      expect(json, containsPair('id', 'user123'));
-      expect(json, containsPair('email', 'test@example.com'));
-      expect(json, containsPair('displayName', 'Test User'));
-      expect(json, containsPair('authMethod', 'email_password'));
+      expect(emptyUser.id, '');
+      expect(emptyUser.email, isNull);
+      expect(emptyUser.name, isNull);
+      expect(emptyUser.photo, isNull);
+      expect(emptyUser.isEmpty, isTrue);
+      expect(emptyUser.isNotEmpty, isFalse);
+    });
+
+    test('should support non-empty user', () {
+      // Act
+      const user = User(id: 'user123', email: 'test@example.com');
+
+      // Assert
+      expect(user.isEmpty, isFalse);
+      expect(user.isNotEmpty, isTrue);
+    });
+
+    test('should support value comparison with empty user', () {
+      // Arrange
+      const emptyUser1 = User.empty;
+      const emptyUser2 = User.empty;
+
+      // Assert
+      expect(emptyUser1, equals(emptyUser2));
+      expect(emptyUser1.isEmpty, isTrue);
+      expect(emptyUser2.isEmpty, isTrue);
     });
   });
 }

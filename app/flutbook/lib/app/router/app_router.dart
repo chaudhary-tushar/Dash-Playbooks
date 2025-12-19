@@ -7,6 +7,7 @@ import 'package:flutbook/features/auth/presentation/login.dart';
 import 'package:flutbook/features/auth/presentation/providers/auth_provider.dart';
 import 'package:flutbook/features/directory_selection/presentation/view/directory_selection_screen.dart';
 import 'package:flutbook/features/library/data/models/audiobook_model.dart';
+import 'package:flutbook/features/library/domain/entities/audiobook.dart';
 import 'package:flutbook/features/library/presentation/views/library_screen.dart';
 import 'package:flutbook/features/player/presentation/views/playback_screen.dart';
 import 'package:flutbook/features/settings/presentation/view/settings_screen.dart';
@@ -47,12 +48,23 @@ class AppRouter {
           ),
         );
       case '/playback':
-        final args = settings.arguments as Map<String, AudiobookModel>?;
-        return MaterialPageRoute(
-          builder: (_) => PlaybackScreen(
-            audiobook: args!['audiobook']!.toDomain(),
-          ),
-        );
+        // Handle both direct Audiobook object and Map<String, AudiobookModel> format
+        if (settings.arguments is Audiobook) {
+          final audiobook = settings.arguments! as Audiobook;
+          return MaterialPageRoute(
+            builder: (_) => PlaybackScreen(audiobook: audiobook),
+          );
+        } else if (settings.arguments is Map<String, AudiobookModel>) {
+          final args = settings.arguments! as Map<String, AudiobookModel>;
+          return MaterialPageRoute(
+            builder: (_) => PlaybackScreen(
+              audiobook: args['audiobook']!.toDomain(),
+            ),
+          );
+        } else {
+          // Fallback or error handling
+          throw Exception('Invalid arguments type for /playback route');
+        }
       case '/settings':
         return MaterialPageRoute(builder: (_) => const SettingsScreen());
       default:

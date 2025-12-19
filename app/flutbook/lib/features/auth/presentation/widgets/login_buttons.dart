@@ -1,4 +1,5 @@
 import 'package:flutbook/core/provider/providers.dart';
+import 'package:flutbook/core/services/navigation_service.dart';
 import 'package:flutbook/features/auth/presentation/providers/auth_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,6 +18,11 @@ class LoginButtons extends ConsumerWidget {
           label: 'Continue with Google',
           onTap: () async {
             await ref.read(authProvider.notifier).signInWithGoogle();
+            // After successful Google sign-in, navigate to library
+            final authState = ref.read(authProvider);
+            if (authState.isAuthenticated) {
+              await NavigationService.navigateToLibrary();
+            }
           },
         ),
         const SizedBox(height: 12),
@@ -110,6 +116,50 @@ class LoginButtons extends ConsumerWidget {
         const SizedBox(height: 24),
         const Divider(),
         const SizedBox(height: 24),
+        // Anonymous login button
+        _LoginButton(
+          iconPath: 'assets/icons/eye.png',
+          label: 'Continue as Guest',
+          onTap: () async {
+            try {
+              // Capture context reference immediately to avoid BuildContext sync issues
+              final contextRef = context;
+
+              // Show loading indicator
+              final messenger = ScaffoldMessenger.of(contextRef);
+              const snackBar = SnackBar(
+                content: Text('Logging in as guest...'),
+                duration: Duration(seconds: 2),
+              );
+              messenger.showSnackBar(snackBar);
+
+              // Perform anonymous login
+              await ref.read(authProvider.notifier).loginAnonymously();
+
+              // Check if login was successful
+              final authState = ref.read(authProvider);
+              if (authState.isAuthenticated && contextRef.mounted) {
+                // Hide loading indicator
+                messenger.hideCurrentSnackBar();
+
+                // Navigate to directory selection screen after successful anonymous login
+                await Navigator.pushNamed(contextRef, '/directory');
+              }
+            } catch (e) {
+              if (context.mounted) {
+                final messenger = ScaffoldMessenger.of(context);
+                messenger.hideCurrentSnackBar();
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text('Anonymous login failed: $e'),
+                  ),
+                );
+              }
+              print('Anonymous login error: $e');
+            }
+          },
+        ),
+        const SizedBox(height: 12),
         // Skip button for development
         Container(
           width: double.infinity,
@@ -120,13 +170,15 @@ class LoginButtons extends ConsumerWidget {
               await ref.read(authProvider.notifier).loginAsDevelopmentUser();
 
               // Then navigate to the development route
-              Navigator.pushNamed(
-                context,
-                'dev_directory',
-                arguments: {
-                  'initialDirectory': '',
-                },
-              );
+              if (context.mounted) {
+                Navigator.pushNamed(
+                  context,
+                  'dev_directory',
+                  arguments: {
+                    'initialDirectory': '',
+                  },
+                );
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.grey[300],

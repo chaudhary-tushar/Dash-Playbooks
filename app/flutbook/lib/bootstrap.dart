@@ -77,13 +77,10 @@ Future<void> bootstrap(
       switch (env.toLowerCase()) {
         case 'development':
           environment = AppEnvironment.development;
-          break;
         case 'staging':
           environment = AppEnvironment.staging;
-          break;
         case 'production':
           environment = AppEnvironment.production;
-          break;
         default:
           environment = AppEnvironment.development; // default fallback
           print('Warning: Unknown environment "$env", defaulting to development');
