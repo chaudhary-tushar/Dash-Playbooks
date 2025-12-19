@@ -8,6 +8,7 @@
 library;
 
 import 'package:flutbook/core/config/app_config.dart';
+import 'package:flutbook/core/error/exceptions.dart';
 import 'package:flutbook/core/services/database_service.dart';
 import 'package:flutbook/core/services/json_storage_service.dart';
 import 'package:flutbook/features/auth/data/datasources/supabase_auth_datasource.dart';
@@ -24,7 +25,9 @@ import 'package:flutbook/features/library/data/datasources/audiobook_local_ds.da
 import 'package:flutbook/features/library/data/datasources/remote/supabase_library_sync.dart';
 import 'package:flutbook/features/library/data/repositories/library_repository_impl.dart';
 import 'package:flutbook/features/library/domain/repositories/library_repository.dart';
+import 'package:flutbook/features/player/data/datasources/playback_local_ds.dart';
 import 'package:flutbook/features/player/data/datasources/remote/supabase_playback_sync.dart';
+import 'package:flutbook/features/player/data/repositories/playback_repository_impl.dart';
 import 'package:flutbook/features/settings/data/datasources/preferences_datasource.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -32,6 +35,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 // Export library provider from its own file
 export 'package:flutbook/features/library/presentation/providers/library_provider.dart'
     show libraryProvider;
+// Export playback providers
+export 'package:flutbook/features/player/data/repositories/playback_repository_impl.dart'
+    show PlaybackRepositoryImpl;
 
 // =============================================================================
 // DATABASE SERVICE PROVIDER
@@ -92,6 +98,79 @@ final audiobookLocalDatasourceProvider =
         jsonStorage: jsonStorage,
       );
     });
+
+// =============================================================================
+// PLAYBACK LOCAL DATASOURCE PROVIDER
+// =============================================================================
+
+/// Provides PlaybackLocalDatasource for database operations.
+///
+/// This datasource:
+/// - Stores and retrieves playback sessions and history from Isar
+/// - Queries the database for playback-related data
+///
+/// **Important**: The DatabaseService must be initialized before this datasource is used.
+final playbackLocalDatasourceProvider = FutureProvider<PlaybackLocalDatasource>(
+  (ref) async {
+    // Wait for database service to be initialized
+    final databaseService = await ref.watch(databaseServiceProvider.future);
+
+    return PlaybackLocalDatasource(databaseService.isar);
+  },
+);
+
+// =============================================================================
+// PLAYBACK REPOSITORY PROVIDER
+// =============================================================================
+
+/// Provides PlaybackRepositoryImpl for playback operations.
+///
+/// This repository:
+/// - Manages playback sessions and history
+/// - Handles local and remote synchronization
+/// - Provides graceful degradation when datasources are not available
+/// - Implements retry mechanisms for failed initializations
+final playbackRepositoryProvider = FutureProvider<PlaybackRepositoryImpl>((
+  ref,
+) async {
+  const maxRetries = 3;
+  int retryCount = 0;
+
+  while (retryCount < maxRetries) {
+    try {
+      // Ensure database service is initialized first
+      await ref.watch(databaseServiceProvider.future);
+
+      // Wait for the local datasource to be initialized
+      final localDatasource = await ref.watch(
+        playbackLocalDatasourceProvider.future,
+      );
+
+      // Get remote datasource (may be null for anonymous users)
+      final remoteDatasource = ref.watch(playbackRemoteDatasourceProvider);
+
+      return PlaybackRepositoryImpl(
+        localDatasource: localDatasource,
+        remoteDatasource: remoteDatasource,
+      );
+    } catch (e) {
+      retryCount++;
+      if (retryCount >= maxRetries) {
+        throw UninitializedDatasourceException(
+          'Failed to initialize PlaybackRepository after $maxRetries attempts: ${ErrorHandler.handleException(e)}',
+        );
+      }
+
+      // Wait before retrying
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+  }
+
+  // This line should never be reached due to the retry logic above
+  throw UninitializedDatasourceException(
+    'PlaybackRepository initialization failed',
+  );
+});
 
 // =============================================================================
 // SCAN LIBRARY USE CASE PROVIDER

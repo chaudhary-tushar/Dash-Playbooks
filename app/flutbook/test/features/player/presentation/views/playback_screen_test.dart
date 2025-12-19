@@ -22,11 +22,12 @@ class MockPlaybackNotifier extends PlaybackNotifier {
 
   @override
   @override
-  Future<void> setCurrentAudiobook(Audiobook audiobook) async {
+  Future<bool> setCurrentAudiobook(Audiobook audiobook) async {
     _currentAudiobook = audiobook;
     _state = _state.copyWith(
       duration: audiobook.duration,
     );
+    return true;
   }
 
   void setState(PlaybackState newState) {
@@ -62,19 +63,21 @@ class MockPlaybackNotifier extends PlaybackNotifier {
   }
 
   @override
-  Future<void> play() async {
+  Future<bool> play() async {
     if (_shouldThrowError) {
-      throw Exception('Play error');
+      return false;
     }
     triggerPlay();
+    return true;
   }
 
   @override
-  Future<void> pause() async {
+  Future<bool> pause() async {
     if (_shouldThrowError) {
-      throw Exception('Pause error');
+      return false;
     }
     triggerPause();
+    return true;
   }
 
   @override

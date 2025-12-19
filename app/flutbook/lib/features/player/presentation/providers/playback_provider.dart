@@ -1,6 +1,12 @@
 // lib/presentation/providers/playback_provider.dart
 import 'dart:async';
 
+import 'package:flutbook/core/error/exceptions.dart';
+import 'package:flutbook/core/provider/providers.dart'
+    show
+        databaseServiceProvider,
+        playbackRemoteDatasourceProvider,
+        playbackRepositoryProvider;
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
 import 'package:flutbook/features/player/data/datasources/audio_service_handler.dart';
 import 'package:flutbook/features/player/data/repositories/playback_repository_impl.dart';
@@ -93,33 +99,68 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
   late final PlaybackRepositoryImpl _playbackRepo;
   late final StreamSubscription<dynamic> _playbackStreamSubscription;
 
+  // Retry mechanism state
+  int _retryCount = 0;
+  static const int _maxRetries = 3;
+
   @override
   PlaybackState build() {
-    _audioService = ref.read(audioServiceProvider);
-    _playbackRepo = ref.read(playbackRepositoryProvider);
+    try {
+      // Initialize playback repository with proper error handling
+      final playbackRepoAsync = ref.watch(playbackRepositoryProvider);
 
-    // Listen to playback state changes from audio service
-    _playbackStreamSubscription = _audioService.getPlaybackStateStream().listen(
-      (playbackState) {
-        state = state.copyWith(
-          isPlaying: playbackState.isPlaying,
-          currentPosition: playbackState.currentPosition,
-          playbackSpeed: playbackState.playbackSpeed,
-          sleepTimerActive: playbackState.sleepTimerActive,
-          bufferedPosition: playbackState.bufferedPosition,
-        );
-      },
-      onError: (Object error) {
-        state = state.copyWith(errorMessage: error.toString());
-      },
-    );
+      // Handle different states of the async provider
+      return playbackRepoAsync.when(
+        loading: () => state.copyWith(
+          isLoading: true,
+        ),
+        error: (error, stackTrace) => state.copyWith(
+          isLoading: false,
+          errorMessage: ErrorHandler.handleException(error),
+        ),
+        data: (playbackRepo) {
+          _playbackRepo = playbackRepo;
 
-    ref.onDispose(() {
-      _playbackStreamSubscription.cancel();
-      _audioService.dispose();
-    });
+          // Initialize audio service after repository is ready to avoid circular dependency
+          _audioService = AudioServiceHandler();
 
-    return PlaybackState.initial();
+          // Listen to playback state changes from audio service
+          _playbackStreamSubscription = _audioService
+              .getPlaybackStateStream()
+              .listen(
+                (playbackState) {
+                  state = state.copyWith(
+                    isPlaying: playbackState.isPlaying,
+                    currentPosition: playbackState.currentPosition,
+                    playbackSpeed: playbackState.playbackSpeed,
+                    sleepTimerActive: playbackState.sleepTimerActive,
+                    bufferedPosition: playbackState.bufferedPosition,
+                    isLoading: false,
+                  );
+                },
+                onError: (Object error) {
+                  state = state.copyWith(
+                    errorMessage: ErrorHandler.handleException(error),
+                    isLoading: false,
+                  );
+                },
+              );
+
+          ref.onDispose(() {
+            _playbackStreamSubscription.cancel();
+            _audioService.dispose();
+          });
+
+          return PlaybackState.initial();
+        },
+      );
+    } catch (e) {
+      // Handle initialization errors
+      return state.copyWith(
+        isLoading: false,
+        errorMessage: ErrorHandler.handleException(e),
+      );
+    }
   }
 
   /// Sets the current audiobook to play and loads any saved playback position.
@@ -129,36 +170,53 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
   /// 2. Loads any saved playback session from the repository
   /// 3. Restores the playback position and settings if available
   /// 4. Updates the playback state accordingly
+  /// 5. Handles repository errors gracefully with fallback behavior
   ///
-  /// Throws: Exception if there's an error setting the audiobook or loading the session
-  Future<void> setCurrentAudiobook(Audiobook audiobook) async {
+  /// Returns: true if successful, false if failed with graceful degradation
+  Future<bool> setCurrentAudiobook(Audiobook audiobook) async {
     state = state.copyWith(isLoading: true);
     try {
       _audioService.setCurrentAudiobook(audiobook);
 
-      // Load saved playback position if available
-      final savedSession = await _playbackRepo.getPlaybackSession(audiobook.id);
-      if (savedSession != null) {
-        await _audioService.seekTo(savedSession.currentPosition);
-        state = state.copyWith(
-          currentPosition: savedSession.currentPosition,
-          duration: audiobook.duration,
-          playbackSpeed: savedSession.playbackSpeed,
-          sleepTimerActive: savedSession.sleepTimerActive,
-          sleepTimerDuration: savedSession.sleepTimerDuration,
+      // Load saved playback position if available with error handling
+      try {
+        final savedSession = await _playbackRepo.getPlaybackSession(
+          audiobook.id,
         );
+        if (savedSession != null) {
+          await _audioService.seekTo(savedSession.currentPosition);
+          state = state.copyWith(
+            currentPosition: savedSession.currentPosition,
+            duration: audiobook.duration,
+            playbackSpeed: savedSession.playbackSpeed,
+            sleepTimerActive: savedSession.sleepTimerActive,
+            sleepTimerDuration: savedSession.sleepTimerDuration,
+          );
 
-        // If sleep timer was active, restart it
-        if (savedSession.sleepTimerActive &&
-            savedSession.sleepTimerDuration != null) {
-          _audioService.setSleepTimer(savedSession.sleepTimerDuration!);
+          // If sleep timer was active, restart it
+          if (savedSession.sleepTimerActive &&
+              savedSession.sleepTimerDuration != null) {
+            _audioService.setSleepTimer(savedSession.sleepTimerDuration!);
+          }
+        } else {
+          state = state.copyWith(duration: audiobook.duration);
         }
-      } else {
-        state = state.copyWith(duration: audiobook.duration);
+      } catch (e) {
+        // Graceful degradation - continue with default values
+        state = state.copyWith(
+          duration: audiobook.duration,
+          errorMessage: ErrorHandler.handleException(e),
+        );
+        return false;
       }
+
+      return true;
     } catch (e) {
-      state = state.copyWith(errorMessage: e.toString());
-      rethrow; // Re-throw to allow UI to handle the error
+      state = state.copyWith(
+        errorMessage: ErrorHandler.handleException(e),
+        isLoading: false,
+      );
+      return false;
     } finally {
       state = state.copyWith(isLoading: false);
     }
@@ -166,27 +224,37 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
 
   /// Starts or resumes playback.
   ///
-  /// Throws: Exception if there's an error starting playback
-  Future<void> play() async {
+  /// Returns: true if successful, false if failed with graceful degradation
+  Future<bool> play() async {
     try {
       await _audioService.play();
-      state = state.copyWith(isPlaying: true);
+      state = state.copyWith(
+        isPlaying: true,
+      );
+      return true;
     } catch (e) {
-      state = state.copyWith(errorMessage: e.toString());
-      rethrow;
+      state = state.copyWith(
+        errorMessage: ErrorHandler.handleException(e),
+      );
+      return false;
     }
   }
 
   /// Pauses playback.
   ///
-  /// Throws: Exception if there's an error pausing playback
-  Future<void> pause() async {
+  /// Returns: true if successful, false if failed with graceful degradation
+  Future<bool> pause() async {
     try {
       await _audioService.pause();
-      state = state.copyWith(isPlaying: false);
+      state = state.copyWith(
+        isPlaying: false,
+      );
+      return true;
     } catch (e) {
-      state = state.copyWith(errorMessage: e.toString());
-      rethrow;
+      state = state.copyWith(
+        errorMessage: ErrorHandler.handleException(e),
+      );
+      return false;
     }
   }
 
@@ -339,6 +407,39 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
     state = state.copyWith();
   }
 
+  /// Retry mechanism for failed operations
+  /// This method can be called to retry operations that previously failed
+  Future<bool> retryOperation(Future<bool> Function() operation) async {
+    _retryCount = 0;
+
+    while (_retryCount < _maxRetries) {
+      try {
+        final result = await operation();
+        if (result) {
+          _retryCount = 0; // Reset on success
+          return true;
+        }
+      } catch (e) {
+        _retryCount++;
+        state = state.copyWith(
+          errorMessage: ErrorHandler.handleException(e),
+        );
+
+        if (_retryCount < _maxRetries) {
+          // Wait before retrying
+          await Future.delayed(const Duration(milliseconds: 500));
+        }
+      }
+    }
+
+    return false;
+  }
+
+  /// Reset retry counter
+  void resetRetryCounter() {
+    _retryCount = 0;
+  }
+
   /// Gets the current playback session for the active audiobook.
   ///
   /// Returns: The current playback session, or null if no audiobook is active
@@ -384,20 +485,17 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
 final playbackHistoryProvider = FutureProvider<List<PlaybackSession>>((
   ref,
 ) async {
-  final repo = ref.read(playbackRepositoryProvider);
-  return repo.getAllPlaybackSessions();
+  final repoAsync = ref.watch(playbackRepositoryProvider);
+  return repoAsync.when(
+    loading: () => [],
+    error: (error, stackTrace) => [],
+    data: (repo) => repo.getAllPlaybackSessions(),
+  );
 });
 
 /// Providers for dependencies
 final audioServiceProvider = Provider<AudioServiceHandler>((ref) {
   return AudioServiceHandler();
-});
-
-final playbackRepositoryProvider = Provider<PlaybackRepositoryImpl>((ref) {
-  // This would need to be properly constructed with dependencies in main app
-  throw UnimplementedError(
-    'This would be constructed with actual dependencies in real implementation',
-  );
 });
 
 final currentAudiobookProvider = Provider<Audiobook?>((ref) => null);

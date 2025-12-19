@@ -32,6 +32,11 @@ class DatabaseException implements Exception {
   final String message;
 }
 
+class UninitializedDatasourceException implements Exception {
+  UninitializedDatasourceException(this.message);
+  final String message;
+}
+
 class AudioException implements Exception {
   AudioException(this.message);
   final String message;
@@ -73,6 +78,8 @@ class ErrorHandler {
       return 'Authentication issue. Please verify your credentials.';
     } else if (exception is DatabaseException) {
       return 'Database error occurred. Please restart the app.';
+    } else if (exception is UninitializedDatasourceException) {
+      return 'Data source not initialized. Please wait and try again.';
     } else if (exception is AudioException) {
       return 'Audio playback issue. Please check your file.';
     } else {
@@ -100,6 +107,51 @@ class ErrorHandler {
           ],
         );
       },
+    );
+  }
+
+  /// Shows playback-specific error dialog with retry option
+  static Future<bool> showPlaybackErrorDialog(
+    BuildContext context,
+    String message, {
+    VoidCallback? onRetry,
+  }) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Playback Error'),
+              content: Text(message),
+              actions: [
+                if (onRetry != null)
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop(true);
+                      onRetry();
+                    },
+                    child: const Text('Retry'),
+                  ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+  }
+
+  /// Shows notification for unavailable playback features
+  static void showPlaybackUnavailableNotification(
+    BuildContext context,
+    String message,
+  ) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 

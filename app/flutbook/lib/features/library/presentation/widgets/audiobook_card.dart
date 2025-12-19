@@ -1,7 +1,10 @@
 // lib/presentation/widgets/audiobook_card.dart
+import 'package:flutbook/core/error/exceptions.dart';
+import 'package:flutbook/features/player/presentation/providers/playback_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AudiobookCard extends StatelessWidget {
+class AudiobookCard extends ConsumerWidget {
   const AudiobookCard({
     required this.title,
     required this.author,
@@ -23,7 +26,9 @@ class AudiobookCard extends StatelessWidget {
   final bool showPlayButton;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final playbackState = ref.watch(playbackProvider);
+    final hasPlaybackError = playbackState.errorMessage != null;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Card(
@@ -167,8 +172,15 @@ class AudiobookCard extends StatelessWidget {
               if (showPlayButton)
                 IconButton(
                   icon: const Icon(Icons.play_arrow_rounded),
-                  onPressed: onTap,
-                  tooltip: 'Play',
+                  onPressed: hasPlaybackError
+                      ? () {
+                          ErrorHandler.showPlaybackUnavailableNotification(
+                            context,
+                            'Playback is currently unavailable. Please try again later.',
+                          );
+                        }
+                      : onTap,
+                  tooltip: hasPlaybackError ? 'Playback unavailable' : 'Play',
                 ),
             ],
           ),

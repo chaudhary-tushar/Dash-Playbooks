@@ -13,17 +13,65 @@ class PlaybackRepositoryImpl implements PlaybackRepository {
     required PlaybackLocalDatasource localDatasource,
     SupabasePlaybackDatasource? remoteDatasource,
   }) : _localDatasource = localDatasource,
-       _remoteDatasource = remoteDatasource;
+       _remoteDatasource = remoteDatasource {
+    _validateInitialization();
+  }
   final PlaybackLocalDatasource _localDatasource;
   final SupabasePlaybackDatasource? _remoteDatasource;
 
-  @override
-  Future<PlaybackSession?> getPlaybackSession(String audiobookId) async {
+  /// Validates that the repository is properly initialized with required datasources
+  void _validateInitialization() {
+    if (!_localDatasource.isInitialized) {
+      throw UninitializedDatasourceException(
+        'PlaybackRepository: Local datasource not initialized',
+      );
+    }
+  }
+
+  /// Checks if the repository is initialized and ready for use
+  bool get isInitialized => _localDatasource.isInitialized;
+
+  /// Provides graceful degradation when datasource is not available
+  /// Returns null or empty results instead of throwing exceptions
+  bool get _shouldDegradeGracefully => !_localDatasource.isInitialized;
+
+  /// Validates all dependencies are initialized before performing operations
+  void _validateDependencies() {
+    if (!isInitialized) {
+      throw UninitializedDatasourceException(
+        'PlaybackRepository: Cannot perform operations - repository not initialized',
+      );
+    }
+
+    if (!_localDatasource.isInitialized) {
+      throw UninitializedDatasourceException(
+        'PlaybackRepository: Local datasource not initialized',
+      );
+    }
+  }
+
+  /// Graceful fallback for when datasource is not initialized
+  /// Returns null instead of throwing exception
+  Future<PlaybackSession?> _getPlaybackSessionWithFallback(
+    String audiobookId,
+  ) async {
     try {
+      if (_shouldDegradeGracefully) {
+        print(
+          'Warning: Playback datasource not initialized, returning null session',
+        );
+        return null;
+      }
       return await _localDatasource.getPlaybackSession(audiobookId);
     } catch (e) {
-      throw StorageException(ErrorHandler.handleException(e));
+      print('Error getting playback session: $e');
+      return null;
     }
+  }
+
+  @override
+  Future<PlaybackSession?> getPlaybackSession(String audiobookId) async {
+    return _getPlaybackSessionWithFallback(audiobookId);
   }
 
   @override
@@ -32,6 +80,8 @@ class PlaybackRepositoryImpl implements PlaybackRepository {
     Duration position,
   ) async {
     try {
+      _validateDependencies();
+
       final existingSession = await getPlaybackSession(audiobookId);
       final playbackSpeed = existingSession?.playbackSpeed ?? 1.0;
       final sleepTimerActive = existingSession?.sleepTimerActive ?? false;
@@ -66,24 +116,40 @@ class PlaybackRepositoryImpl implements PlaybackRepository {
   @override
   Future<void> savePlaybackSession(PlaybackSession session) async {
     try {
+      if (_shouldDegradeGracefully) {
+        print(
+          'Warning: Playback datasource not initialized, cannot save session',
+        );
+        return; // Graceful degradation - don't throw, just log
+      }
       await _localDatasource.savePlaybackSession(session);
     } catch (e) {
-      throw StorageException(ErrorHandler.handleException(e));
+      print('Error saving playback session: $e');
+      // Graceful degradation - don't throw, just log
     }
   }
 
   @override
   Future<List<PlaybackSession>> getAllPlaybackSessions() async {
     try {
+      if (_shouldDegradeGracefully) {
+        print(
+          'Warning: Playback datasource not initialized, returning empty list',
+        );
+        return [];
+      }
       return await _localDatasource.getAllPlaybackSessions();
     } catch (e) {
-      throw StorageException(ErrorHandler.handleException(e));
+      print('Error getting all playback sessions: $e');
+      return [];
     }
   }
 
   @override
   Future<void> markAudiobookAsCompleted(String audiobookId) async {
     try {
+      _validateDependencies();
+
       final session = await getPlaybackSession(audiobookId);
 
       if (session != null) {
@@ -116,6 +182,8 @@ class PlaybackRepositoryImpl implements PlaybackRepository {
   @override
   Future<void> updatePlaybackSpeed(String audiobookId, double speed) async {
     try {
+      _validateDependencies();
+
       final existingSession = await getPlaybackSession(audiobookId);
 
       final updatedSession = PlaybackSession(
@@ -151,6 +219,8 @@ class PlaybackRepositoryImpl implements PlaybackRepository {
     Duration? duration,
   }) async {
     try {
+      _validateDependencies();
+
       final existingSession = await getPlaybackSession(audiobookId);
 
       final updatedSession = PlaybackSession(
@@ -172,54 +242,96 @@ class PlaybackRepositoryImpl implements PlaybackRepository {
   @override
   Future<void> savePlaybackHistory(PlaybackHistory history) async {
     try {
+      if (_shouldDegradeGracefully) {
+        print(
+          'Warning: Playback datasource not initialized, cannot save history',
+        );
+        return; // Graceful degradation - don't throw, just log
+      }
       await _localDatasource.savePlaybackHistory(history);
     } catch (e) {
-      throw StorageException(ErrorHandler.handleException(e));
+      print('Error saving playback history: $e');
+      // Graceful degradation - don't throw, just log
     }
   }
 
   @override
   Future<List<PlaybackHistory>> getPlaybackHistory(String audiobookId) async {
     try {
+      if (_shouldDegradeGracefully) {
+        print(
+          'Warning: Playback datasource not initialized, returning empty history',
+        );
+        return [];
+      }
       return await _localDatasource.getPlaybackHistory(audiobookId);
     } catch (e) {
-      throw StorageException(ErrorHandler.handleException(e));
+      print('Error getting playback history: $e');
+      return [];
     }
   }
 
   @override
   Future<List<PlaybackHistory>> getAllPlaybackHistory() async {
     try {
+      if (_shouldDegradeGracefully) {
+        print(
+          'Warning: Playback datasource not initialized, returning empty history',
+        );
+        return [];
+      }
       return await _localDatasource.getAllPlaybackHistory();
     } catch (e) {
-      throw StorageException(ErrorHandler.handleException(e));
+      print('Error getting all playback history: $e');
+      return [];
     }
   }
 
   @override
   Future<void> clearPlaybackHistory() async {
     try {
+      if (_shouldDegradeGracefully) {
+        print(
+          'Warning: Playback datasource not initialized, cannot clear history',
+        );
+        return; // Graceful degradation - don't throw, just log
+      }
       await _localDatasource.clearPlaybackHistory();
     } catch (e) {
-      throw StorageException(ErrorHandler.handleException(e));
+      print('Error clearing playback history: $e');
+      // Graceful degradation - don't throw, just log
     }
   }
 
   @override
   Future<Duration?> getLastPlayedPosition(String audiobookId) async {
     try {
+      if (_shouldDegradeGracefully) {
+        print(
+          'Warning: Playback datasource not initialized, returning null position',
+        );
+        return null;
+      }
       return await _localDatasource.getLastPlayedPosition(audiobookId);
     } catch (e) {
-      throw StorageException(ErrorHandler.handleException(e));
+      print('Error getting last played position: $e');
+      return null;
     }
   }
 
   @override
   Future<Duration> getTotalPlaybackTime(String audiobookId) async {
     try {
+      if (_shouldDegradeGracefully) {
+        print(
+          'Warning: Playback datasource not initialized, returning zero duration',
+        );
+        return Duration.zero;
+      }
       return await _localDatasource.getTotalPlaybackTime(audiobookId);
     } catch (e) {
-      throw StorageException(ErrorHandler.handleException(e));
+      print('Error getting total playback time: $e');
+      return Duration.zero;
     }
   }
 }

@@ -1,10 +1,11 @@
 // lib/presentation/screens/audiobook_detail_screen.dart
-import 'dart:async';
-
+import 'package:flutbook/core/error/exceptions.dart';
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
+import 'package:flutbook/features/player/presentation/providers/playback_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AudiobookDetailScreen extends StatefulWidget {
+class AudiobookDetailScreen extends ConsumerWidget {
   const AudiobookDetailScreen({
     required this.audiobook,
     super.key,
@@ -12,12 +13,10 @@ class AudiobookDetailScreen extends StatefulWidget {
   final Audiobook audiobook;
 
   @override
-  AudiobookDetailScreenState createState() => AudiobookDetailScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final playbackState = ref.watch(playbackProvider);
+    final hasPlaybackError = playbackState.errorMessage != null;
 
-class AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Audiobook Details'),
@@ -38,9 +37,9 @@ class AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
                     borderRadius: BorderRadius.circular(8),
                     color: Theme.of(context).cardColor,
                   ),
-                  child: widget.audiobook.coverArtPath != null
+                  child: audiobook.coverArtPath != null
                       ? Image.network(
-                          widget.audiobook.coverArtPath!,
+                          audiobook.coverArtPath!,
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) {
                             return Icon(
@@ -64,7 +63,7 @@ class AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
 
               // Title and author
               Text(
-                widget.audiobook.title,
+                audiobook.title,
                 style: Theme.of(context).textTheme.headlineSmall,
                 textAlign: TextAlign.center,
               ),
@@ -72,9 +71,7 @@ class AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
               const SizedBox(height: 8),
 
               Text(
-                widget.audiobook.author.isEmpty
-                    ? 'Unknown Author'
-                    : widget.audiobook.author,
+                audiobook.author.isEmpty ? 'Unknown Author' : audiobook.author,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
@@ -91,39 +88,43 @@ class AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildMetadataRow(
+                        context,
                         'Duration',
-                        _formatDuration(widget.audiobook.duration),
+                        _formatDuration(audiobook.duration),
                       ),
                       _buildMetadataRow(
+                        context,
                         'File Size',
-                        _formatFileSize(widget.audiobook.totalSize),
+                        _formatFileSize(audiobook.totalSize),
                       ),
                       _buildMetadataRow(
+                        context,
                         'File Path',
-                        widget.audiobook.filePath.split('/').last,
+                        audiobook.filePath.split('/').last,
                       ),
                       _buildMetadataRow(
+                        context,
                         'Added',
-                        widget.audiobook.createdAt
+                        audiobook.createdAt
                             .toLocal()
                             .toString()
                             .split('.')
                             .first,
                       ),
-                      if (widget.audiobook.lastPlayedAt != null)
+                      if (audiobook.lastPlayedAt != null)
                         _buildMetadataRow(
+                          context,
                           'Last Played',
-                          widget.audiobook.lastPlayedAt!
+                          audiobook.lastPlayedAt!
                               .toLocal()
                               .toString()
                               .split('.')
                               .first,
                         ),
                       _buildMetadataRow(
+                        context,
                         'Status',
-                        widget.audiobook.completed
-                            ? 'Completed'
-                            : 'In Progress',
+                        audiobook.completed ? 'Completed' : 'In Progress',
                       ),
                     ],
                   ),
@@ -180,7 +181,7 @@ class AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                           Text(
-                            _formatDuration(widget.audiobook.duration),
+                            _formatDuration(audiobook.duration),
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ],
@@ -193,7 +194,7 @@ class AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
               const SizedBox(height: 16),
 
               // Chapter navigation (if chapters exist)
-              if (widget.audiobook.chapters.isNotEmpty) ...[
+              if (audiobook.chapters.isNotEmpty) ...[
                 Text(
                   'Chapters',
                   style: Theme.of(context).textTheme.titleMedium,
@@ -206,15 +207,11 @@ class AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
                     padding: const EdgeInsets.all(8),
                     child: Column(
                       children: [
-                        for (
-                          int i = 0;
-                          i < widget.audiobook.chapters.length;
-                          i++
-                        )
+                        for (int i = 0; i < audiobook.chapters.length; i++)
                           ListTile(
-                            title: Text(widget.audiobook.chapters[i].title),
+                            title: Text(audiobook.chapters[i].title),
                             subtitle: Text(
-                              '${_formatDuration(widget.audiobook.chapters[i].startTime)} - ${_formatDuration(widget.audiobook.chapters[i].endTime)}',
+                              '${_formatDuration(audiobook.chapters[i].startTime)} - ${_formatDuration(audiobook.chapters[i].endTime)}',
                             ),
                             trailing: const Icon(Icons.play_arrow),
                             onTap: () {
@@ -236,16 +233,21 @@ class AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
                     child: ElevatedButton.icon(
                       icon: const Icon(Icons.play_arrow),
                       label: const Text('Play'),
-                      onPressed: () {
-                        // Handle the returned Future properly
-                        unawaited(
-                          Navigator.pushNamed(
-                            context,
-                            '/playback',
-                            arguments: {'audiobook': widget.audiobook},
-                          ),
-                        );
-                      },
+                      onPressed: hasPlaybackError
+                          ? () {
+                              ErrorHandler.showPlaybackUnavailableNotification(
+                                context,
+                                'Playback is currently unavailable. Please try again later.',
+                              );
+                            }
+                          : () {
+                              // Handle the returned Future properly
+                              Navigator.pushNamed(
+                                context,
+                                '/playback',
+                                arguments: audiobook,
+                              );
+                            },
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -267,7 +269,7 @@ class AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
     );
   }
 
-  Widget _buildMetadataRow(String label, String value) {
+  Widget _buildMetadataRow(BuildContext context, String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
