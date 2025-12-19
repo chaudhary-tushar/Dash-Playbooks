@@ -9,20 +9,17 @@ environment:
 
 dependencies:
   audio_service: ^0.18.18
-  cloud_firestore: ^6.1.0
   cupertino_icons: ^1.0.2
   equatable: ^2.0.7
   file_picker: ^10.3.7
-  firebase_auth: ^6.1.2
-  firebase_core: ^4.3.0
   flutter:
     sdk: flutter
   flutter_isolate: ^2.0.4
   flutter_localizations:
     sdk: flutter
   flutter_riverpod: ^3.0.3
+  flutter_dotenv: ^5.1.0
   freezed_annotation: ^3.1.0
-  google_sign_in: ^7.2.0
   intl: ^0.20.2
   isar_community: ^3.3.0
   isar_community_flutter_libs: ^3.3.0
@@ -31,6 +28,7 @@ dependencies:
   path: ^1.9.1
   path_provider: ^2.1.1
   shared_preferences: ^2.2.2
+  supabase_flutter: ^2.2.0
   uuid: ^4.5.1
 
 
@@ -53,5 +51,8 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/
+    - .env.development
+    - .env.staging
+    - .env.production
 
 isar_schema: true

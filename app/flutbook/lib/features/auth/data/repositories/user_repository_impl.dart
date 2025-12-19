@@ -1,34 +1,37 @@
 import 'package:flutbook/core/error/sync_result.dart';
-import 'package:flutbook/features/auth/data/datasources/firebase_auth_datasource.dart';
+import 'package:flutbook/features/auth/data/datasources/supabase_auth_datasource.dart';
 import 'package:flutbook/features/auth/domain/entities/auth_result.dart';
 import 'package:flutbook/features/auth/domain/entities/user_profile.dart';
 import 'package:flutbook/features/auth/domain/repositories/user_repository.dart'
     show UserRepository;
-import 'package:flutbook/features/library/data/datasources/remote/firebase_library_sync.dart';
-import 'package:flutbook/features/player/data/datasources/remote/firebase_playback_sync.dart';
+import 'package:flutbook/features/library/data/datasources/remote/supabase_library_sync.dart';
+import 'package:flutbook/features/player/data/datasources/remote/supabase_playback_sync.dart';
 import 'package:flutbook/features/settings/data/datasources/preferences_datasource.dart';
 import 'package:flutbook/features/settings/domain/entities/sync_status.dart';
 import 'package:flutbook/features/settings/domain/entities/user_settings.dart';
 
 class UserRepositoryImpl implements UserRepository {
   UserRepositoryImpl({
-    required FirebaseAuthDatasource authDatasource,
-    required LibraryRemoteDatasource syncDatasource,
-    required PlaybackRemoteDatasource playbackRemoteDatasource,
+    required SupabaseAuthDatasource authDatasource,
+    required SupabaseLibraryDatasource syncDatasource,
+    required SupabasePlaybackDatasource playbackRemoteDatasource,
     required PreferencesDatasource preferencesDatasource,
   }) : _authDatasource = authDatasource,
        _syncDatasource = syncDatasource,
        _playbackRemoteDatasource = playbackRemoteDatasource,
        _preferencesDatasource = preferencesDatasource;
-  final FirebaseAuthDatasource _authDatasource;
-  final LibraryRemoteDatasource _syncDatasource;
-  final PlaybackRemoteDatasource _playbackRemoteDatasource;
+  final SupabaseAuthDatasource _authDatasource;
+  final SupabaseLibraryDatasource _syncDatasource;
+  final SupabasePlaybackDatasource _playbackRemoteDatasource;
   final PreferencesDatasource _preferencesDatasource;
   // late final LibraryRepository _libraryRepo;
   // late final PlaybackRepository _playbackRepo;
 
   @override
-  Future<AuthResult> signInWithEmailAndPassword(String email, String password) async {
+  Future<AuthResult> signInWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
     try {
       final result = await _authDatasource.signInWithEmailAndPassword(
         email,
@@ -106,13 +109,16 @@ class UserRepositoryImpl implements UserRepository {
   @override
   Future<SyncStatus> getSyncStatus() async {
     try {
-      final hasPendingSync = await _preferencesDatasource.hasPendingSyncChanges();
+      final hasPendingSync = await _preferencesDatasource
+          .hasPendingSyncChanges();
       final lastSyncAt = await _preferencesDatasource.getLastSyncTime();
 
       return SyncStatus(
-        isSyncing: false, // Would track actual sync status in real implementation
+        isSyncing:
+            false, // Would track actual sync status in real implementation
         syncEnabled: true, // Would come from user settings
-        lastSyncSuccessful: await _preferencesDatasource.getLastSyncSuccessful(),
+        lastSyncSuccessful: await _preferencesDatasource
+            .getLastSyncSuccessful(),
         lastSyncAt: lastSyncAt,
         hasPendingChanges: hasPendingSync,
       );
@@ -159,7 +165,8 @@ class UserRepositoryImpl implements UserRepository {
       // For simplicity, we'll sync audiobook metadata and playback sessions
       // In a real implementation, we'd also sync user settings and preferences
       final remoteAudiobooks = await _syncDatasource.getAudiobookMetadata();
-      final remoteSessions = await _playbackRemoteDatasource.getPlaybackSessions();
+      final remoteSessions = await _playbackRemoteDatasource
+          .getPlaybackSessions();
 
       return SyncResult(
         success: true,

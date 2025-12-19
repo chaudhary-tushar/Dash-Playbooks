@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "25753319974",
+    "project_id": "dashplayer-264d0",
+    "storage_bucket": "dashplayer-264d0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:25753319974:android:0dba77fb9a2c10377304e7",
+        "android_client_info": {
+          "package_name": "com.example.verygoodcore.flutbook"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB3G_hcpba3NNv2qiTlhPU5lrZcca064t0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

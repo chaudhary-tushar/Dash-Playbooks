@@ -1,7 +1,7 @@
 // lib/data/repositories/playback_repository_impl.dart
 import 'package:flutbook/core/error/exceptions.dart';
 import 'package:flutbook/features/player/data/datasources/playback_local_ds.dart';
-import 'package:flutbook/features/player/data/datasources/remote/firebase_playback_sync.dart';
+import 'package:flutbook/features/player/data/datasources/remote/supabase_playback_sync.dart';
 import 'package:flutbook/features/player/domain/entities/playback_history.dart';
 import 'package:flutbook/features/player/domain/entities/playback_session.dart';
 import 'package:flutbook/features/player/domain/repositories/playback_repository.dart';
@@ -11,11 +11,11 @@ class PlaybackRepositoryImpl implements PlaybackRepository {
 
   PlaybackRepositoryImpl({
     required PlaybackLocalDatasource localDatasource,
-    PlaybackRemoteDatasource? remoteDatasource,
+    SupabasePlaybackDatasource? remoteDatasource,
   }) : _localDatasource = localDatasource,
        _remoteDatasource = remoteDatasource;
   final PlaybackLocalDatasource _localDatasource;
-  final PlaybackRemoteDatasource? _remoteDatasource;
+  final SupabasePlaybackDatasource? _remoteDatasource;
 
   @override
   Future<PlaybackSession?> getPlaybackSession(String audiobookId) async {

@@ -2,7 +2,7 @@
 // import 'package:flutbook/data/providers/library_provider.dart';
 import 'package:flutbook/core/error/exceptions.dart';
 import 'package:flutbook/features/library/data/datasources/audiobook_local_ds.dart';
-import 'package:flutbook/features/library/data/datasources/remote/firebase_library_sync.dart';
+import 'package:flutbook/features/library/data/datasources/remote/supabase_library_sync.dart';
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
 import 'package:flutbook/features/library/domain/entities/library.dart';
 import 'package:flutbook/features/library/domain/repositories/library_repository.dart';
@@ -11,12 +11,12 @@ class LibraryRepositoryImpl implements LibraryRepository {
   LibraryRepositoryImpl({
     required AudiobookLocalDatasource localDatasource,
     // required LibraryProvider provider,
-    LibraryRemoteDatasource? remoteDatasource,
+    SupabaseLibraryDatasource? remoteDatasource,
   }) : _localDatasource = localDatasource,
        _remoteDatasource = remoteDatasource;
   //  _provider = provider;
   final AudiobookLocalDatasource _localDatasource;
-  final LibraryRemoteDatasource? _remoteDatasource;
+  final SupabaseLibraryDatasource? _remoteDatasource;
   // final LibraryProvider _provider;
 
   @override

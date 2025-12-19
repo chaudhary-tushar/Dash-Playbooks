@@ -7,9 +7,10 @@
 /// 4. Repositories - Depend on datasources and use cases
 library;
 
+import 'package:flutbook/core/config/app_config.dart';
 import 'package:flutbook/core/services/database_service.dart';
 import 'package:flutbook/core/services/json_storage_service.dart';
-import 'package:flutbook/features/auth/data/datasources/firebase_auth_datasource.dart';
+import 'package:flutbook/features/auth/data/datasources/supabase_auth_datasource.dart';
 import 'package:flutbook/features/auth/data/repositories/user_repository_impl.dart';
 import 'package:flutbook/features/auth/domain/repositories/user_repository.dart';
 import 'package:flutbook/features/auth/domain/usecases/anonymous_login_usecase.dart';
@@ -20,12 +21,13 @@ import 'package:flutbook/features/auth/domain/usecases/logout_usecase.dart';
 import 'package:flutbook/features/directory_selection/data/datasources/metadat_extractor_ds.dart';
 import 'package:flutbook/features/directory_selection/domain/usecases/scan_library_usecase.dart';
 import 'package:flutbook/features/library/data/datasources/audiobook_local_ds.dart';
-import 'package:flutbook/features/library/data/datasources/remote/firebase_library_sync.dart';
+import 'package:flutbook/features/library/data/datasources/remote/supabase_library_sync.dart';
 import 'package:flutbook/features/library/data/repositories/library_repository_impl.dart';
 import 'package:flutbook/features/library/domain/repositories/library_repository.dart';
-import 'package:flutbook/features/player/data/datasources/remote/firebase_playback_sync.dart';
+import 'package:flutbook/features/player/data/datasources/remote/supabase_playback_sync.dart';
 import 'package:flutbook/features/settings/data/datasources/preferences_datasource.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 // Export library provider from its own file
 export 'package:flutbook/features/library/presentation/providers/library_provider.dart'
@@ -96,13 +98,55 @@ final audiobookLocalDatasourceProvider =
 // =============================================================================
 
 // =============================================================================
+// CONFIG PROVIDER
+// =============================================================================
+
+/// Provides the ConfigProvider for accessing application configuration.
+final appConfigProvider = Provider<ConfigProvider>((ref) {
+  final provider = ConfigProvider();
+  // Initialize config if not already done
+  if (!provider.isInitialized) {
+    provider.initialize();
+  }
+  return provider;
+});
+
+// =============================================================================
+// SUPABASE CLIENT PROVIDER
+// =============================================================================
+
+/// Provides the Supabase client for all Supabase operations.
+/// This must be initialized before any Supabase datasource is used.
+final supabaseClientProvider = FutureProvider<SupabaseClient>((ref) async {
+  final configProvider = ref.watch(appConfigProvider);
+  final supabaseConfig = configProvider.config.supabase;
+
+  await Supabase.initialize(
+    url: supabaseConfig.url,
+    anonKey: supabaseConfig.anonKey,
+  );
+
+  return Supabase.instance.client;
+});
+
+// =============================================================================
 // AUTHENTICATION PROVIDERS
 // =============================================================================
 
-/// Provides the Firebase authentication datasource.
-/// This handles all Firebase authentication operations.
-final firebaseAuthDatasourceProvider = Provider<FirebaseAuthDatasource>((ref) {
-  return FirebaseAuthDatasource();
+/// Provides the Supabase authentication datasource.
+/// This handles all Supabase authentication operations.
+final supabaseAuthDatasourceProvider = Provider<SupabaseAuthDatasource>((ref) {
+  final supabaseClient = ref.watch(supabaseClientProvider).value;
+  final configProvider = ref.watch(appConfigProvider);
+
+  if (supabaseClient == null) {
+    throw Exception('Supabase client not initialized');
+  }
+
+  return SupabaseAuthDatasource(
+    supabase: supabaseClient,
+    configProvider: configProvider,
+  );
 });
 
 /// Provides the Preferences datasource.
@@ -112,26 +156,46 @@ final preferencesDatasourceProvider = Provider<PreferencesDatasource>((ref) {
 });
 
 /// Provides the Library Remote datasource.
-/// This handles remote library operations with Firebase.
-final libraryRemoteDatasourceProvider = Provider<LibraryRemoteDatasource>((
+/// This handles remote library operations with Supabase.
+final libraryRemoteDatasourceProvider = Provider<SupabaseLibraryDatasource>((
   ref,
 ) {
-  return LibraryRemoteDatasource();
+  final supabaseClient = ref.watch(supabaseClientProvider).value;
+  final configProvider = ref.watch(appConfigProvider);
+
+  if (supabaseClient == null) {
+    throw Exception('Supabase client not initialized');
+  }
+
+  return SupabaseLibraryDatasource(
+    supabase: supabaseClient,
+    configProvider: configProvider,
+  );
 });
 
 /// Provides the Playback Remote datasource.
-/// This handles remote playback progress operations with Firebase.
-final playbackRemoteDatasourceProvider = Provider<PlaybackRemoteDatasource>((
+/// This handles remote playback progress operations with Supabase.
+final playbackRemoteDatasourceProvider = Provider<SupabasePlaybackDatasource>((
   ref,
 ) {
-  return PlaybackRemoteDatasource();
+  final supabaseClient = ref.watch(supabaseClientProvider).value;
+  final configProvider = ref.watch(appConfigProvider);
+
+  if (supabaseClient == null) {
+    throw Exception('Supabase client not initialized');
+  }
+
+  return SupabasePlaybackDatasource(
+    supabase: supabaseClient,
+    configProvider: configProvider,
+  );
 });
 
 /// Provides the User Repository implementation.
 /// This depends on the auth datasource and other remote datasources.
 final userRepositoryProvider = Provider<UserRepository>((ref) {
   return UserRepositoryImpl(
-    authDatasource: ref.watch(firebaseAuthDatasourceProvider),
+    authDatasource: ref.watch(supabaseAuthDatasourceProvider),
     syncDatasource: ref.watch(libraryRemoteDatasourceProvider),
     playbackRemoteDatasource: ref.watch(playbackRemoteDatasourceProvider),
     preferencesDatasource: ref.watch(preferencesDatasourceProvider),

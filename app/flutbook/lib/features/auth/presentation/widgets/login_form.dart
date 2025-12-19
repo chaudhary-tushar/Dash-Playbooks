@@ -103,7 +103,8 @@ class LoginForm extends ConsumerWidget {
                 ? null // Disable button when loading
                 : () async {
                     // Call auth provider to login anonymously
-                    await authNotifier.loginAnonymously();
+                    await ref.read(authProvider.notifier).loginAnonymously();
+                    // await authNotifier.loginAnonymously();
                   },
             child: authState.isLoading
                 ? const CircularProgressIndicator()
