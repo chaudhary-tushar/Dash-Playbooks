@@ -1,6 +1,6 @@
 import 'package:flutbook/core/error/exceptions.dart';
 import 'package:flutbook/features/library/data/datasources/audiobook_local_ds.dart';
-import 'package:flutbook/features/library/data/datasources/remote/firebase_library_sync.dart';
+import 'package:flutbook/features/library/data/datasources/remote/supabase_library_sync.dart';
 import 'package:flutbook/features/library/data/repositories/library_repository_impl.dart';
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,17 +10,17 @@ import 'package:mocktail/mocktail.dart';
 class MockAudiobookLocalDatasource extends Mock
     implements AudiobookLocalDatasource {}
 
-class MockLibraryRemoteDatasource extends Mock
-    implements LibraryRemoteDatasource {}
+class MockSupabaseLibraryDatasource extends Mock
+    implements SupabaseLibraryDatasource {}
 
 void main() {
   late LibraryRepositoryImpl repository;
   late MockAudiobookLocalDatasource mockLocalDatasource;
-  late MockLibraryRemoteDatasource mockRemoteDatasource;
+  late MockSupabaseLibraryDatasource mockRemoteDatasource;
 
   setUp(() {
     mockLocalDatasource = MockAudiobookLocalDatasource();
-    mockRemoteDatasource = MockLibraryRemoteDatasource();
+    mockRemoteDatasource = MockSupabaseLibraryDatasource();
     repository = LibraryRepositoryImpl(
       localDatasource: mockLocalDatasource,
       remoteDatasource: mockRemoteDatasource,
