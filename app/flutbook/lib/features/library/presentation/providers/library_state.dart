@@ -1,10 +1,12 @@
 // lib/features/library/presentation/providers/library_state.dart
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
+import 'package:flutbook/features/library/domain/entities/audiobook_group.dart';
 
 // Library State class to represent the library state
 class LibraryState {
   const LibraryState({
     this.audiobooks = const [],
+    this.audiobookGroups = const [],
     this.isLoading = false,
     this.errorMessage,
     this.filter,
@@ -12,9 +14,11 @@ class LibraryState {
     this.sortAscending = true,
     this.searchQuery,
     this.viewType = 'list', // list or grid
+    this.groupingEnabled = true, // whether to show grouped view
   });
 
   final List<Audiobook> audiobooks;
+  final List<AudiobookGroup> audiobookGroups;
   final bool isLoading;
   final String? errorMessage;
   final AudiobookFilter? filter;
@@ -22,9 +26,11 @@ class LibraryState {
   final bool sortAscending;
   final String? searchQuery;
   final String viewType; // list or grid
+  final bool groupingEnabled; // whether to show grouped view
 
   LibraryState copyWith({
     List<Audiobook>? audiobooks,
+    List<AudiobookGroup>? audiobookGroups,
     bool? isLoading,
     String? errorMessage,
     AudiobookFilter? filter,
@@ -32,9 +38,11 @@ class LibraryState {
     bool? sortAscending,
     String? searchQuery,
     String? viewType,
+    bool? groupingEnabled,
   }) {
     return LibraryState(
       audiobooks: audiobooks ?? this.audiobooks,
+      audiobookGroups: audiobookGroups ?? this.audiobookGroups,
       isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage ?? this.errorMessage,
       filter: filter ?? this.filter,
@@ -42,6 +50,7 @@ class LibraryState {
       sortAscending: sortAscending ?? this.sortAscending,
       searchQuery: searchQuery ?? this.searchQuery,
       viewType: viewType ?? this.viewType,
+      groupingEnabled: groupingEnabled ?? this.groupingEnabled,
     );
   }
 
@@ -51,25 +60,29 @@ class LibraryState {
 
     return other is LibraryState &&
         other.audiobooks == audiobooks &&
+        other.audiobookGroups == audiobookGroups &&
         other.isLoading == isLoading &&
         other.errorMessage == errorMessage &&
         other.filter == filter &&
         other.sortBy == sortBy &&
         other.sortAscending == sortAscending &&
         other.searchQuery == searchQuery &&
-        other.viewType == viewType;
+        other.viewType == viewType &&
+        other.groupingEnabled == groupingEnabled;
   }
 
   @override
   int get hashCode {
     return audiobooks.hashCode ^
+        audiobookGroups.hashCode ^
         isLoading.hashCode ^
         errorMessage.hashCode ^
         filter.hashCode ^
         sortBy.hashCode ^
         sortAscending.hashCode ^
         searchQuery.hashCode ^
-        viewType.hashCode;
+        viewType.hashCode ^
+        groupingEnabled.hashCode;
   }
 }
 

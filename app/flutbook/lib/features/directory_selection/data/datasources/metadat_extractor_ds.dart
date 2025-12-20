@@ -43,31 +43,80 @@ class MetadataExtractionDatasource {
       try {
         // For desktop platforms (Linux, Windows, macOS), we'll extract duration using file system approach
         // just_audio doesn't have proper desktop implementation, so we'll fall back to file-based estimation
-        if (kIsWeb || (!Platform.isLinux && !Platform.isWindows && !Platform.isMacOS)) {
-          // Use just_audio for mobile and web platforms where it's properly implemented
-          final audioPlayer = AudioPlayer();
-          await audioPlayer.setFilePath(filePath);
-          duration = audioPlayer.duration ?? Duration.zero;
+        if (kIsWeb ||
+            (!Platform.isLinux && !Platform.isWindows && !Platform.isMacOS)) {
+          try {
+            // Use just_audio for mobile and web platforms where it's properly implemented
+            final audioPlayer = AudioPlayer();
+            await audioPlayer.setFilePath(filePath);
+            duration = audioPlayer.duration ?? Duration.zero;
 
-          // Extract ID3 tags or other metadata if available
-          if (fileExtension == '.mp3' || fileExtension == '.m4a' || fileExtension == '.m4b') {
-            // For MP3 and M4A/M4B files, we'll use basic file parsing
-            // In a real implementation, we might use dart:mirrors or a metadata library
-            // For now, we'll derive basic info from filename and file properties
+            // Extract ID3 tags or other metadata if available
+            if (fileExtension == '.mp3' ||
+                fileExtension == '.m4a' ||
+                fileExtension == '.m4b') {
+              // For MP3 and M4A/M4B files, we'll use basic file parsing
+              // In a real implementation, we might use dart:mirrors or a metadata library
+              // For now, we'll derive basic info from filename and file properties
 
-            // Try to extract title/author from filename format like "Author - Title.mp3"
-            final extractedInfo = _extractInfoFromFilename(fileName);
-            if (extractedInfo.title.isNotEmpty) title = extractedInfo.title;
-            if (extractedInfo.author.isNotEmpty) author = extractedInfo.author;
+              // Try to extract title/author from filename format like "Author - Title.mp3"
+              final extractedInfo = _extractInfoFromFilename(fileName);
+              if (extractedInfo.title.isNotEmpty) title = extractedInfo.title;
+              if (extractedInfo.author.isNotEmpty)
+                author = extractedInfo.author;
+            }
+
+            // Additional processing for m4b files with chapter support
+            if (fileExtension == '.m4b') {
+              chapters = await _extractChaptersFromM4b(filePath, duration);
+            }
+
+            // Close the audio player
+            await audioPlayer.dispose();
+          } catch (e) {
+            // If just_audio fails (e.g., MissingPluginException), fall back to file-based estimation
+            print(
+              'Warning: just_audio failed, falling back to file-based estimation: $e',
+            );
+
+            // Fall back to file-based estimation for all platforms when just_audio fails
+            try {
+              final fileData = await file.readAsBytes();
+              final fileSizeInBytes = fileData.lengthInBytes;
+
+              // Calculate based on common audio bitrates (in bits per second)
+              // 128 kbps (16000 bytes/second) is a common MP3 bitrate
+              // 256 kbps (32000 bytes/second) for higher quality
+              // Use conservative 128kbps estimation to avoid overestimation
+              final estimatedDurationSeconds = (fileSizeInBytes / 16000)
+                  .round();
+              duration = Duration(
+                seconds: estimatedDurationSeconds > 0
+                    ? estimatedDurationSeconds
+                    : 1,
+              ); // Ensure at least 1 second
+
+              // Try to extract title/author from filename anyway
+              final extractedInfo = _extractInfoFromFilename(fileName);
+              if (extractedInfo.title.isNotEmpty) title = extractedInfo.title;
+              if (extractedInfo.author.isNotEmpty)
+                author = extractedInfo.author;
+            } catch (fallbackError) {
+              // If file reading fails, use minimum duration
+              print(
+                'Warning: Failed to read file for duration estimation $filePath: $fallbackError',
+              );
+              duration = const Duration(
+                seconds: 1,
+              ); // Default to 1 second if we can't estimate
+
+              // Try to extract title/author from filename anyway
+              final extractedInfo = _extractInfoFromFilename(fileName);
+              if (extractedInfo.title.isNotEmpty) title = extractedInfo.title;
+              if (extractedInfo.author.isNotEmpty)
+                author = extractedInfo.author;
+            }
           }
-
-          // Additional processing for m4b files with chapter support
-          if (fileExtension == '.m4b') {
-            chapters = await _extractChaptersFromM4b(filePath, duration);
-          }
-
-          // Close the audio player
-          await audioPlayer.dispose();
         } else {
           // For desktop platforms, estimate duration based on file size and standard bitrates
           // This is less accurate but prevents the MissingPluginException
@@ -80,7 +129,11 @@ class MetadataExtractionDatasource {
             // 256 kbps (32000 bytes/second) for higher quality
             // Use conservative 128kbps estimation to avoid overestimation
             final estimatedDurationSeconds = (fileSizeInBytes / 16000).round();
-            duration = Duration(seconds: estimatedDurationSeconds > 0 ? estimatedDurationSeconds : 1); // Ensure at least 1 second
+            duration = Duration(
+              seconds: estimatedDurationSeconds > 0
+                  ? estimatedDurationSeconds
+                  : 1,
+            ); // Ensure at least 1 second
 
             // Try to extract title/author from filename format like "Author - Title.mp3"
             final extractedInfo = _extractInfoFromFilename(fileName);
@@ -88,8 +141,12 @@ class MetadataExtractionDatasource {
             if (extractedInfo.author.isNotEmpty) author = extractedInfo.author;
           } catch (e) {
             // If file reading fails, use minimum duration
-            print('Warning: Failed to read file for duration estimation $filePath: $e');
-            duration = const Duration(seconds: 1); // Default to 1 second if we can't estimate
+            print(
+              'Warning: Failed to read file for duration estimation $filePath: $e',
+            );
+            duration = const Duration(
+              seconds: 1,
+            ); // Default to 1 second if we can't estimate
 
             // Try to extract title/author from filename anyway
             final extractedInfo = _extractInfoFromFilename(fileName);
@@ -164,7 +221,9 @@ class MetadataExtractionDatasource {
     final nameWithoutExt = fileName.substring(0, fileName.lastIndexOf('.'));
 
     // Remove common prefixes like track numbers (01-, 001-, etc.)
-    final cleaned = nameWithoutExt.replaceAll(RegExp(r'^\d+[-_]\s*'), '').trim();
+    final cleaned = nameWithoutExt
+        .replaceAll(RegExp(r'^\d+[-_]\s*'), '')
+        .trim();
 
     return cleaned;
   }
@@ -192,7 +251,10 @@ class MetadataExtractionDatasource {
   }
 
   /// Extracts chapter information from m4b files
-  Future<List<Chapter>> _extractChaptersFromM4b(String filePath, Duration duration) async {
+  Future<List<Chapter>> _extractChaptersFromM4b(
+    String filePath,
+    Duration duration,
+  ) async {
     // TODO: proper M4B chapter parsing using specialized library
     // For now, dummy full book chapter
     if (duration.inSeconds <= 0) return <Chapter>[];

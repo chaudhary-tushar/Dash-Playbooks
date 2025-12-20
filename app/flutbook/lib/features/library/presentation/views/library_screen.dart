@@ -2,13 +2,35 @@
 import 'dart:async';
 
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
+import 'package:flutbook/features/library/domain/entities/audiobook_group.dart';
 import 'package:flutbook/features/library/presentation/providers/library_notifier.dart';
 import 'package:flutbook/features/library/presentation/providers/library_provider.dart';
 import 'package:flutbook/features/library/presentation/providers/library_state.dart'
     show AudiobookFilter, LibraryState;
 import 'package:flutbook/features/library/presentation/widgets/audiobook_card.dart';
+import 'package:flutbook/features/library/presentation/widgets/audiobook_group_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+// Simple state management for group expansion
+class _GroupExpandedState {
+  _GroupExpandedState(this.groupKey);
+
+  final String groupKey;
+  bool isExpanded = false;
+
+  void toggle() {
+    isExpanded = !isExpanded;
+  }
+
+  void expand() {
+    isExpanded = true;
+  }
+
+  void collapse() {
+    isExpanded = false;
+  }
+}
 
 // SliverRefreshControl is available in the material package
 
@@ -47,6 +69,19 @@ class LibraryScreen extends ConsumerWidget {
                 ),
               );
             },
+          ),
+          IconButton(
+            icon: Icon(
+              libraryState.groupingEnabled
+                  ? Icons.folder_special
+                  : Icons.folder,
+            ),
+            onPressed: () async {
+              await libraryNotifier.toggleGrouping();
+            },
+            tooltip: libraryState.groupingEnabled
+                ? 'Disable Grouping'
+                : 'Enable Grouping',
           ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.filter_list),
@@ -321,7 +356,9 @@ class LibraryScreen extends ConsumerWidget {
                   Icon(
                     Icons.library_books_outlined,
                     size: 80,
-                    color: Theme.of(context).colorScheme.onSurface.withAlpha(100),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withAlpha(100),
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -329,7 +366,9 @@ class LibraryScreen extends ConsumerWidget {
                         ? 'No audiobooks match your search'
                         : 'No audiobooks in your library',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface.withAlpha(150),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withAlpha(150),
                     ),
                   ),
                   if (currentSearchQuery.isEmpty)
@@ -344,6 +383,22 @@ class LibraryScreen extends ConsumerWidget {
                     ),
                 ],
               ),
+            ),
+          )
+        else if (libraryState.groupingEnabled &&
+            libraryState.audiobookGroups.isNotEmpty)
+          // Grouped audiobook display
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                final group = libraryState.audiobookGroups[index];
+                return _buildGroupedAudiobookCard(
+                  context,
+                  group,
+                  libraryNotifier,
+                );
+              },
+              childCount: libraryState.audiobookGroups.length,
             ),
           )
         else if (currentViewType == 'list')
@@ -428,6 +483,34 @@ class LibraryScreen extends ConsumerWidget {
     );
   }
 
+  // Helper method to build grouped audiobook cards
+  Widget _buildGroupedAudiobookCard(
+    BuildContext context,
+    AudiobookGroup group,
+    LibraryNotifier notifier,
+  ) {
+    // Create a state for expanded/collapsed groups
+    final groupState = _GroupExpandedState(group.groupKey);
+
+    return AudiobookGroupCard(
+      group: group,
+      isExpanded: groupState.isExpanded,
+      onTap: () {
+        // Navigate to the first audiobook in the group
+        if (group.audiobooks.isNotEmpty) {
+          unawaited(
+            Navigator.pushNamed(
+              context,
+              '/playback',
+              arguments: group.audiobooks.first,
+            ),
+          );
+        }
+      },
+      onExpand: groupState.toggle,
+    );
+  }
+
   // Helper method to map backend sort values to UI values
   String _mapSortValueToUi(String? sortValue) {
     if (sortValue == null) return 'name';
@@ -476,7 +559,6 @@ class LibraryScreen extends ConsumerWidget {
       ),
     );
   }
-
 }
 
 // Search delegate for audiobook search

@@ -3,14 +3,20 @@ import 'package:flutbook/features/auth/presentation/providers/auth_provider.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class LoginForm extends ConsumerWidget {
+class LoginForm extends ConsumerStatefulWidget {
   const LoginForm({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final emailController = TextEditingController();
-    final passwordController = TextEditingController();
+  ConsumerState<LoginForm> createState() => _LoginFormState();
+}
 
+class _LoginFormState extends ConsumerState<LoginForm> {
+  bool _isSignupMode = false;
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+
+  @override
+  Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
     final authNotifier = ref.read(authProvider.notifier);
 
@@ -56,7 +62,27 @@ class LoginForm extends ConsumerWidget {
             ),
           ),
 
-        // Login button with loading state
+        // Mode toggle
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              _isSignupMode ? 'Already have an account?' : 'Need an account?',
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _isSignupMode = !_isSignupMode;
+                });
+              },
+              child: Text(_isSignupMode ? 'Login' : 'Sign Up'),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 8),
+
+        // Login/Signup button with loading state
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
@@ -82,9 +108,15 @@ class LoginForm extends ConsumerWidget {
                       return;
                     }
 
-                    // Call auth provider to login
-                    await authNotifier.login(email, password);
-                    // After successful login, navigate to library
+                    if (_isSignupMode) {
+                      // Call auth provider to signup
+                      await authNotifier.signup(email, password);
+                    } else {
+                      // Call auth provider to login
+                      await authNotifier.login(email, password);
+                    }
+
+                    // After successful login/signup, navigate to library
                     final authState = ref.read(authProvider);
                     if (authState.isAuthenticated) {
                       await NavigationService.navigateToLibrary();
@@ -92,9 +124,9 @@ class LoginForm extends ConsumerWidget {
                   },
             child: authState.isLoading
                 ? const CircularProgressIndicator()
-                : const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 14),
-                    child: Text('Login'),
+                : Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    child: Text(_isSignupMode ? 'Sign Up' : 'Login'),
                   ),
           ),
         ),

@@ -5,6 +5,7 @@
 /// 2. Datasources - Depend on DatabaseService
 /// 3. Use Cases - Depend on datasources
 /// 4. Repositories - Depend on datasources and use cases
+/// 5. Notifiers - Depend on repositories
 library;
 
 import 'package:flutbook/core/config/app_config.dart';
@@ -19,12 +20,14 @@ import 'package:flutbook/features/auth/domain/usecases/get_current_user_usecase.
 import 'package:flutbook/features/auth/domain/usecases/google_signin_usecase.dart';
 import 'package:flutbook/features/auth/domain/usecases/login_usecase.dart';
 import 'package:flutbook/features/auth/domain/usecases/logout_usecase.dart';
+import 'package:flutbook/features/auth/domain/usecases/signup_usecase.dart';
 import 'package:flutbook/features/directory_selection/data/datasources/metadat_extractor_ds.dart';
 import 'package:flutbook/features/directory_selection/domain/usecases/scan_library_usecase.dart';
 import 'package:flutbook/features/library/data/datasources/audiobook_local_ds.dart';
 import 'package:flutbook/features/library/data/datasources/remote/supabase_library_sync.dart';
 import 'package:flutbook/features/library/data/repositories/library_repository_impl.dart';
 import 'package:flutbook/features/library/domain/repositories/library_repository.dart';
+import 'package:flutbook/features/library/domain/services/audiobook_grouping_service.dart';
 import 'package:flutbook/features/player/data/datasources/playback_local_ds.dart';
 import 'package:flutbook/features/player/data/datasources/remote/supabase_playback_sync.dart';
 import 'package:flutbook/features/player/data/repositories/playback_repository_impl.dart';
@@ -32,6 +35,9 @@ import 'package:flutbook/features/settings/data/datasources/preferences_datasour
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+// Export grouping service
+export 'package:flutbook/features/library/domain/services/audiobook_grouping_service.dart'
+    show AudiobookGroupingService;
 // Export library provider from its own file
 export 'package:flutbook/features/library/presentation/providers/library_provider.dart'
     show libraryProvider;
@@ -162,7 +168,7 @@ final playbackRepositoryProvider = FutureProvider<PlaybackRepositoryImpl>((
       }
 
       // Wait before retrying
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future<void>.delayed(const Duration(milliseconds: 500));
     }
   }
 
@@ -309,6 +315,24 @@ final logoutUsecaseProvider = Provider<LogoutUsecase>((ref) {
 /// This depends on the user repository.
 final getCurrentUserUsecaseProvider = Provider<GetCurrentUserUsecase>((ref) {
   return GetCurrentUserUsecase(ref.watch(userRepositoryProvider));
+});
+
+/// Provides the Signup usecase.
+/// This depends on the user repository.
+final signupUsecaseProvider = Provider<SignupUsecase>((ref) {
+  return SignupUsecase(ref.watch(userRepositoryProvider));
+});
+
+// =============================================================================
+// AUDIOBOOK GROUPING SERVICE PROVIDER
+// =============================================================================
+
+/// Provides the AudiobookGroupingService for grouping audiobooks.
+/// This service handles the logic for grouping audiobooks by metadata or directory.
+final audiobookGroupingServiceProvider = Provider<AudiobookGroupingService>((
+  ref,
+) {
+  return AudiobookGroupingService();
 });
 
 // =============================================================================

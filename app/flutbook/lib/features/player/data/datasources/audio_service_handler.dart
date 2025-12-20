@@ -1,8 +1,10 @@
 // lib/features/player/data/datasources/audio_service_handler.dart
 import 'dart:async';
+import 'dart:io';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
+import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 
 // Define a simple PlaybackState class for internal use that matches the expected structure
@@ -38,7 +40,6 @@ class AudioServiceHandler extends BaseAudioHandler {
   }
 
   static const _skipInterval = Duration(seconds: 30);
-  static const _debounceDuration = Duration(milliseconds: 300);
 
   final AudioPlayer _player = AudioPlayer();
   final _playbackStateStream = StreamController<CustomPlaybackState>();
@@ -52,11 +53,9 @@ class AudioServiceHandler extends BaseAudioHandler {
   Timer? _sleepTimer;
   Timer? _sleepTimerCountdown;
   bool _sleepTimerActive = false;
-  bool _sleepTimerEndOfChapter = false;
 
   // Audio focus management
   bool _hasAudioFocus = false;
-  Timer? _playPauseDebounceTimer;
   final bool _isPlayPauseActionInProgress = false;
 
   @override
@@ -296,7 +295,6 @@ class AudioServiceHandler extends BaseAudioHandler {
     }
   }
 
-
   void setCurrentAudiobook(Audiobook audiobook) {
     _currentAudiobook = audiobook;
     _loadAudioSource(audiobook.filePath);
@@ -304,9 +302,32 @@ class AudioServiceHandler extends BaseAudioHandler {
 
   Future<void> _loadAudioSource(String filePath) async {
     try {
-      await _player.setAudioSource(AudioSource.uri(Uri.file(filePath)));
+      // Add platform-specific initialization check
+      if (kIsWeb || Platform.isAndroid || Platform.isIOS) {
+        await _player.setAudioSource(AudioSource.uri(Uri.file(filePath)));
+      } else {
+        // For desktop platforms, use a different approach or show unsupported message
+        print(
+          'Warning: Audio playback not fully supported on desktop platforms',
+        );
+        throw UnsupportedError(
+          'Audio playback is not fully supported on this platform',
+        );
+      }
     } catch (e) {
       print('Error loading audio source: $e');
+
+      // Handle MissingPluginException specifically
+      if (e.toString().contains('MissingPluginException')) {
+        print(
+          'MissingPluginException: just_audio plugin not properly initialized',
+        );
+        print('Please ensure you have run: flutter pub add just_audio');
+        print(
+          'And for Android, ensure proper native setup with: flutter pub add just_audio --platforms android',
+        );
+      }
+
       _updatePlaybackState(
         CustomPlaybackState(
           isPlaying: false,
@@ -318,6 +339,9 @@ class AudioServiceHandler extends BaseAudioHandler {
           bufferedPosition: _player.bufferedPosition,
         ),
       );
+
+      // Re-throw the error to be handled by the calling code
+      rethrow;
     }
   }
 
@@ -328,7 +352,6 @@ class AudioServiceHandler extends BaseAudioHandler {
   void setSleepTimer(Duration duration, {bool endOfChapter = false}) {
     _sleepTimerDuration = duration;
     _sleepTimerActive = true;
-    _sleepTimerEndOfChapter = endOfChapter;
 
     // Cancel any existing timers
     _sleepTimer?.cancel();
@@ -360,7 +383,6 @@ class AudioServiceHandler extends BaseAudioHandler {
     _sleepTimerCountdown?.cancel();
     _sleepTimerActive = false;
     _sleepTimerDuration = Duration.zero;
-    _sleepTimerEndOfChapter = false;
 
     // Update playback state to trigger UI refresh
     _updatePlaybackState(
@@ -398,7 +420,6 @@ class AudioServiceHandler extends BaseAudioHandler {
     // This would require access to chapter information which isn't available here
     // In a real implementation, this would monitor position and stop at chapter end
     _sleepTimerActive = true;
-    _sleepTimerEndOfChapter = true;
   }
 
   void _setupCountdownUpdates(Duration duration) {

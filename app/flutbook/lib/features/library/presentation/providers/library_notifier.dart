@@ -1,6 +1,7 @@
 // lib/features/library/presentation/providers/library_notifier.dart
 import 'package:flutbook/core/provider/providers.dart';
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
+import 'package:flutbook/features/library/domain/entities/audiobook_group.dart';
 import 'package:flutbook/features/library/presentation/providers/library_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -16,7 +17,7 @@ class LibraryNotifier extends Notifier<LibraryState> {
     // Fetch audiobooks after provider initialization
     Future.microtask(fetchAudiobooks);
 
-    // Start with loading state
+    // Start with loading state and grouping enabled by default
     return const LibraryState(isLoading: true);
   }
 
@@ -27,6 +28,7 @@ class LibraryNotifier extends Notifier<LibraryState> {
     try {
       // Get the library repository
       final repository = ref.read(libraryRepositoryProvider);
+      final groupingService = ref.read(audiobookGroupingServiceProvider);
 
       // Build the filter based on current state
       final filter = state.filter;
@@ -71,9 +73,15 @@ class LibraryNotifier extends Notifier<LibraryState> {
         author: filter?.author,
       );
 
+      // Group audiobooks if grouping is enabled
+      final audiobookGroups = state.groupingEnabled
+          ? groupingService.groupAudiobooks(audiobooks)
+          : <AudiobookGroup>[];
+
       if (ref.mounted) {
         state = state.copyWith(
           audiobooks: audiobooks,
+          audiobookGroups: audiobookGroups,
           isLoading: false,
         );
       }
@@ -198,5 +206,29 @@ class LibraryNotifier extends Notifier<LibraryState> {
   // Get current error message
   String? getErrorMessage() {
     return state.errorMessage;
+  }
+
+  // Toggle grouping on/off
+  Future<void> toggleGrouping() async {
+    if (!ref.mounted) return;
+
+    final newGroupingEnabled = !state.groupingEnabled;
+
+    state = state.copyWith(
+      groupingEnabled: newGroupingEnabled,
+      isLoading: true,
+    );
+
+    await fetchAudiobooks();
+  }
+
+  // Get current grouping status
+  bool isGroupingEnabled() {
+    return state.groupingEnabled;
+  }
+
+  // Get current audiobook groups
+  List<AudiobookGroup> getCurrentAudiobookGroups() {
+    return state.audiobookGroups;
   }
 }

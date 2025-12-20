@@ -142,6 +142,44 @@ class AuthNotifier extends Notifier<AuthState> {
     }
   }
 
+  // Signup with email and password
+  Future<void> signup(String email, String password) async {
+    if (!ref.mounted) return;
+    state = state.copyWith(isLoading: true);
+
+    try {
+      final usecase = ref.read(signupUsecaseProvider);
+      final result = await usecase(email: email, password: password);
+
+      if (result.success) {
+        final usercase = ref.read(getCurrentUserUsecaseProvider);
+        final user = await usercase();
+        if (ref.mounted) {
+          state = AuthState(
+            isAuthenticated: true,
+            userProfile: user,
+          );
+        }
+      } else {
+        if (ref.mounted) {
+          state = state.copyWith(
+            isAuthenticated: false,
+            isLoading: false,
+            errorMessage: result.errorMessage,
+          );
+        }
+      }
+    } catch (e) {
+      if (ref.mounted) {
+        state = state.copyWith(
+          isAuthenticated: false,
+          isLoading: false,
+          errorMessage: 'Signup failed: $e',
+        );
+      }
+    }
+  }
+
   // Login anonymously
   Future<void> loginAnonymously() async {
     if (!ref.mounted) return;
