@@ -13,15 +13,16 @@ import 'package:flutbook/core/error/exceptions.dart';
 import 'package:flutbook/core/services/database_service.dart';
 import 'package:flutbook/core/services/json_storage_service.dart';
 import 'package:flutbook/features/auth/data/datasources/supabase_auth_datasource.dart';
+import 'package:flutbook/features/auth/data/datasources/user_profile_datasource.dart';
 import 'package:flutbook/features/auth/data/repositories/user_repository_impl.dart';
 import 'package:flutbook/features/auth/domain/repositories/user_repository.dart';
 import 'package:flutbook/features/auth/domain/usecases/anonymous_login_usecase.dart';
+import 'package:flutbook/features/auth/domain/usecases/authenticate_usecase.dart';
 import 'package:flutbook/features/auth/domain/usecases/get_current_user_usecase.dart';
 import 'package:flutbook/features/auth/domain/usecases/google_signin_usecase.dart';
 import 'package:flutbook/features/auth/domain/usecases/login_usecase.dart';
 import 'package:flutbook/features/auth/domain/usecases/logout_usecase.dart';
 import 'package:flutbook/features/auth/domain/usecases/signup_usecase.dart';
-import 'package:flutbook/features/auth/domain/usecases/authenticate_usecase.dart';
 import 'package:flutbook/features/directory_selection/data/datasources/metadat_extractor_ds.dart';
 import 'package:flutbook/features/directory_selection/domain/usecases/scan_library_usecase.dart';
 import 'package:flutbook/features/library/data/datasources/audiobook_local_ds.dart';
@@ -57,6 +58,21 @@ final databaseServiceProvider = FutureProvider<DatabaseService>((ref) async {
   await service.init();
   return service;
 });
+
+// =============================================================================
+// USER PROFILE DATASOURCE PROVIDER
+// =============================================================================
+
+/// Provides the UserProfileDatasource for ISAR database operations.
+/// This datasource handles all UserProfileModel operations with the ISAR database.
+/// This must be initialized after the DatabaseService is available.
+final FutureProvider<UserProfileDatasource> userProfileDatasourceProvider =
+    FutureProvider((ref) async {
+      // Wait for database service to be initialized
+      final databaseService = await ref.watch(databaseServiceProvider.future);
+
+      return UserProfileDatasource(databaseService: databaseService);
+    });
 
 // =============================================================================
 // JSON STORAGE PROVIDER

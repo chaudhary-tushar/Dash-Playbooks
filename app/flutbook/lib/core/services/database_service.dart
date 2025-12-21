@@ -12,12 +12,15 @@ class DatabaseService {
 
   Future<void> init() async {
     final dir = await getApplicationDocumentsDirectory();
-    _isar = await Isar.open([
-      AudiobookModelSchema,
-      PlaybackSessionModelSchema,
-      PlaybackHistoryModelSchema,
-      UserProfileModelSchema, // Renamed from UserProfileModel
-    ], directory: dir.path);
+    _isar = await Isar.open(
+      [
+        AudiobookModelSchema,
+        PlaybackSessionModelSchema,
+        PlaybackHistoryModelSchema,
+        UserProfileModelSchema, // Renamed from UserProfileModel
+      ],
+      directory: dir.path,
+    );
   }
 
   /// Closes the Isar database connection

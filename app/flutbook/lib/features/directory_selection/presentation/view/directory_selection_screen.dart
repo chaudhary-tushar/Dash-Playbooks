@@ -145,7 +145,8 @@ class _DirectorySelectionScreenState
       );
 
       // Navigate to Library screen after successful scan
-      if (result.scannedFiles > 0) {
+      // Even if no new files were added, the scan may have updated existing records or removed deleted files
+      if (result.success) {
         Navigator.of(contextRef).pushReplacementNamed('/library');
       }
     } catch (e) {

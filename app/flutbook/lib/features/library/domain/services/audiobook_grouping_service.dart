@@ -4,7 +4,7 @@ import 'package:flutbook/features/library/domain/entities/audiobook_group.dart';
 import 'package:path/path.dart' as path;
 
 class AudiobookGroupingService {
-  /// Groups audiobooks by metadata first, then by directory name as fallback
+  /// Groups audiobooks by metadata first (including series detection), then by directory name as fallback
   ///
   /// Returns a list of AudiobookGroup objects, with ungrouped audiobooks
   /// wrapped in individual groups.
@@ -13,7 +13,7 @@ class AudiobookGroupingService {
       return [];
     }
 
-    // First, try to group by metadata (title + author)
+    // First, try to group by metadata (title + author, with series detection)
     final metadataGroups = _groupByMetadata(audiobooks);
 
     // If metadata grouping didn't work well (too many small groups),
@@ -87,8 +87,50 @@ class AudiobookGroupingService {
     final normalizedTitle = _normalizeString(audiobook.title);
     final normalizedAuthor = _normalizeString(audiobook.author);
 
+    // Try to extract series information from the title
+    // Look for patterns like "Series Name Book #", "Book Title Part 1", etc.
+    final seriesInfo = _extractSeriesInfo(audiobook.title);
+
     // Create a composite key
+    if (seriesInfo != null) {
+      return 'meta_$seriesInfo|$normalizedAuthor';
+    }
+
     return 'meta_$normalizedTitle|$normalizedAuthor';
+  }
+
+  /// Extracts series information from title if available
+  /// Looks for common patterns in audiobook series
+  String? _extractSeriesInfo(String title) {
+    // Pattern for "Series Name, Book #"
+    final seriesBookPattern = RegExp(r'^(.+?),\s*Book\s+\d+');
+    final match1 = seriesBookPattern.firstMatch(title);
+    if (match1 != null && match1.groupCount >= 1) {
+      return _normalizeString(match1.group(1)!);
+    }
+
+    // Pattern for "Book Title - Part #"
+    final partPattern = RegExp(r'^(.+?)\s*-\s*Part\s+\d+');
+    final match2 = partPattern.firstMatch(title);
+    if (match2 != null && match2.groupCount >= 1) {
+      return _normalizeString(match2.group(1)!);
+    }
+
+    // Pattern for "Book Title, Chapter #"
+    final chapterPattern = RegExp(r'^(.+?),\s*Chapter\s+\d+');
+    final match3 = chapterPattern.firstMatch(title);
+    if (match3 != null && match3.groupCount >= 1) {
+      return _normalizeString(match3.group(1)!);
+    }
+
+    // Pattern for "Book Title Book #" (without comma)
+    final bookNumPattern = RegExp(r'^(.+?)\s+Book\s+\d+');
+    final match4 = bookNumPattern.firstMatch(title);
+    if (match4 != null && match4.groupCount >= 1) {
+      return _normalizeString(match4.group(1)!);
+    }
+
+    return null;
   }
 
   /// Creates a display name for the group
@@ -96,7 +138,12 @@ class AudiobookGroupingService {
     final title = audiobook.title.trim();
     final author = audiobook.author.trim();
 
-    if (title.isNotEmpty && author.isNotEmpty) {
+    // Try to extract series information for better grouping display
+    final seriesInfo = _extractSeriesInfo(title);
+
+    if (seriesInfo != null && author.isNotEmpty) {
+      return '$seriesInfo by $author (Series)';
+    } else if (title.isNotEmpty && author.isNotEmpty) {
       return '$title by $author';
     } else if (title.isNotEmpty) {
       return title;
@@ -133,16 +180,16 @@ class AudiobookGroupingService {
     // Calculate average group size
     final averageGroupSize = audiobooks.length / metadataGroups.length;
 
-    // If average group size is very small (less than 1.5), use directory fallback
-    if (averageGroupSize < 1.5) {
+    // If average group size is very small (less than 2), use directory fallback
+    if (averageGroupSize < 2.0) {
       return true;
     }
 
-    // If more than 75% of groups have only 1 audiobook, use directory fallback
+    // If more than 80% of groups have only 1 audiobook, use directory fallback
     final singleBookGroups = metadataGroups.where((group) => group.audiobooks.length == 1).length;
     final singleBookPercentage = singleBookGroups / metadataGroups.length;
 
-    if (singleBookPercentage > 0.75) {
+    if (singleBookPercentage > 0.80) {
       return true;
     }
 

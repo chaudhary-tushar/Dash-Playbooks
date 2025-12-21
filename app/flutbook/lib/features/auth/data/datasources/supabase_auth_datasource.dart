@@ -297,7 +297,7 @@ class SupabaseAuthDatasource {
           email: 'anonymous@${user.id}', // Anonymous users don't have emails
           displayName: 'Anonymous User',
           authMethod: 'anonymous',
-          syncEnabled: true,
+          syncEnabled: false,
         );
 
         return AuthResult(
@@ -372,14 +372,15 @@ class SupabaseAuthDatasource {
   Future<UserProfile?> getCurrentUser() async {
     final user = _supabase.auth.currentUser;
     if (user != null) {
+      final authMethod = _getAuthMethod(user);
       return UserProfile(
         id: user.id,
         email: user.email ?? '',
         displayName:
             (user.userMetadata?['full_name'] as String?) ??
             (user.userMetadata?['name'] as String?),
-        authMethod: _getAuthMethod(user),
-        syncEnabled: true,
+        authMethod: authMethod,
+        syncEnabled: authMethod != 'anonymous' && authMethod != 'development',
       );
     }
     return null;

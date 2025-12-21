@@ -80,9 +80,27 @@ class MockAuthNotifier extends _i1.Mock implements _i2.AuthNotifier {
           as _i5.Future<void>);
 
   @override
+  _i5.Future<void> authenticate(String? email, String? password) =>
+      (super.noSuchMethod(
+            Invocation.method(#authenticate, [email, password]),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
+          )
+          as _i5.Future<void>);
+
+  @override
   _i5.Future<void> login(String? email, String? password) =>
       (super.noSuchMethod(
             Invocation.method(#login, [email, password]),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
+          )
+          as _i5.Future<void>);
+
+  @override
+  _i5.Future<void> signup(String? email, String? password) =>
+      (super.noSuchMethod(
+            Invocation.method(#signup, [email, password]),
             returnValue: _i5.Future<void>.value(),
             returnValueForMissingStub: _i5.Future<void>.value(),
           )
