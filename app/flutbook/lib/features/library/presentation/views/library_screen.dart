@@ -2,7 +2,6 @@
 import 'dart:async';
 
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
-import 'package:flutbook/features/library/domain/entities/audiobook_group.dart';
 import 'package:flutbook/features/library/presentation/providers/library_notifier.dart';
 import 'package:flutbook/features/library/presentation/providers/library_provider.dart';
 import 'package:flutbook/features/library/presentation/providers/library_state.dart'
@@ -13,22 +12,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // Simple state management for group expansion
-class _GroupExpandedState {
-  _GroupExpandedState(this.groupKey);
+class GroupExpansionManager {
+  static final Map<String, bool> _expandedStates = {};
 
-  final String groupKey;
-  bool isExpanded = false;
-
-  void toggle() {
-    isExpanded = !isExpanded;
+  static bool isExpanded(String groupKey) {
+    return _expandedStates[groupKey] ?? false;
   }
 
-  void expand() {
-    isExpanded = true;
+  static void toggle(String groupKey) {
+    _expandedStates[groupKey] = !(_expandedStates[groupKey] ?? false);
   }
 
-  void collapse() {
-    isExpanded = false;
+  static void reset() {
+    _expandedStates.clear();
   }
 }
 
@@ -87,6 +83,7 @@ class LibraryScreen extends ConsumerWidget {
             icon: const Icon(Icons.filter_list),
             onSelected: (value) {
               if (value == 'refresh') {
+                GroupExpansionManager.reset(); // Reset expansion states on refresh
                 unawaited(libraryNotifier.refreshLibrary());
               } else if (value == 'settings') {
                 // Navigate to settings
@@ -119,7 +116,10 @@ class LibraryScreen extends ConsumerWidget {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: libraryNotifier.refreshLibrary,
+        onRefresh: () async {
+          GroupExpansionManager.reset(); // Reset expansion states on refresh
+          await libraryNotifier.refreshLibrary();
+        },
         child: _buildLibraryBody(
           context,
           libraryState,
@@ -390,15 +390,33 @@ class LibraryScreen extends ConsumerWidget {
           // Grouped audiobook display
           SliverList(
             delegate: SliverChildBuilderDelegate(
+              childCount: libraryState.audiobookGroups.length,
               (context, index) {
-                final group = libraryState.audiobookGroups[index];
-                return _buildGroupedAudiobookCard(
-                  context,
-                  group,
-                  libraryNotifier,
+                return Consumer(
+                  builder: (context, ref, child) {
+                    final group = libraryState.audiobookGroups[index];
+                    final isExpanded = GroupExpansionManager.isExpanded(group.groupKey);
+
+                    return AudiobookGroupCard(
+                      group: group,
+                      isExpanded: isExpanded,
+                      onTap: () {
+                        // Navigate to the first audiobook in the group
+                        if (group.audiobooks.isNotEmpty) {
+                          unawaited(
+                            Navigator.pushNamed(
+                              context,
+                              '/playback',
+                              arguments: group.audiobooks.first,
+                            ),
+                          );
+                        }
+                      },
+                      onExpand: () => GroupExpansionManager.toggle(group.groupKey),
+                    );
+                  },
                 );
               },
-              childCount: libraryState.audiobookGroups.length,
             ),
           )
         else if (currentViewType == 'list')
@@ -483,33 +501,6 @@ class LibraryScreen extends ConsumerWidget {
     );
   }
 
-  // Helper method to build grouped audiobook cards
-  Widget _buildGroupedAudiobookCard(
-    BuildContext context,
-    AudiobookGroup group,
-    LibraryNotifier notifier,
-  ) {
-    // Create a state for expanded/collapsed groups
-    final groupState = _GroupExpandedState(group.groupKey);
-
-    return AudiobookGroupCard(
-      group: group,
-      isExpanded: groupState.isExpanded,
-      onTap: () {
-        // Navigate to the first audiobook in the group
-        if (group.audiobooks.isNotEmpty) {
-          unawaited(
-            Navigator.pushNamed(
-              context,
-              '/playback',
-              arguments: group.audiobooks.first,
-            ),
-          );
-        }
-      },
-      onExpand: groupState.toggle,
-    );
-  }
 
   // Helper method to map backend sort values to UI values
   String _mapSortValueToUi(String? sortValue) {

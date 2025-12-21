@@ -1,5 +1,6 @@
 import 'package:flutbook/core/error/sync_result.dart';
 import 'package:flutbook/features/auth/data/datasources/supabase_auth_datasource.dart';
+import 'package:flutbook/features/auth/data/services/user_profile_service.dart';
 import 'package:flutbook/features/auth/domain/entities/auth_result.dart';
 import 'package:flutbook/features/auth/domain/entities/user_profile.dart';
 import 'package:flutbook/features/auth/domain/repositories/user_repository.dart'
@@ -16,14 +17,17 @@ class UserRepositoryImpl implements UserRepository {
     required SupabaseLibraryDatasource syncDatasource,
     required SupabasePlaybackDatasource playbackRemoteDatasource,
     required PreferencesDatasource preferencesDatasource,
+    required UserProfileService userProfileService,
   }) : _authDatasource = authDatasource,
        _syncDatasource = syncDatasource,
        _playbackRemoteDatasource = playbackRemoteDatasource,
-       _preferencesDatasource = preferencesDatasource;
+       _preferencesDatasource = preferencesDatasource,
+       _userProfileService = userProfileService;
   final SupabaseAuthDatasource _authDatasource;
   final SupabaseLibraryDatasource _syncDatasource;
   final SupabasePlaybackDatasource _playbackRemoteDatasource;
   final PreferencesDatasource _preferencesDatasource;
+  final UserProfileService _userProfileService;
   // late final LibraryRepository _libraryRepo;
   // late final PlaybackRepository _playbackRepo;
 
@@ -39,8 +43,8 @@ class UserRepositoryImpl implements UserRepository {
       );
 
       if (result.success && result.user != null) {
-        // Save user preferences
-        await _preferencesDatasource.saveUserPreferences(result.user);
+        // Save user profile to ISAR database
+        await _userProfileService.updateUserProfileDuringAuth(result.user!);
       }
 
       return result;
@@ -58,8 +62,8 @@ class UserRepositoryImpl implements UserRepository {
       final result = await _authDatasource.signInWithGoogle();
 
       if (result.success && result.user != null) {
-        // Save user preferences
-        await _preferencesDatasource.saveUserPreferences(result.user);
+        // Save user profile to ISAR database
+        await _userProfileService.updateUserProfileDuringAuth(result.user!);
       }
 
       return result;
@@ -83,8 +87,8 @@ class UserRepositoryImpl implements UserRepository {
       );
 
       if (result.success && result.user != null) {
-        // Save user preferences
-        await _preferencesDatasource.saveUserPreferences(result.user);
+        // Save user profile to ISAR database
+        await _userProfileService.updateUserProfileDuringAuth(result.user!);
       }
 
       return result;
@@ -108,8 +112,8 @@ class UserRepositoryImpl implements UserRepository {
       );
 
       if (result.success && result.user != null) {
-        // Save user preferences
-        await _preferencesDatasource.saveUserPreferences(result.user);
+        // Save user profile to ISAR database
+        await _userProfileService.updateUserProfileDuringAuth(result.user!);
       }
 
       return result;
@@ -266,9 +270,11 @@ class UserRepositoryImpl implements UserRepository {
       // Use the auth result from the datasource (which has the user field)
       final datasourceResult = await _authDatasource.anonymousSignIn();
 
-      // If successful, save user preferences using the user from datasource result
+      // If successful, save user profile to ISAR database
       if (datasourceResult.success && datasourceResult.user != null) {
-        await _preferencesDatasource.saveUserPreferences(datasourceResult.user);
+        await _userProfileService.updateUserProfileDuringAuth(
+          datasourceResult.user!,
+        );
       }
 
       // Return a repository-compatible AuthResult (without user field)

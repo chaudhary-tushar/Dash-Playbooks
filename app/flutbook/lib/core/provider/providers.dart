@@ -15,6 +15,7 @@ import 'package:flutbook/core/services/json_storage_service.dart';
 import 'package:flutbook/features/auth/data/datasources/supabase_auth_datasource.dart';
 import 'package:flutbook/features/auth/data/datasources/user_profile_datasource.dart';
 import 'package:flutbook/features/auth/data/repositories/user_repository_impl.dart';
+import 'package:flutbook/features/auth/data/services/user_profile_service.dart';
 import 'package:flutbook/features/auth/domain/repositories/user_repository.dart';
 import 'package:flutbook/features/auth/domain/usecases/anonymous_login_usecase.dart';
 import 'package:flutbook/features/auth/domain/usecases/authenticate_usecase.dart';
@@ -251,6 +252,17 @@ final supabaseAuthDatasourceProvider = Provider<SupabaseAuthDatasource>((ref) {
   );
 });
 
+/// Provides the UserProfileService for user profile operations.
+/// This handles user profile persistence to ISAR database.
+final userProfileServiceProvider = FutureProvider<UserProfileService>((
+  ref,
+) async {
+  // Wait for database service to be initialized
+  final databaseService = await ref.watch(databaseServiceProvider.future);
+
+  return UserProfileService(databaseService: databaseService);
+});
+
 /// Provides the Preferences datasource.
 /// This handles user preferences and settings storage.
 final preferencesDatasourceProvider = Provider<PreferencesDatasource>((ref) {
@@ -296,11 +308,19 @@ final playbackRemoteDatasourceProvider = Provider<SupabasePlaybackDatasource>((
 /// Provides the User Repository implementation.
 /// This depends on the auth datasource and other remote datasources.
 final userRepositoryProvider = Provider<UserRepository>((ref) {
+  // Watch the user profile service future provider
+  final userProfileService = ref.watch(userProfileServiceProvider).value;
+
+  if (userProfileService == null) {
+    throw Exception('UserProfileService not initialized');
+  }
+
   return UserRepositoryImpl(
     authDatasource: ref.watch(supabaseAuthDatasourceProvider),
     syncDatasource: ref.watch(libraryRemoteDatasourceProvider),
     playbackRemoteDatasource: ref.watch(playbackRemoteDatasourceProvider),
     preferencesDatasource: ref.watch(preferencesDatasourceProvider),
+    userProfileService: userProfileService,
   );
 });
 
