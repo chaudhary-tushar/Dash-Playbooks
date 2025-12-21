@@ -97,6 +97,31 @@ class UserRepositoryImpl implements UserRepository {
   }
 
   @override
+  Future<AuthResult> authenticateWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
+    try {
+      final result = await _authDatasource.authenticateWithEmailAndPassword(
+        email,
+        password,
+      );
+
+      if (result.success && result.user != null) {
+        // Save user preferences
+        await _preferencesDatasource.saveUserPreferences(result.user);
+      }
+
+      return result;
+    } catch (e) {
+      return AuthResult(
+        success: false,
+        errorMessage: 'Authentication failed: $e',
+      );
+    }
+  }
+
+  @override
   Future<void> signOut() async {
     await _authDatasource.signOut();
   }

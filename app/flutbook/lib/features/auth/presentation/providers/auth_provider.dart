@@ -104,13 +104,13 @@ class AuthNotifier extends Notifier<AuthState> {
     }
   }
 
-  // Login with email and password
-  Future<void> login(String email, String password) async {
+  // Authenticate with email and password (unified login/signup)
+  Future<void> authenticate(String email, String password) async {
     if (!ref.mounted) return;
     state = state.copyWith(isLoading: true);
 
     try {
-      final usecase = ref.read(loginUsecaseProvider);
+      final usecase = ref.read(authenticateUsecaseProvider);
       final result = await usecase(email: email, password: password);
 
       if (result.success) {
@@ -136,48 +136,22 @@ class AuthNotifier extends Notifier<AuthState> {
         state = state.copyWith(
           isAuthenticated: false,
           isLoading: false,
-          errorMessage: 'Login failed: $e',
+          errorMessage: 'Authentication failed: $e',
         );
       }
     }
   }
 
-  // Signup with email and password
+  // Login with email and password (kept for backward compatibility)
+  @Deprecated('Use authenticate() instead')
+  Future<void> login(String email, String password) async {
+    await authenticate(email, password);
+  }
+
+  // Signup with email and password (kept for backward compatibility)
+  @Deprecated('Use authenticate() instead')
   Future<void> signup(String email, String password) async {
-    if (!ref.mounted) return;
-    state = state.copyWith(isLoading: true);
-
-    try {
-      final usecase = ref.read(signupUsecaseProvider);
-      final result = await usecase(email: email, password: password);
-
-      if (result.success) {
-        final usercase = ref.read(getCurrentUserUsecaseProvider);
-        final user = await usercase();
-        if (ref.mounted) {
-          state = AuthState(
-            isAuthenticated: true,
-            userProfile: user,
-          );
-        }
-      } else {
-        if (ref.mounted) {
-          state = state.copyWith(
-            isAuthenticated: false,
-            isLoading: false,
-            errorMessage: result.errorMessage,
-          );
-        }
-      }
-    } catch (e) {
-      if (ref.mounted) {
-        state = state.copyWith(
-          isAuthenticated: false,
-          isLoading: false,
-          errorMessage: 'Signup failed: $e',
-        );
-      }
-    }
+    await authenticate(email, password);
   }
 
   // Login anonymously

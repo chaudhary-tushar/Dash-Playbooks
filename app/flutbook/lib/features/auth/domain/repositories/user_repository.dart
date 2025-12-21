@@ -16,6 +16,9 @@ abstract class UserRepository {
   /// Creates a new user account
   Future<AuthResult> signUpWithEmailAndPassword(String email, String password);
 
+  /// Unified authentication method that attempts login first and creates account if user does not exist
+  Future<AuthResult> authenticateWithEmailAndPassword(String email, String password);
+
   /// Signs out the current user
   Future<void> signOut();
 

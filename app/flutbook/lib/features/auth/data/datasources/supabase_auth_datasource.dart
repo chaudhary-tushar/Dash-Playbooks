@@ -128,6 +128,105 @@ class SupabaseAuthDatasource {
     }
   }
 
+  /// Unified authentication method that attempts login first and creates account if user does not exist
+  Future<AuthResult> authenticateWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
+    try {
+      // First try to sign in with existing credentials
+      final signInResponse = await _supabase.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+
+      final user = signInResponse.user;
+      if (user != null) {
+        // User exists and signed in successfully
+        final userProfile = UserProfile(
+          id: user.id,
+          email: user.email ?? email,
+          displayName:
+              (user.userMetadata?['full_name'] as String?) ??
+              (user.userMetadata?['name'] as String?),
+          authMethod: 'email_password',
+          syncEnabled: true,
+        );
+
+        return AuthResult(
+          success: true,
+          userId: user.id,
+          user: userProfile,
+        );
+      } else {
+        // This shouldn't happen in normal cases - user should exist if login succeeds
+        return const AuthResult(
+          success: false,
+          errorMessage: 'Authentication failed: No user returned',
+        );
+      }
+    } on AuthException catch (e) {
+      // Check if the error is due to user not existing
+      if (e.message.contains('Invalid login credentials') ||
+          e.message.contains('User not found') ||
+          e.message.contains('does not exist')) {
+        // User doesn't exist, so let's create an account
+        try {
+          final signUpResponse = await _supabase.auth.signUp(
+            email: email,
+            password: password,
+          );
+
+          final user = signUpResponse.user;
+          if (user != null) {
+            // Successfully created new user
+            final userProfile = UserProfile(
+              id: user.id,
+              email: user.email ?? email,
+              displayName:
+                  (user.userMetadata?['full_name'] as String?) ??
+                  (user.userMetadata?['name'] as String?),
+              authMethod: 'email_password',
+              syncEnabled: true,
+            );
+
+            return AuthResult(
+              success: true,
+              userId: user.id,
+              user: userProfile,
+            );
+          } else {
+            return const AuthResult(
+              success: false,
+              errorMessage: 'Account creation failed: No user returned',
+            );
+          }
+        } on AuthException catch (signUpError) {
+          return AuthResult(
+            success: false,
+            errorMessage: mapAuthError(signUpError.message),
+          );
+        } catch (signUpError) {
+          return AuthResult(
+            success: false,
+            errorMessage: 'Failed to create account: $signUpError',
+          );
+        }
+      } else {
+        // Some other authentication error occurred
+        return AuthResult(
+          success: false,
+          errorMessage: mapAuthError(e.message),
+        );
+      }
+    } catch (e) {
+      return AuthResult(
+        success: false,
+        errorMessage: 'Authentication failed: $e',
+      );
+    }
+  }
+
   /// Signs in with Google OAuth
   Future<AuthResult> signInWithGoogle() async {
     if (!_config.auth.enableGoogleAuth) {

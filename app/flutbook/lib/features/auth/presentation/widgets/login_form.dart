@@ -11,7 +11,6 @@ class LoginForm extends ConsumerStatefulWidget {
 }
 
 class _LoginFormState extends ConsumerState<LoginForm> {
-  bool _isSignupMode = false;
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
 
@@ -62,27 +61,9 @@ class _LoginFormState extends ConsumerState<LoginForm> {
             ),
           ),
 
-        // Mode toggle
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              _isSignupMode ? 'Already have an account?' : 'Need an account?',
-            ),
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  _isSignupMode = !_isSignupMode;
-                });
-              },
-              child: Text(_isSignupMode ? 'Login' : 'Sign Up'),
-            ),
-          ],
-        ),
-
         const SizedBox(height: 8),
 
-        // Login/Signup button with loading state
+        // Unified authentication button with loading state (login/signup combined)
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
@@ -108,15 +89,10 @@ class _LoginFormState extends ConsumerState<LoginForm> {
                       return;
                     }
 
-                    if (_isSignupMode) {
-                      // Call auth provider to signup
-                      await authNotifier.signup(email, password);
-                    } else {
-                      // Call auth provider to login
-                      await authNotifier.login(email, password);
-                    }
+                    // Call auth provider to authenticate (unified login/signup)
+                    await authNotifier.authenticate(email, password);
 
-                    // After successful login/signup, navigate to library
+                    // After successful authentication, navigate to library
                     final authState = ref.read(authProvider);
                     if (authState.isAuthenticated) {
                       await NavigationService.navigateToLibrary();
@@ -124,9 +100,9 @@ class _LoginFormState extends ConsumerState<LoginForm> {
                   },
             child: authState.isLoading
                 ? const CircularProgressIndicator()
-                : Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    child: Text(_isSignupMode ? 'Sign Up' : 'Login'),
+                : const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 14),
+                    child: Text('Login or Sign Up'),
                   ),
           ),
         ),

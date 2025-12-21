@@ -21,6 +21,7 @@ import 'package:flutbook/features/auth/domain/usecases/google_signin_usecase.dar
 import 'package:flutbook/features/auth/domain/usecases/login_usecase.dart';
 import 'package:flutbook/features/auth/domain/usecases/logout_usecase.dart';
 import 'package:flutbook/features/auth/domain/usecases/signup_usecase.dart';
+import 'package:flutbook/features/auth/domain/usecases/authenticate_usecase.dart';
 import 'package:flutbook/features/directory_selection/data/datasources/metadat_extractor_ds.dart';
 import 'package:flutbook/features/directory_selection/domain/usecases/scan_library_usecase.dart';
 import 'package:flutbook/features/library/data/datasources/audiobook_local_ds.dart';
@@ -321,6 +322,12 @@ final getCurrentUserUsecaseProvider = Provider<GetCurrentUserUsecase>((ref) {
 /// This depends on the user repository.
 final signupUsecaseProvider = Provider<SignupUsecase>((ref) {
   return SignupUsecase(ref.watch(userRepositoryProvider));
+});
+
+/// Provides the Authenticate usecase (unified login/signup).
+/// This depends on the user repository.
+final authenticateUsecaseProvider = Provider<AuthenticateUsecase>((ref) {
+  return AuthenticateUsecase(ref.watch(userRepositoryProvider));
 });
 
 // =============================================================================
