@@ -47,7 +47,6 @@ class AudiobookGroupingService {
         groupKey: entry.key,
         groupName: _createGroupDisplayName(firstBook),
         audiobooks: entry.value,
-        groupType: 'metadata',
       );
     }).toList();
   }

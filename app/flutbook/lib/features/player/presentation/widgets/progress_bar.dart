@@ -99,7 +99,8 @@ class ProgressBarState extends State<ProgressBar> {
                 ),
 
                 // Chapter markers
-                if (widget.chapterMarkers.isNotEmpty)
+                if (widget.chapterMarkers.isNotEmpty &&
+                    widget.totalDuration.inMilliseconds > 0)
                   for (int i = 0; i < widget.chapterMarkers.length; i++)
                     Positioned(
                       left:
@@ -314,5 +315,3 @@ class ProgressBarState extends State<ProgressBar> {
         : '$twoDigitMinutes:$twoDigitSeconds';
   }
 }
-
-

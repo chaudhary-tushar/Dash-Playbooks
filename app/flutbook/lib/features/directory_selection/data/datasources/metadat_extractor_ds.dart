@@ -62,8 +62,9 @@ class MetadataExtractionDatasource {
               // Try to extract title/author from filename format like "Author - Title.mp3"
               final extractedInfo = _extractInfoFromFilename(fileName);
               if (extractedInfo.title.isNotEmpty) title = extractedInfo.title;
-              if (extractedInfo.author.isNotEmpty)
+              if (extractedInfo.author.isNotEmpty) {
                 author = extractedInfo.author;
+              }
             }
 
             // Additional processing for m4b files with chapter support
@@ -99,8 +100,9 @@ class MetadataExtractionDatasource {
               // Try to extract title/author from filename anyway
               final extractedInfo = _extractInfoFromFilename(fileName);
               if (extractedInfo.title.isNotEmpty) title = extractedInfo.title;
-              if (extractedInfo.author.isNotEmpty)
+              if (extractedInfo.author.isNotEmpty) {
                 author = extractedInfo.author;
+              }
             } catch (fallbackError) {
               // If file reading fails, use minimum duration
               print(
@@ -113,8 +115,9 @@ class MetadataExtractionDatasource {
               // Try to extract title/author from filename anyway
               final extractedInfo = _extractInfoFromFilename(fileName);
               if (extractedInfo.title.isNotEmpty) title = extractedInfo.title;
-              if (extractedInfo.author.isNotEmpty)
+              if (extractedInfo.author.isNotEmpty) {
                 author = extractedInfo.author;
+              }
             }
           }
         } else {
