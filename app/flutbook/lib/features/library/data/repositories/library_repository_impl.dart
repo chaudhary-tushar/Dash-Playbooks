@@ -13,15 +13,72 @@ class LibraryRepositoryImpl implements LibraryRepository {
     // required LibraryProvider provider,
     SupabaseLibraryDatasource? remoteDatasource,
   }) : _localDatasource = localDatasource,
-       _remoteDatasource = remoteDatasource;
+       _remoteDatasource = remoteDatasource {
+    _validateInitialization();
+  }
   //  _provider = provider;
   final AudiobookLocalDatasource _localDatasource;
   final SupabaseLibraryDatasource? _remoteDatasource;
   // final LibraryProvider _provider;
 
+  /// Validates that the repository is properly initialized with required datasources
+  void _validateInitialization() {}
+
+  /// Validates all dependencies are initialized before performing operations
+  void _validateDependencies() {
+    if (!isInitialized) {
+      throw UninitializedDatasourceException(
+        'LibraryRepository: Cannot perform operations - repository not initialized',
+      );
+    }
+  }
+
+  /// Checks if the repository is initialized and ready for use
+  bool get isInitialized => _localDatasource != null;
+
+  /// Checks if the repository is in error state
+  bool get isInErrorState => !isInitialized;
+
+  /// Provides graceful degradation when datasource is not available
+  /// Returns null or empty results instead of throwing exceptions
+  bool get _shouldDegradeGracefully => _localDatasource == null;
+
+  /// Fallback method for when datasource is not initialized
+  /// Returns an empty library instead of throwing an exception
+  Future<Library> _getFallbackLibrary() async {
+    print(
+      'Warning: Library datasource not initialized, returning fallback library',
+    );
+    return Library(
+      id: 'default_library',
+      name: 'My Library',
+      path: 'None',
+      audiobooks: [],
+      lastScanAt: DateTime.now(),
+      totalAudiobooks: 0,
+      totalDuration: Duration.zero,
+    );
+  }
+
   @override
   Future<Library> getLibrary() async {
     try {
+      // Graceful degradation check
+      if (_shouldDegradeGracefully) {
+        print(
+          'Warning: Library datasource not initialized, returning empty library',
+        );
+        return Library(
+          id: 'default_library',
+          name: 'My Library',
+          path: 'None',
+          audiobooks: [],
+          lastScanAt: DateTime.now(),
+          totalAudiobooks: 0,
+          totalDuration: Duration.zero,
+        );
+      }
+
       final audiobooks = await _localDatasource.getAudiobooks();
       final totalDuration = audiobooks.fold(
         Duration.zero,
@@ -55,6 +112,8 @@ class LibraryRepositoryImpl implements LibraryRepository {
   @override
   Future<Library> updateLibrary(Library library) async {
     try {
+      _validateDependencies();
+
       // In this implementation, a library is essentially a collection of audiobooks
       // and metadata about the library itself. We'll save all audiobooks.
       await _localDatasource.saveAudiobooks(library.audiobooks);
@@ -211,6 +270,14 @@ class LibraryRepositoryImpl implements LibraryRepository {
     int? limit,
   }) async {
     try {
+      // Graceful degradation check
+      if (_shouldDegradeGracefully) {
+        print(
+          'Warning: Library datasource not initialized, returning empty audiobook list',
+        );
+        return [];
+      }
+
       // Check if cache is valid
       if (_audiobooksCache == null ||
           _cacheTimestamp == null ||

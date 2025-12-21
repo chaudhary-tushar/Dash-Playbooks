@@ -1,5 +1,10 @@
 // lib/presentation/widgets/audiobook_card.dart
+import 'dart:io';
+
 import 'package:flutbook/core/error/exceptions.dart';
+import 'package:flutbook/core/provider/providers.dart'
+    show playbackRepositoryProvider;
+import 'package:flutbook/features/library/domain/entities/audiobook.dart';
 import 'package:flutbook/features/player/presentation/providers/playback_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,6 +20,7 @@ class AudiobookCard extends ConsumerWidget {
     this.isCompleted = false,
     this.progress,
     this.showPlayButton = true,
+    this.audiobook, // Add audiobook parameter for validation
   });
   final String title;
   final String author;
@@ -24,6 +30,97 @@ class AudiobookCard extends ConsumerWidget {
   final double? progress;
   final VoidCallback onTap;
   final bool showPlayButton;
+  final Audiobook? audiobook; // Optional audiobook for validation
+
+  // Validate if playback is available for this audiobook
+  Future<bool> _canPlayAudiobook(
+    BuildContext context,
+    WidgetRef ref,
+    Audiobook? audiobook,
+  ) async {
+    try {
+      // Check playback feature availability first
+      final playbackNotifier = ref.read(playbackProvider.notifier);
+      final featureStatus = playbackNotifier.getPlaybackFeatureStatus();
+
+      final featuresAvailable =
+          await ErrorHandler.checkPlaybackFeaturesAndNotify(
+            context,
+            featureStatus,
+          );
+
+      if (!featuresAvailable) {
+        return false;
+      }
+
+      // If no audiobook is provided, can't play
+      if (audiobook == null) {
+        return false;
+      }
+
+      // Check if playback provider is initialized and ready
+      final playbackState = ref.watch(playbackProvider);
+
+      // If there's an existing playback error, don't allow playback
+      if (playbackState.errorMessage != null) {
+        return false;
+      }
+
+      // Check if the audiobook has a valid file path
+      if (audiobook.filePath.isEmpty ||
+          !await File(audiobook.filePath).exists()) {
+        return false;
+      }
+
+      // Check if playback repository is available
+      final playbackRepoAsync = ref.watch(playbackRepositoryProvider);
+      final playbackRepo = playbackRepoAsync.whenOrNull(
+        data: (repo) => repo,
+        loading: () => null,
+        error: (error, stack) => null,
+      );
+
+      if (playbackRepo == null) {
+        return false;
+      }
+
+      return true;
+    } catch (e) {
+      // Log the error but don't show to user
+      ErrorHandler.logError(e, StackTrace.current);
+      return false;
+    }
+  }
+
+  // Handle play button tap with proper validation
+  Future<void> _handlePlayButtonTap(
+    BuildContext context,
+    WidgetRef ref,
+    Audiobook? audiobook,
+    VoidCallback onTap,
+  ) async {
+    try {
+      final canPlay = await _canPlayAudiobook(context, ref, audiobook);
+
+      if (canPlay) {
+        onTap(); // Proceed with navigation
+      } else {
+        // Show appropriate error message with retry option
+        ErrorHandler.showPlaybackErrorWithRetry(
+          context,
+          'Playback unavailable. Please check your audio files and try again.',
+          () => _retryPlayback(context, ref, audiobook),
+        );
+      }
+    } catch (e) {
+      // Handle any unexpected errors gracefully
+      ErrorHandler.showFeatureUnavailableNotification(
+        context,
+        'Playback',
+        'Failed to start playback. Please try again later.',
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -172,14 +269,12 @@ class AudiobookCard extends ConsumerWidget {
               if (showPlayButton)
                 IconButton(
                   icon: const Icon(Icons.play_arrow_rounded),
-                  onPressed: hasPlaybackError
-                      ? () {
-                          ErrorHandler.showPlaybackUnavailableNotification(
-                            context,
-                            'Playback is currently unavailable. Please try again later.',
-                          );
-                        }
-                      : onTap,
+                  onPressed: () => _handlePlayButtonTap(
+                    context,
+                    ref,
+                    audiobook,
+                    onTap,
+                  ),
                   tooltip: hasPlaybackError ? 'Playback unavailable' : 'Play',
                 ),
             ],
@@ -197,6 +292,46 @@ class AudiobookCard extends ConsumerWidget {
       return '${hours}h ${minutes}m';
     } else {
       return '${minutes}m';
+    }
+  }
+
+  /// Retry playback after a failure
+  Future<void> _retryPlayback(
+    BuildContext context,
+    WidgetRef ref,
+    Audiobook? audiobook,
+  ) async {
+    try {
+      if (audiobook == null) {
+        ErrorHandler.showPlaybackUnavailableNotification(
+          context,
+          'No audiobook selected for playback.',
+        );
+        return;
+      }
+
+      // Show retry attempt notification
+      ErrorHandler.showRetryAttemptNotification(context, 1);
+
+      // Wait a moment before retrying
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Check if playback is now available
+      final canPlay = await _canPlayAudiobook(context, ref, audiobook);
+
+      if (canPlay) {
+        onTap(); // Proceed with navigation
+      } else {
+        ErrorHandler.showPlaybackUnavailableNotification(
+          context,
+          'Playback still unavailable. Please try again later.',
+        );
+      }
+    } catch (e) {
+      ErrorHandler.showPlaybackUnavailableNotification(
+        context,
+        'Retry failed. Please try again later.',
+      );
     }
   }
 }

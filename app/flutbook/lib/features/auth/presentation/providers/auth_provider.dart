@@ -1,4 +1,5 @@
 import 'package:flutbook/core/provider/providers.dart';
+import 'package:flutbook/features/auth/data/services/session_manager.dart';
 import 'package:flutbook/features/auth/domain/entities/user_profile.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -52,6 +53,8 @@ class AuthState {
 
 // AuthNotifier class that extends Notifier for Riverpod 3.x
 class AuthNotifier extends Notifier<AuthState> {
+  final SessionManager _sessionManager = SessionManager();
+
   @override
   AuthState build() {
     // Initialize with loading state and check current user
@@ -64,8 +67,8 @@ class AuthNotifier extends Notifier<AuthState> {
       try {
         await checkCurrentUser();
       } catch (e) {
-        // Handle Firebase initialization errors gracefully
-        // If Firebase is not initialized, set to a non-error state to allow development
+        // Handle initialization errors gracefully
+        // If session has expired, set to a non-authenticated state
         if (ref.mounted) {
           // Set to a default non-authenticated state to allow development flow
           state = const AuthState();
@@ -73,27 +76,70 @@ class AuthNotifier extends Notifier<AuthState> {
       }
     });
 
-    // Start with loading state, but avoid Firebase calls if they would fail
+    // Start with loading state, but avoid calls if they would fail
     return const AuthState(isLoading: true);
   }
 
   // Check current user on initialization
   Future<void> checkCurrentUser() async {
-    // If we're in development bypass mode, skip Firebase checks
+    // Check if session has expired
+    final isExpired = await _sessionManager.isSessionExpired();
+    if (isExpired) {
+      // Session has expired, clear any existing session data
+      await _sessionManager.clearSession();
+      if (ref.mounted) {
+        state = const AuthState();
+      }
+      return;
+    }
+
+    // If we're in development bypass mode, skip checks
     if (state.isAuthenticated &&
         state.userProfile?.authMethod == 'development') {
       return; // Already in dev mode, don't try to re-check
     }
 
     try {
-      // Only access the usecase if it's available (not in error state)
-      final usecase = ref.read(getCurrentUserUsecaseProvider);
-      final user = await usecase();
-      if (ref.mounted) {
-        state = AuthState(
-          isAuthenticated: user != null,
-          userProfile: user,
-        );
+      // First, try to get user from ISAR to see if we have a local user
+      final userProfileService = await ref.read(userProfileServiceProvider.future);
+      if (userProfileService != null) {
+        final localUser = await userProfileService.getCurrentUserProfile();
+        if (localUser != null) {
+          // We have a user in ISAR, now verify with Supabase
+          final usecase = ref.read(getCurrentUserUsecaseProvider);
+          final user = await usecase();
+
+          if (user != null && user.id == localUser.id) {
+            // User exists in both ISAR and Supabase, authentication is valid
+            if (ref.mounted) {
+              state = AuthState(
+                isAuthenticated: true,
+                userProfile: user,
+              );
+            }
+          } else {
+            // User doesn't exist in Supabase anymore, clear local data
+            await userProfileService.deleteAllUserProfiles();
+            if (ref.mounted) {
+              state = const AuthState();
+            }
+          }
+        } else {
+          // No user in ISAR, set to non-authenticated
+          if (ref.mounted) {
+            state = const AuthState();
+          }
+        }
+      } else {
+        // Fallback to the original method if service is not available
+        final usecase = ref.read(getCurrentUserUsecaseProvider);
+        final user = await usecase();
+        if (ref.mounted) {
+          state = AuthState(
+            isAuthenticated: user != null,
+            userProfile: user,
+          );
+        }
       }
     } catch (e) {
       if (ref.mounted) {
@@ -121,6 +167,8 @@ class AuthNotifier extends Notifier<AuthState> {
             isAuthenticated: true,
             userProfile: user,
           );
+          // Set session expiry for 7-30 days
+          await _setSessionExpiry();
         }
       } else {
         if (ref.mounted) {
@@ -171,6 +219,8 @@ class AuthNotifier extends Notifier<AuthState> {
             isAuthenticated: true,
             userProfile: user,
           );
+          // Set session expiry for 7-30 days
+          await _setSessionExpiry();
         }
       } else {
         if (ref.mounted) {
@@ -200,6 +250,8 @@ class AuthNotifier extends Notifier<AuthState> {
     try {
       final usecase = ref.read(logoutUsecaseProvider);
       await usecase();
+      // Clear session data
+      await _sessionManager.clearSession();
       if (ref.mounted) {
         state = const AuthState();
       }
@@ -211,6 +263,13 @@ class AuthNotifier extends Notifier<AuthState> {
         );
       }
     }
+  }
+
+  // Set session expiry for 7-30 days
+  Future<void> _setSessionExpiry() async {
+    final now = DateTime.now();
+    final expiryDate = _sessionManager.calculateExpiryDate(now);
+    await _sessionManager.setSessionExpiry(expiryDate);
   }
 
   // Get current user profile
@@ -240,6 +299,8 @@ class AuthNotifier extends Notifier<AuthState> {
             isAuthenticated: true,
             userProfile: user,
           );
+          // Set session expiry for 7-30 days
+          await _setSessionExpiry();
         }
       } else {
         if (ref.mounted) {
@@ -278,6 +339,8 @@ class AuthNotifier extends Notifier<AuthState> {
       isAuthenticated: true,
       userProfile: devUser,
     );
+    // Set session expiry for 7-30 days
+    await _setSessionExpiry();
   }
 }
 

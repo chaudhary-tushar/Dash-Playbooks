@@ -395,7 +395,9 @@ class LibraryScreen extends ConsumerWidget {
                 return Consumer(
                   builder: (context, ref, child) {
                     final group = libraryState.audiobookGroups[index];
-                    final isExpanded = GroupExpansionManager.isExpanded(group.groupKey);
+                    final isExpanded = GroupExpansionManager.isExpanded(
+                      group.groupKey,
+                    );
 
                     return AudiobookGroupCard(
                       group: group,
@@ -412,7 +414,8 @@ class LibraryScreen extends ConsumerWidget {
                           );
                         }
                       },
-                      onExpand: () => GroupExpansionManager.toggle(group.groupKey),
+                      onExpand: () =>
+                          GroupExpansionManager.toggle(group.groupKey),
                     );
                   },
                 );
@@ -450,6 +453,7 @@ class LibraryScreen extends ConsumerWidget {
                       ),
                     );
                   },
+                  audiobook: audiobook, // Pass audiobook for validation
                 );
               },
               childCount: filteredAudiobooks.length,
@@ -492,6 +496,7 @@ class LibraryScreen extends ConsumerWidget {
                       ),
                     );
                   },
+                  audiobook: audiobook, // Pass audiobook for validation
                 );
               },
               childCount: filteredAudiobooks.length,
@@ -500,7 +505,6 @@ class LibraryScreen extends ConsumerWidget {
       ],
     );
   }
-
 
   // Helper method to map backend sort values to UI values
   String _mapSortValueToUi(String? sortValue) {

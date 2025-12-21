@@ -1,5 +1,9 @@
 // lib/presentation/screens/audiobook_detail_screen.dart
+import 'dart:io';
+
 import 'package:flutbook/core/error/exceptions.dart';
+import 'package:flutbook/core/provider/providers.dart'
+    show playbackRepositoryProvider;
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
 import 'package:flutbook/features/player/presentation/providers/playback_provider.dart';
 import 'package:flutter/material.dart';
@@ -15,7 +19,6 @@ class AudiobookDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final playbackState = ref.watch(playbackProvider);
-    final hasPlaybackError = playbackState.errorMessage != null;
 
     return Scaffold(
       appBar: AppBar(
@@ -233,21 +236,83 @@ class AudiobookDetailScreen extends ConsumerWidget {
                     child: ElevatedButton.icon(
                       icon: const Icon(Icons.play_arrow),
                       label: const Text('Play'),
-                      onPressed: hasPlaybackError
-                          ? () {
-                              ErrorHandler.showPlaybackUnavailableNotification(
+                      onPressed: () async {
+                        try {
+                          // Check playback feature availability first
+                          final playbackNotifier = ref.read(
+                            playbackProvider.notifier,
+                          );
+                          final featureStatus = playbackNotifier
+                              .getPlaybackFeatureStatus();
+
+                          final canProceed =
+                              await ErrorHandler.checkPlaybackFeaturesAndNotify(
                                 context,
-                                'Playback is currently unavailable. Please try again later.',
+                                featureStatus,
                               );
-                            }
-                          : () {
-                              // Handle the returned Future properly
-                              Navigator.pushNamed(
-                                context,
-                                '/playback',
-                                arguments: audiobook,
-                              );
-                            },
+
+                          if (!canProceed) {
+                            return;
+                          }
+
+                          // Validate if playback is available
+                          final playbackState = ref.watch(playbackProvider);
+
+                          // Check if there's an existing playback error
+                          if (playbackState.errorMessage != null) {
+                            ErrorHandler.showPlaybackErrorWithRetry(
+                              context,
+                              playbackState.errorMessage!,
+                              () => _retryPlayback(context, ref, audiobook),
+                            );
+                            return;
+                          }
+
+                          // Check if the audiobook has a valid file path
+                          if (audiobook.filePath.isEmpty ||
+                              !await File(audiobook.filePath).exists()) {
+                            ErrorHandler.showFeatureUnavailableNotification(
+                              context,
+                              'Playback',
+                              'Audio file not found. Please check your files.',
+                            );
+                            return;
+                          }
+
+                          // Check if playback repository is available
+                          final playbackRepoAsync = ref.watch(
+                            playbackRepositoryProvider,
+                          );
+                          final playbackRepo = playbackRepoAsync.whenOrNull(
+                            data: (repo) => repo,
+                            loading: () => null,
+                            error: (error, stack) => null,
+                          );
+
+                          if (playbackRepo == null) {
+                            ErrorHandler.showFeatureUnavailableNotification(
+                              context,
+                              'Playback',
+                              'Playback service not available. Please try again later.',
+                            );
+                            return;
+                          }
+
+                          // If all validations pass, navigate to playback
+                          Navigator.pushNamed(
+                            context,
+                            '/playback',
+                            arguments: audiobook,
+                          );
+                        } catch (e) {
+                          // Handle any unexpected errors gracefully
+                          ErrorHandler.showFeatureUnavailableNotification(
+                            context,
+                            'Playback',
+                            'Failed to start playback. Please try again later.',
+                          );
+                        }
+                      },
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -313,5 +378,51 @@ class AudiobookDetailScreen extends ConsumerWidget {
       return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
     }
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+  }
+
+  /// Retry playback after a failure
+  Future<void> _retryPlayback(
+    BuildContext context,
+    WidgetRef ref,
+    Audiobook audiobook,
+  ) async {
+    try {
+      // Clear any existing error
+      ref.read(playbackProvider.notifier).clearError();
+
+      // Show retry attempt notification
+      ErrorHandler.showRetryAttemptNotification(context, 1);
+
+      // Wait a moment before retrying
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Check if playback repository is available
+      final playbackRepoAsync = ref.watch(playbackRepositoryProvider);
+      final playbackRepo = playbackRepoAsync.whenOrNull(
+        data: (repo) => repo,
+        loading: () => null,
+        error: (error, stack) => null,
+      );
+
+      if (playbackRepo == null) {
+        ErrorHandler.showPlaybackUnavailableNotification(
+          context,
+          'Playback service still not available. Please try again later.',
+        );
+        return;
+      }
+
+      // Navigate to playback if successful
+      Navigator.pushNamed(
+        context,
+        '/playback',
+        arguments: audiobook,
+      );
+    } catch (e) {
+      ErrorHandler.showPlaybackUnavailableNotification(
+        context,
+        'Retry failed. Please try again later.',
+      );
+    }
   }
 }

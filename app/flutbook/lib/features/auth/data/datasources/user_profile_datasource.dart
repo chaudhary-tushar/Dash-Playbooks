@@ -23,9 +23,22 @@ class UserProfileDatasource {
   /// [profile] - The UserProfileModel to save
   /// Returns the saved UserProfileModel
   Future<UserProfileModel> saveUserProfile(UserProfileModel profile) async {
-    // Use put to save or update the profile
+    // First, check if a user profile with the same internalId already exists
+    final existingProfile = await getUserProfileByInternalId(profile.internalId ?? '');
+
     await _isar.writeTxn(() async {
-      await _isar.userProfileModels.put(profile);
+      if (existingProfile != null) {
+        // Update the existing profile with the same ID to avoid duplicates
+        profile.id = existingProfile.id; // Preserve the existing ID
+        await _isar.userProfileModels.put(profile);
+      } else {
+        // Check if any other profiles exist and delete them (to maintain single user)
+        if (await hasUserProfiles()) {
+          await _isar.userProfileModels.where().deleteAll();
+        }
+        // Save the new profile
+        await _isar.userProfileModels.put(profile);
+      }
     });
 
     // Return the saved profile with updated ID

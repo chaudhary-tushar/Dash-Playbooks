@@ -1,4 +1,5 @@
 // lib/features/library/presentation/providers/library_notifier.dart
+import 'package:flutbook/core/error/exceptions.dart';
 import 'package:flutbook/core/provider/providers.dart';
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
 import 'package:flutbook/features/library/domain/entities/audiobook_group.dart';
@@ -26,9 +27,36 @@ class LibraryNotifier extends Notifier<LibraryState> {
     if (!ref.mounted) return;
 
     try {
-      // Get the library repository
-      final repository = ref.read(libraryRepositoryProvider);
+      // Get the library repository asynchronously
+      final repositoryAsync = ref.watch(libraryRepositoryProvider);
       final groupingService = ref.read(audiobookGroupingServiceProvider);
+
+      // Handle the async value properly
+      final repository = repositoryAsync.whenOrNull(
+        data: (repo) => repo,
+        loading: () => null,
+        error: (error, stack) => null,
+      );
+
+      if (repository == null) {
+        // Repository is not ready yet - check if it's in error state
+        final errorState = repositoryAsync.whenOrNull(
+          data: (_) => null,
+          loading: () => 'loading',
+          error: (error, stack) =>
+              'error: ${ErrorHandler.handleException(error)}',
+        );
+
+        if (ref.mounted) {
+          state = state.copyWith(
+            isLoading: errorState == 'loading',
+            errorMessage: errorState != 'loading'
+                ? errorState
+                : 'Library repository not initialized',
+          );
+        }
+        return;
+      }
 
       // Build the filter based on current state
       final filter = state.filter;
@@ -89,7 +117,8 @@ class LibraryNotifier extends Notifier<LibraryState> {
       if (ref.mounted) {
         state = state.copyWith(
           isLoading: false,
-          errorMessage: 'Failed to fetch audiobooks: $e',
+          errorMessage:
+              'Failed to fetch audiobooks: ${ErrorHandler.handleException(e)}',
         );
       }
     }

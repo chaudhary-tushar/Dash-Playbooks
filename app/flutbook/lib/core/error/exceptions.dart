@@ -88,6 +88,39 @@ class ErrorHandler {
     }
   }
 
+  /// Handles playback-specific exceptions with more detailed user-friendly messages
+  static String handlePlaybackException(
+    dynamic exception, {
+    String fallbackMessage = 'Playback failed. Please try again.',
+  }) {
+    if (exception is UninitializedDatasourceException) {
+      return 'Playback service is not ready. Please wait a moment and try again.';
+    } else if (exception is FileSystemException) {
+      return 'Audio file not found or inaccessible. Please check your files and permissions.';
+    } else if (exception is AudioException) {
+      return 'Audio file is corrupted or unsupported. Please try another file or convert this one.';
+    } else if (exception is DatabaseException) {
+      return 'Could not load playback history. Some features may be limited. Please restart the app.';
+    } else if (exception is PermissionException) {
+      return 'Storage permission required. Please grant access to your files in app settings.';
+    } else if (exception is NetworkException) {
+      return 'Network required for this feature. Please check your connection and try again.';
+    } else if (exception is TimeoutException) {
+      return 'Playback initialization timed out. Please check your network and try again.';
+    } else if (exception.toString().contains('Isar database is not open')) {
+      return 'Database not ready. Please wait a few seconds and try again.';
+    } else if (exception.toString().contains('PlaybackRepository')) {
+      return 'Playback service unavailable. Please restart the app to fix this issue.';
+    } else if (exception.toString().contains('null')) {
+      return 'Playback service not properly initialized. Please restart the app.';
+    } else if (exception.toString().contains('failed to initialize')) {
+      return 'Playback initialization failed. Please check your device storage and restart the app.';
+    } else {
+      // More specific fallback for playback issues
+      return fallbackMessage;
+    }
+  }
+
   /// Shows error dialog to user with clear, non-technical messaging
   static Future<void> showErrorDialog(
     BuildContext context,
@@ -151,6 +184,94 @@ class ErrorHandler {
       SnackBar(
         content: Text(message),
         behavior: SnackBarBehavior.floating,
+        backgroundColor: Colors.orange,
+      ),
+    );
+  }
+
+  /// Shows success notification for retry attempts
+  static void showRetryAttemptNotification(
+    BuildContext context,
+    int attemptNumber,
+  ) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Retrying playback... (Attempt $attemptNumber)'),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: Colors.blue,
+      ),
+    );
+  }
+
+  /// Checks playback feature availability and shows appropriate notifications
+  /// Returns true if playback features are available, false otherwise
+  static Future<bool> checkPlaybackFeaturesAndNotify(
+    BuildContext context,
+    Map<String, dynamic> featureStatus,
+  ) async {
+    if (featureStatus['available'] as bool) {
+      return true;
+    } else {
+      // Show specific notification based on the reason
+      final reason = featureStatus['reason'] as String?;
+      final message = featureStatus['message'] as String?;
+      final suggestion = featureStatus['suggestion'] as String?;
+
+      if (reason != null && message != null) {
+        showFeatureUnavailableNotification(
+          context,
+          'Playback',
+          '$message. $suggestion',
+        );
+      } else {
+        showFeatureUnavailableNotification(
+          context,
+          'Playback',
+          'Playback features are currently unavailable. Please try again later.',
+        );
+      }
+      return false;
+    }
+  }
+
+  /// Shows error notification with retry option
+  static void showPlaybackErrorWithRetry(
+    BuildContext context,
+    String message,
+    VoidCallback onRetry,
+  ) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Expanded(child: Text(message)),
+            TextButton(
+              onPressed: onRetry,
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('RETRY'),
+            ),
+          ],
+        ),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 5),
+      ),
+    );
+  }
+
+  /// Shows feature unavailable notification with action button
+  static void showFeatureUnavailableNotification(
+    BuildContext context,
+    String featureName,
+    String reason,
+  ) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$featureName unavailable: $reason'),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: Colors.deepOrange,
       ),
     );
   }

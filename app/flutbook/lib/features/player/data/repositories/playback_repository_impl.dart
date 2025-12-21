@@ -10,17 +10,23 @@ class PlaybackRepositoryImpl implements PlaybackRepository {
   // Nullable for anonymous users
 
   PlaybackRepositoryImpl({
-    required PlaybackLocalDatasource localDatasource,
+    required PlaybackLocalDatasource? localDatasource,
     SupabasePlaybackDatasource? remoteDatasource,
   }) : _localDatasource = localDatasource,
        _remoteDatasource = remoteDatasource {
     _validateInitialization();
   }
-  final PlaybackLocalDatasource _localDatasource;
+  final PlaybackLocalDatasource? _localDatasource;
   final SupabasePlaybackDatasource? _remoteDatasource;
 
   /// Validates that the repository is properly initialized with required datasources
   void _validateInitialization() {
+    if (_localDatasource == null) {
+      throw UninitializedDatasourceException(
+        'PlaybackRepository: Local datasource is null',
+      );
+    }
+
     if (!_localDatasource.isInitialized) {
       throw UninitializedDatasourceException(
         'PlaybackRepository: Local datasource not initialized',
@@ -29,11 +35,162 @@ class PlaybackRepositoryImpl implements PlaybackRepository {
   }
 
   /// Checks if the repository is initialized and ready for use
-  bool get isInitialized => _localDatasource.isInitialized;
+  bool get isInitialized => _localDatasource?.isInitialized ?? false;
+
+  /// Checks if the repository is in error state
+  bool get isInErrorState => !isInitialized || _localDatasource == null;
 
   /// Provides graceful degradation when datasource is not available
   /// Returns null or empty results instead of throwing exceptions
-  bool get _shouldDegradeGracefully => !_localDatasource.isInitialized;
+  bool get _shouldDegradeGracefully =>
+      _localDatasource == null || !_localDatasource.isInitialized;
+
+  /// Checks if all dependencies are properly initialized
+  bool get _areDependenciesInitialized {
+    return _localDatasource != null && _localDatasource.isInitialized;
+  }
+
+  /// Public method to validate that all dependencies are properly initialized
+  /// Throws UninitializedDatasourceException if any dependency is not ready
+  void validateDependencies() {
+    if (_localDatasource == null) {
+      throw UninitializedDatasourceException(
+        'PlaybackRepository: Local datasource is null',
+      );
+    }
+
+    if (!_localDatasource.isInitialized) {
+      throw UninitializedDatasourceException(
+        'PlaybackRepository: Local datasource not initialized',
+      );
+    }
+  }
+
+  /// Checks if remote datasource is available (for authenticated users)
+  bool get _isRemoteAvailable => _remoteDatasource != null;
+
+  /// Validates remote datasource availability before sync operations
+  void _validateRemoteDatasource() {
+    if (!_isRemoteAvailable) {
+      throw UninitializedDatasourceException(
+        'PlaybackRepository: Remote datasource not available for sync operations',
+      );
+    }
+  }
+
+  /// Checks if repository is ready for write operations
+  /// Validates both local and remote datasources if remote sync is expected
+  bool get isReadyForWriteOperations {
+    return _areDependenciesInitialized;
+  }
+
+  /// Provides detailed initialization status for debugging and monitoring
+  /// Returns a map with initialization status of all dependencies
+  Map<String, dynamic> getInitializationStatus() {
+    return {
+      'isInitialized': isInitialized,
+      'localDatasourceNull': _localDatasource == null,
+      'localDatasourceInitialized': _localDatasource?.isInitialized ?? false,
+      'remoteDatasourceAvailable': _isRemoteAvailable,
+      'dependenciesInitialized': _areDependenciesInitialized,
+      'playbackFeaturesAvailable': _arePlaybackFeaturesAvailable,
+      'readyForWriteOperations': isReadyForWriteOperations,
+    };
+  }
+
+  /// Checks if playback features are available
+  /// Returns false if datasources are not initialized or playback is not possible
+  bool get _arePlaybackFeaturesAvailable {
+    return _areDependenciesInitialized;
+  }
+
+  /// Graceful degradation for playback operations
+  /// Returns appropriate fallback values when playback features are unavailable
+  Future<T> _handlePlaybackUnavailable<T>(
+    Future<T> Function() operation,
+    T fallbackValue,
+  ) async {
+    try {
+      if (!_arePlaybackFeaturesAvailable) {
+        print(
+          'Warning: Playback features unavailable, returning fallback value',
+        );
+        return fallbackValue;
+      }
+      return await operation();
+    } catch (e) {
+      print('Error in playback operation: $e');
+      return fallbackValue;
+    }
+  }
+
+  /// Public method to check if playback features are available
+  /// Useful for UI components to determine if playback functionality should be enabled
+  bool isPlaybackAvailable() {
+    return _arePlaybackFeaturesAvailable;
+  }
+
+  /// Gets detailed playback feature availability status with reasons
+  /// Returns a map with availability status and specific reasons if unavailable
+  Map<String, dynamic> getPlaybackFeatureStatus() {
+    final status = getInitializationStatus();
+
+    if (status['playbackFeaturesAvailable'] as bool) {
+      return {
+        'available': true,
+        'message': 'Playback features are fully available',
+      };
+    } else {
+      // Determine specific reason for unavailability
+      if (status['localDatasourceNull'] as bool) {
+        return {
+          'available': false,
+          'message': 'Playback database not initialized',
+          'reason': 'local_datasource_null',
+          'suggestion':
+              'Please close and reopen the app to initialize the database',
+        };
+      } else if (!(status['localDatasourceInitialized'] as bool)) {
+        return {
+          'available': false,
+          'message': 'Database not ready',
+          'reason': 'database_not_ready',
+          'suggestion': 'Please wait 10-15 seconds and try again',
+        };
+      } else {
+        return {
+          'available': false,
+          'message': 'Playback features temporarily unavailable',
+          'reason': 'unknown',
+          'suggestion': 'Please close and reopen the app, then try again',
+        };
+      }
+    }
+  }
+
+  /// Method to handle playback feature unavailability with user notification
+  /// Shows appropriate UI feedback when playback features are not available
+  Future<T> handlePlaybackFeatureUnavailable<T>(
+    Future<T> Function() operation,
+    T fallbackValue, {
+    bool showWarning = true,
+  }) async {
+    if (!_arePlaybackFeaturesAvailable) {
+      if (showWarning) {
+        print('Warning: Playback features are currently unavailable');
+      }
+      return fallbackValue;
+    }
+
+    try {
+      return await operation();
+    } catch (e) {
+      if (showWarning) {
+        print('Error in playback feature: $e');
+      }
+      return fallbackValue;
+    }
+  }
 
   /// Validates all dependencies are initialized before performing operations
   void _validateDependencies() {
@@ -43,7 +200,7 @@ class PlaybackRepositoryImpl implements PlaybackRepository {
       );
     }
 
-    if (!_localDatasource.isInitialized) {
+    if (_localDatasource == null || !_localDatasource.isInitialized) {
       throw UninitializedDatasourceException(
         'PlaybackRepository: Local datasource not initialized',
       );
@@ -62,7 +219,8 @@ class PlaybackRepositoryImpl implements PlaybackRepository {
         );
         return null;
       }
-      return await _localDatasource.getPlaybackSession(audiobookId);
+
+      return await _localDatasource!.getPlaybackSession(audiobookId);
     } catch (e) {
       print('Error getting playback session: $e');
       return null;
@@ -100,12 +258,15 @@ class PlaybackRepositoryImpl implements PlaybackRepository {
       await savePlaybackSession(updatedSession);
 
       // If authenticated, sync the update
-      if (_remoteDatasource != null) {
+      if (_isRemoteAvailable) {
         try {
-          await _remoteDatasource.uploadPlaybackSession(updatedSession);
+          await _remoteDatasource!.uploadPlaybackSession(updatedSession);
         } catch (e) {
           print('Warning: Could not sync playback position to remote: $e');
           // Continue anyway, local storage is primary
+          throw StorageException(
+            'Failed to sync playback position to remote: ${ErrorHandler.handleException(e)}',
+          );
         }
       }
     } catch (e) {
@@ -122,7 +283,8 @@ class PlaybackRepositoryImpl implements PlaybackRepository {
         );
         return; // Graceful degradation - don't throw, just log
       }
-      await _localDatasource.savePlaybackSession(session);
+
+      await _localDatasource!.savePlaybackSession(session);
     } catch (e) {
       print('Error saving playback session: $e');
       // Graceful degradation - don't throw, just log
@@ -138,7 +300,7 @@ class PlaybackRepositoryImpl implements PlaybackRepository {
         );
         return [];
       }
-      return await _localDatasource.getAllPlaybackSessions();
+      return await _localDatasource!.getAllPlaybackSessions();
     } catch (e) {
       print('Error getting all playback sessions: $e');
       return [];
@@ -199,12 +361,15 @@ class PlaybackRepositoryImpl implements PlaybackRepository {
       await savePlaybackSession(updatedSession);
 
       // If authenticated, sync the update
-      if (_remoteDatasource != null) {
+      if (_isRemoteAvailable) {
         try {
-          await _remoteDatasource.uploadPlaybackSession(updatedSession);
+          await _remoteDatasource!.uploadPlaybackSession(updatedSession);
         } catch (e) {
           print('Warning: Could not sync playback speed to remote: $e');
           // Continue anyway, local storage is primary
+          throw StorageException(
+            'Failed to sync playback speed to remote: ${ErrorHandler.handleException(e)}',
+          );
         }
       }
     } catch (e) {
@@ -248,7 +413,7 @@ class PlaybackRepositoryImpl implements PlaybackRepository {
         );
         return; // Graceful degradation - don't throw, just log
       }
-      await _localDatasource.savePlaybackHistory(history);
+      await _localDatasource!.savePlaybackHistory(history);
     } catch (e) {
       print('Error saving playback history: $e');
       // Graceful degradation - don't throw, just log
@@ -264,7 +429,7 @@ class PlaybackRepositoryImpl implements PlaybackRepository {
         );
         return [];
       }
-      return await _localDatasource.getPlaybackHistory(audiobookId);
+      return await _localDatasource!.getPlaybackHistory(audiobookId);
     } catch (e) {
       print('Error getting playback history: $e');
       return [];
@@ -280,7 +445,7 @@ class PlaybackRepositoryImpl implements PlaybackRepository {
         );
         return [];
       }
-      return await _localDatasource.getAllPlaybackHistory();
+      return await _localDatasource!.getAllPlaybackHistory();
     } catch (e) {
       print('Error getting all playback history: $e');
       return [];
@@ -296,7 +461,7 @@ class PlaybackRepositoryImpl implements PlaybackRepository {
         );
         return; // Graceful degradation - don't throw, just log
       }
-      await _localDatasource.clearPlaybackHistory();
+      await _localDatasource!.clearPlaybackHistory();
     } catch (e) {
       print('Error clearing playback history: $e');
       // Graceful degradation - don't throw, just log
@@ -312,7 +477,7 @@ class PlaybackRepositoryImpl implements PlaybackRepository {
         );
         return null;
       }
-      return await _localDatasource.getLastPlayedPosition(audiobookId);
+      return await _localDatasource!.getLastPlayedPosition(audiobookId);
     } catch (e) {
       print('Error getting last played position: $e');
       return null;
@@ -328,7 +493,7 @@ class PlaybackRepositoryImpl implements PlaybackRepository {
         );
         return Duration.zero;
       }
-      return await _localDatasource.getTotalPlaybackTime(audiobookId);
+      return await _localDatasource!.getTotalPlaybackTime(audiobookId);
     } catch (e) {
       print('Error getting total playback time: $e');
       return Duration.zero;

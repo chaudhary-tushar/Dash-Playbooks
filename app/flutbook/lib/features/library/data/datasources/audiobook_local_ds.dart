@@ -22,17 +22,25 @@ class AudiobookLocalDatasource {
   AudiobookLocalDatasource(
     this._isar, {
     required JsonStorage jsonStorage,
-  }) : _jsonStorage = jsonStorage;
+  }) : _jsonStorage = jsonStorage {
+    _isInitialized = _isar.isOpen;
+  }
 
   final Isar _isar; // Injected via constructor
   final JsonStorage _jsonStorage;
+  bool _isInitialized = false;
+
+  /// Checks if the datasource is properly initialized
+  bool get isInitialized => _isInitialized;
 
   /// Saves audiobooks to Isar database with proper schema and indexing
   /// Handles large files (>10GB) with appropriate memory management
   /// Throws specific exceptions for corrupted files or insufficient storage
   Future<void> saveAudiobooks(List<Audiobook> audiobooks) async {
     try {
-      final audiobookModels = audiobooks.map(AudiobookModel.fromDomain).toList();
+      final audiobookModels = audiobooks
+          .map(AudiobookModel.fromDomain)
+          .toList();
 
       await _isar.writeTxn(() async {
         await _isar.audiobookModels.putAll(audiobookModels);
@@ -45,7 +53,11 @@ class AudiobookLocalDatasource {
   /// Pure Database Query.
   /// It does NOT check file existence (that is the Importer's job).
   /// This ensures the UI is instant.
-  Future<List<Audiobook>> findAudiobooks({String? author, bool? completed, int? limit}) async {
+  Future<List<Audiobook>> findAudiobooks({
+    String? author,
+    bool? completed,
+    int? limit,
+  }) async {
     try {
       var query = _isar.audiobookModels.where();
 
@@ -111,7 +123,9 @@ class AudiobookLocalDatasource {
 
       return audiobookModel != null;
     } catch (e) {
-      debugPrint('Warning: Could not check if audiobook exists by file path: $e');
+      debugPrint(
+        'Warning: Could not check if audiobook exists by file path: $e',
+      );
       return false;
     }
   }
@@ -120,7 +134,10 @@ class AudiobookLocalDatasource {
   Future<void> _removeAudiobookFromDb(String internalId) async {
     try {
       await _isar.writeTxn(() async {
-        await _isar.audiobookModels.filter().internalIdEqualTo(internalId).deleteFirst();
+        await _isar.audiobookModels
+            .filter()
+            .internalIdEqualTo(internalId)
+            .deleteFirst();
       });
     } catch (e) {
       debugPrint('Warning: Could not remove audiobook from database: $e');
@@ -234,7 +251,9 @@ class AudiobookLocalDatasource {
       final metadataExtractor = MetadataExtractionDatasource();
 
       // Scan directory for audio files
-      final audioFiles = await metadataExtractor.scanDirectoryForAudioFiles(directoryPath);
+      final audioFiles = await metadataExtractor.scanDirectoryForAudioFiles(
+        directoryPath,
+      );
 
       // Extract metadata for each file
       final audiobooks = <Audiobook>[];

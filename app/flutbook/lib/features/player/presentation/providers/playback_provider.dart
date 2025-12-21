@@ -116,7 +116,7 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
         ),
         error: (error, stackTrace) => state.copyWith(
           isLoading: false,
-          errorMessage: ErrorHandler.handleException(error),
+          errorMessage: ErrorHandler.handlePlaybackException(error),
         ),
         data: (playbackRepo) {
           _playbackRepo = playbackRepo;
@@ -140,7 +140,7 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
                 },
                 onError: (Object error) {
                   state = state.copyWith(
-                    errorMessage: ErrorHandler.handleException(error),
+                    errorMessage: ErrorHandler.handlePlaybackException(error),
                     isLoading: false,
                   );
                 },
@@ -158,7 +158,7 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
       // Handle initialization errors
       return state.copyWith(
         isLoading: false,
-        errorMessage: ErrorHandler.handleException(e),
+        errorMessage: ErrorHandler.handlePlaybackException(e),
       );
     }
   }
@@ -205,7 +205,7 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
         // Graceful degradation - continue with default values
         state = state.copyWith(
           duration: audiobook.duration,
-          errorMessage: ErrorHandler.handleException(e),
+          errorMessage: ErrorHandler.handlePlaybackException(e),
         );
         return false;
       }
@@ -213,7 +213,7 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
       return true;
     } catch (e) {
       state = state.copyWith(
-        errorMessage: ErrorHandler.handleException(e),
+        errorMessage: ErrorHandler.handlePlaybackException(e),
         isLoading: false,
       );
       return false;
@@ -234,7 +234,7 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
       return true;
     } catch (e) {
       state = state.copyWith(
-        errorMessage: ErrorHandler.handleException(e),
+        errorMessage: ErrorHandler.handlePlaybackException(e),
       );
       return false;
     }
@@ -252,7 +252,7 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
       return true;
     } catch (e) {
       state = state.copyWith(
-        errorMessage: ErrorHandler.handleException(e),
+        errorMessage: ErrorHandler.handlePlaybackException(e),
       );
       return false;
     }
@@ -422,7 +422,7 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
       } catch (e) {
         _retryCount++;
         state = state.copyWith(
-          errorMessage: ErrorHandler.handleException(e),
+          errorMessage: ErrorHandler.handlePlaybackException(e),
         );
 
         if (_retryCount < _maxRetries) {
@@ -474,6 +474,21 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
     } catch (e) {
       state = state.copyWith(errorMessage: e.toString());
       rethrow;
+    }
+  }
+
+  /// Gets detailed playback feature availability status
+  /// Returns a map with availability status and specific reasons if unavailable
+  Map<String, dynamic> getPlaybackFeatureStatus() {
+    try {
+      return _playbackRepo.getPlaybackFeatureStatus();
+    } catch (e) {
+      return {
+        'available': false,
+        'message': 'Could not determine playback status',
+        'reason': 'status_check_failed',
+        'suggestion': 'Please close and reopen the app to fix this issue',
+      };
     }
   }
 }

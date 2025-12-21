@@ -1,4 +1,4 @@
-Playback Refactor Plan
+hrrPlayback Refactor Plan
 
 Overview
 This document outlines a comprehensive plan to refactor the playback system to address the critical error: "Playback local datasource not initialized" that occurs when clicking play buttons on the library screen.
@@ -112,7 +112,7 @@ class PlaybackLocalDatasource {
   PlaybackLocalDatasource(this._isar);
 
   final Isar _isar;
-  
+
   bool get isInitialized => _isar.isOpen;
 
   // Add validation method

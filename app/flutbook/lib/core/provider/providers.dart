@@ -57,6 +57,14 @@ export 'package:flutbook/features/player/data/repositories/playback_repository_i
 final databaseServiceProvider = FutureProvider<DatabaseService>((ref) async {
   final service = DatabaseService();
   await service.init();
+
+  // Validate that database is properly initialized
+  if (!service.isar.isOpen) {
+    throw UninitializedDatasourceException(
+      'Database initialization failed - Isar database not open',
+    );
+  }
+
   return service;
 });
 
@@ -134,10 +142,19 @@ final audiobookLocalDatasourceProvider =
 /// - Queries the database for playback-related data
 ///
 /// **Important**: The DatabaseService must be initialized before this datasource is used.
+/// This provider explicitly depends on databaseServiceProvider to ensure proper initialization order.
 final playbackLocalDatasourceProvider = FutureProvider<PlaybackLocalDatasource>(
   (ref) async {
-    // Wait for database service to be initialized
+    // Explicitly wait for database service to be initialized
+    // This ensures the database is ready before creating the datasource
     final databaseService = await ref.watch(databaseServiceProvider.future);
+
+    // Validate that the database is properly initialized
+    if (!databaseService.isar.isOpen) {
+      throw UninitializedDatasourceException(
+        'Database is not open for playback operations',
+      );
+    }
 
     return PlaybackLocalDatasource(databaseService.isar);
   },
@@ -154,6 +171,19 @@ final playbackLocalDatasourceProvider = FutureProvider<PlaybackLocalDatasource>(
 /// - Handles local and remote synchronization
 /// - Provides graceful degradation when datasources are not available
 /// - Implements retry mechanisms for failed initializations
+/// Provides PlaybackRepositoryImpl for playback operations.
+///
+/// This repository:
+/// - Manages playback sessions and history
+/// - Handles local and remote synchronization
+/// - Provides graceful degradation when datasources are not available
+/// - Implements retry mechanisms for failed initializations
+///
+/// **Initialization Order**:
+/// 1. DatabaseService (must be initialized first)
+/// 2. PlaybackLocalDatasource (depends on DatabaseService)
+/// 3. PlaybackRemoteDatasource (optional, for authenticated users)
+/// 4. PlaybackRepositoryImpl (depends on all above)
 final playbackRepositoryProvider = FutureProvider<PlaybackRepositoryImpl>((
   ref,
 ) async {
@@ -162,16 +192,33 @@ final playbackRepositoryProvider = FutureProvider<PlaybackRepositoryImpl>((
 
   while (retryCount < maxRetries) {
     try {
-      // Ensure database service is initialized first
-      await ref.watch(databaseServiceProvider.future);
+      // Step 1: Ensure database service is initialized first
+      // This is the most critical dependency for all playback operations
+      final databaseService = await ref.watch(databaseServiceProvider.future);
 
-      // Wait for the local datasource to be initialized
+      // Validate database is properly initialized
+      if (!databaseService.isar.isOpen) {
+        throw UninitializedDatasourceException(
+          'Database is not ready for playback repository',
+        );
+      }
+
+      // Step 2: Wait for the local datasource to be initialized
+      // This depends on the database service being ready
       final localDatasource = await ref.watch(
         playbackLocalDatasourceProvider.future,
       );
 
-      // Get remote datasource (may be null for anonymous users)
+      // Step 3: Get remote datasource (may be null for anonymous users)
+      // This doesn't depend on database initialization
       final remoteDatasource = ref.watch(playbackRemoteDatasourceProvider);
+
+      // Validate that local datasource is properly initialized
+      if (!localDatasource.isInitialized) {
+        throw UninitializedDatasourceException(
+          'Playback local datasource is not initialized',
+        );
+      }
 
       return PlaybackRepositoryImpl(
         localDatasource: localDatasource,
@@ -193,6 +240,17 @@ final playbackRepositoryProvider = FutureProvider<PlaybackRepositoryImpl>((
   // This line should never be reached due to the retry logic above
   throw UninitializedDatasourceException(
     'PlaybackRepository initialization failed',
+  );
+});
+
+/// Provides a provider that checks if playback repository is in error state
+final playbackRepositoryErrorProvider = Provider<bool>((ref) {
+  final playbackRepoAsync = ref.watch(playbackRepositoryProvider);
+
+  return playbackRepoAsync.when(
+    data: (_) => false, // No error if data is available
+    loading: () => false, // No error while loading
+    error: (error, stack) => true, // Error state detected
   );
 });
 
@@ -307,63 +365,182 @@ final playbackRemoteDatasourceProvider = Provider<SupabasePlaybackDatasource>((
 
 /// Provides the User Repository implementation.
 /// This depends on the auth datasource and other remote datasources.
-final userRepositoryProvider = Provider<UserRepository>((ref) {
-  // Watch the user profile service future provider
-  final userProfileService = ref.watch(userProfileServiceProvider).value;
+///
+/// **Initialization Order**:
+/// 1. DatabaseService (must be initialized first)
+/// 2. UserProfileService (depends on DatabaseService)
+/// 3. UserRepositoryImpl (depends on UserProfileService)
+final userRepositoryProvider = FutureProvider<UserRepository>((ref) async {
+  const maxRetries = 3;
+  int retryCount = 0;
 
-  if (userProfileService == null) {
-    throw Exception('UserProfileService not initialized');
+  while (retryCount < maxRetries) {
+    try {
+      // Step 1: Ensure database service is initialized first
+      final databaseService = await ref.watch(databaseServiceProvider.future);
+
+      // Validate database is properly initialized
+      if (!databaseService.isar.isOpen) {
+        throw UninitializedDatasourceException(
+          'Database is not ready for user repository',
+        );
+      }
+
+      // Step 2: Wait for the user profile service to be initialized
+      final userProfileService = await ref.watch(
+        userProfileServiceProvider.future,
+      );
+
+      return UserRepositoryImpl(
+        authDatasource: ref.watch(supabaseAuthDatasourceProvider),
+        syncDatasource: ref.watch(libraryRemoteDatasourceProvider),
+        playbackRemoteDatasource: ref.watch(playbackRemoteDatasourceProvider),
+        preferencesDatasource: ref.watch(preferencesDatasourceProvider),
+        userProfileService: userProfileService,
+      );
+    } catch (e) {
+      retryCount++;
+      if (retryCount >= maxRetries) {
+        throw UninitializedDatasourceException(
+          'Failed to initialize UserRepository after $maxRetries attempts: ${ErrorHandler.handleException(e)}',
+        );
+      }
+
+      // Wait before retrying
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+    }
   }
 
-  return UserRepositoryImpl(
-    authDatasource: ref.watch(supabaseAuthDatasourceProvider),
-    syncDatasource: ref.watch(libraryRemoteDatasourceProvider),
-    playbackRemoteDatasource: ref.watch(playbackRemoteDatasourceProvider),
-    preferencesDatasource: ref.watch(preferencesDatasourceProvider),
-    userProfileService: userProfileService,
+  // This line should never be reached due to the retry logic above
+  throw UninitializedDatasourceException(
+    'UserRepository initialization failed',
   );
 });
 
 /// Provides the Login usecase.
 /// This depends on the user repository.
 final loginUsecaseProvider = Provider<LoginUsecase>((ref) {
-  return LoginUsecase(ref.watch(userRepositoryProvider));
+  // Handle the async user repository properly
+  final userRepoAsync = ref.watch(userRepositoryProvider);
+  final userRepository = userRepoAsync.whenOrNull(
+    data: (repo) => repo,
+    loading: () => null,
+    error: (error, stack) => null,
+  );
+
+  if (userRepository == null) {
+    throw UninitializedDatasourceException('User repository not initialized');
+  }
+
+  return LoginUsecase(userRepository);
 });
 
 /// Provides the Anonymous Login usecase.
 /// This depends on the user repository.
 final anonymousLoginUsecaseProvider = Provider<AnonymousLoginUsecase>((ref) {
-  return AnonymousLoginUsecase(ref.watch(userRepositoryProvider));
+  // Handle the async user repository properly
+  final userRepoAsync = ref.watch(userRepositoryProvider);
+  final userRepository = userRepoAsync.whenOrNull(
+    data: (repo) => repo,
+    loading: () => null,
+    error: (error, stack) => null,
+  );
+
+  if (userRepository == null) {
+    throw UninitializedDatasourceException('User repository not initialized');
+  }
+
+  return AnonymousLoginUsecase(userRepository);
 });
 
 /// Provides the Google Sign-in usecase.
 /// This depends on the user repository.
 final googleSigninUsecaseProvider = Provider<GoogleSigninUsecase>((ref) {
-  return GoogleSigninUsecase(ref.watch(userRepositoryProvider));
+  // Handle the async user repository properly
+  final userRepoAsync = ref.watch(userRepositoryProvider);
+  final userRepository = userRepoAsync.whenOrNull(
+    data: (repo) => repo,
+    loading: () => null,
+    error: (error, stack) => null,
+  );
+
+  if (userRepository == null) {
+    throw UninitializedDatasourceException('User repository not initialized');
+  }
+
+  return GoogleSigninUsecase(userRepository);
 });
 
 /// Provides the Logout usecase.
 /// This depends on the user repository.
 final logoutUsecaseProvider = Provider<LogoutUsecase>((ref) {
-  return LogoutUsecase(ref.watch(userRepositoryProvider));
+  // Handle the async user repository properly
+  final userRepoAsync = ref.watch(userRepositoryProvider);
+  final userRepository = userRepoAsync.whenOrNull(
+    data: (repo) => repo,
+    loading: () => null,
+    error: (error, stack) => null,
+  );
+
+  if (userRepository == null) {
+    throw UninitializedDatasourceException('User repository not initialized');
+  }
+
+  return LogoutUsecase(userRepository);
 });
 
 /// Provides the Get Current User usecase.
 /// This depends on the user repository.
 final getCurrentUserUsecaseProvider = Provider<GetCurrentUserUsecase>((ref) {
-  return GetCurrentUserUsecase(ref.watch(userRepositoryProvider));
+  // Handle the async user repository properly
+  final userRepoAsync = ref.watch(userRepositoryProvider);
+  final userRepository = userRepoAsync.whenOrNull(
+    data: (repo) => repo,
+    loading: () => null,
+    error: (error, stack) => null,
+  );
+
+  if (userRepository == null) {
+    throw UninitializedDatasourceException('User repository not initialized');
+  }
+
+  return GetCurrentUserUsecase(userRepository);
 });
 
 /// Provides the Signup usecase.
 /// This depends on the user repository.
 final signupUsecaseProvider = Provider<SignupUsecase>((ref) {
-  return SignupUsecase(ref.watch(userRepositoryProvider));
+  // Handle the async user repository properly
+  final userRepoAsync = ref.watch(userRepositoryProvider);
+  final userRepository = userRepoAsync.whenOrNull(
+    data: (repo) => repo,
+    loading: () => null,
+    error: (error, stack) => null,
+  );
+
+  if (userRepository == null) {
+    throw UninitializedDatasourceException('User repository not initialized');
+  }
+
+  return SignupUsecase(userRepository);
 });
 
 /// Provides the Authenticate usecase (unified login/signup).
 /// This depends on the user repository.
 final authenticateUsecaseProvider = Provider<AuthenticateUsecase>((ref) {
-  return AuthenticateUsecase(ref.watch(userRepositoryProvider));
+  // Handle the async user repository properly
+  final userRepoAsync = ref.watch(userRepositoryProvider);
+  final userRepository = userRepoAsync.whenOrNull(
+    data: (repo) => repo,
+    loading: () => null,
+    error: (error, stack) => null,
+  );
+
+  if (userRepository == null) {
+    throw UninitializedDatasourceException('User repository not initialized');
+  }
+
+  return AuthenticateUsecase(userRepository);
 });
 
 // =============================================================================
@@ -384,18 +561,79 @@ final audiobookGroupingServiceProvider = Provider<AudiobookGroupingService>((
 
 /// Provides the Library Repository implementation.
 /// This handles all library operations and depends on the audiobook datasource.
-final libraryRepositoryProvider = Provider<LibraryRepository>((ref) {
-  // Watch the future provider and get the actual datasource
-  final localDatasource = ref.watch(audiobookLocalDatasourceProvider).value;
-  final remoteDatasource = ref.watch(libraryRemoteDatasourceProvider);
+///
+/// **Initialization Order**:
+/// 1. DatabaseService (must be initialized first)
+/// 2. AudiobookLocalDatasource (depends on DatabaseService)
+/// 3. LibraryRemoteDatasource (optional, for authenticated users)
+/// 4. LibraryRepositoryImpl (depends on all above)
+final libraryRepositoryProvider = FutureProvider<LibraryRepository>((
+  ref,
+) async {
+  const maxRetries = 3;
+  int retryCount = 0;
 
-  if (localDatasource == null) {
-    throw Exception('Audiobook local datasource not initialized');
+  while (retryCount < maxRetries) {
+    try {
+      // Step 1: Ensure database service is initialized first
+      // This is the most critical dependency for all library operations
+      final databaseService = await ref.watch(databaseServiceProvider.future);
+
+      // Validate database is properly initialized
+      if (!databaseService.isar.isOpen) {
+        throw UninitializedDatasourceException(
+          'Database is not ready for library repository',
+        );
+      }
+
+      // Step 2: Wait for the local datasource to be initialized
+      // This depends on the database service being ready
+      final localDatasource = await ref.watch(
+        audiobookLocalDatasourceProvider.future,
+      );
+
+      // Step 3: Get remote datasource (may be null for anonymous users)
+      // This doesn't depend on database initialization
+      final remoteDatasource = ref.watch(libraryRemoteDatasourceProvider);
+
+      // Validate that local datasource is properly initialized
+      if (!localDatasource.isInitialized) {
+        throw UninitializedDatasourceException(
+          'Library local datasource is not initialized',
+        );
+      }
+
+      return LibraryRepositoryImpl(
+        localDatasource: localDatasource,
+        remoteDatasource: remoteDatasource,
+      );
+    } catch (e) {
+      retryCount++;
+      if (retryCount >= maxRetries) {
+        throw UninitializedDatasourceException(
+          'Failed to initialize LibraryRepository after $maxRetries attempts: ${ErrorHandler.handleException(e)}',
+        );
+      }
+
+      // Wait before retrying
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+    }
   }
 
-  return LibraryRepositoryImpl(
-    localDatasource: localDatasource,
-    remoteDatasource: remoteDatasource,
+  // This line should never be reached due to the retry logic above
+  throw UninitializedDatasourceException(
+    'LibraryRepository initialization failed',
+  );
+});
+
+/// Provides a provider that checks if library repository is in error state
+final libraryRepositoryErrorProvider = Provider<bool>((ref) {
+  final libraryRepoAsync = ref.watch(libraryRepositoryProvider);
+
+  return libraryRepoAsync.when(
+    data: (_) => false, // No error if data is available
+    loading: () => false, // No error while loading
+    error: (error, stack) => true, // Error state detected
   );
 });
 

@@ -205,4 +205,28 @@ class UserProfileService {
     await _datasource.saveUserProfile(updatedProfile);
     return true;
   }
+
+  /// Ensures only one user profile exists in the database
+  ///
+  /// This method checks for multiple user profiles and keeps only the most recent one
+  /// Returns true if duplicates were removed
+  Future<bool> ensureSingleUserProfile() async {
+    final allProfiles = await _datasource.getAllUserProfiles();
+
+    if (allProfiles.length <= 1) {
+      // No duplicates to handle
+      return false;
+    }
+
+    // Keep the most recently added profile (highest ID) and remove others
+    allProfiles.sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0)); // Sort by ID descending
+    final mostRecentProfile = allProfiles.first;
+
+    // Remove all other profiles except the most recent one
+    for (int i = 1; i < allProfiles.length; i++) {
+      await _datasource.deleteUserProfile(allProfiles[i].internalId ?? '');
+    }
+
+    return true;
+  }
 }
