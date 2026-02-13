@@ -1,5 +1,6 @@
 import 'package:flutbook/core/provider/providers.dart';
 import 'package:flutbook/features/auth/data/services/session_manager.dart';
+import 'package:flutbook/features/auth/data/services/user_profile_service.dart';
 import 'package:flutbook/features/auth/domain/entities/user_profile.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -63,10 +64,13 @@ class AuthNotifier extends Notifier<AuthState> {
     });
 
     // Check current user after provider initialization
+    // Using Future.microtask to defer the check until after the provider is fully set up
     Future.microtask(() async {
       try {
         await checkCurrentUser();
-      } catch (e) {
+      } catch (e, stackTrace) {
+        print('Error in AuthNotifier build checkCurrentUser: $e');
+        print('Stack trace: $stackTrace');
         // Handle initialization errors gracefully
         // If session has expired, set to a non-authenticated state
         if (ref.mounted) {
@@ -82,71 +86,85 @@ class AuthNotifier extends Notifier<AuthState> {
 
   // Check current user on initialization
   Future<void> checkCurrentUser() async {
-    // Check if session has expired
-    final isExpired = await _sessionManager.isSessionExpired();
-    if (isExpired) {
-      // Session has expired, clear any existing session data
-      await _sessionManager.clearSession();
-      if (ref.mounted) {
-        state = const AuthState();
-      }
-      return;
-    }
-
-    // If we're in development bypass mode, skip checks
-    if (state.isAuthenticated &&
-        state.userProfile?.authMethod == 'development') {
-      return; // Already in dev mode, don't try to re-check
-    }
-
     try {
-      // First, try to get user from ISAR to see if we have a local user
-      final userProfileService = await ref.read(userProfileServiceProvider.future);
-      if (userProfileService != null) {
-        final localUser = await userProfileService.getCurrentUserProfile();
-        if (localUser != null) {
-          // We have a user in ISAR, now verify with Supabase
-          final usecase = ref.read(getCurrentUserUsecaseProvider);
-          final user = await usecase();
+      // Check if session has expired
+      final isExpired = await _sessionManager.isSessionExpired();
+      if (isExpired) {
+        // Session has expired, clear any existing session data
+        await _sessionManager.clearSession();
+        if (ref.mounted) {
+          state = const AuthState();
+        }
+        return;
+      }
 
-          if (user != null && user.id == localUser.id) {
-            // User exists in both ISAR and Supabase, authentication is valid
-            if (ref.mounted) {
-              state = AuthState(
-                isAuthenticated: true,
-                userProfile: user,
-              );
-            }
-          } else {
-            // User doesn't exist in Supabase anymore, clear local data
-            await userProfileService.deleteAllUserProfiles();
-            if (ref.mounted) {
-              state = const AuthState();
-            }
+      // If we're in development bypass mode, skip checks
+      if (state.isAuthenticated &&
+          state.userProfile?.authMethod == 'development') {
+        return; // Already in dev mode, don't try to re-check
+      }
+
+      // First, try to get user from ISAR to see if we have a local user
+      // Use a try-catch around the async provider access
+      final userProfileService = await _getUserProfileService();
+      final localUser = await userProfileService.getCurrentUserProfile();
+
+      if (localUser != null) {
+        // We have a user in ISAR, now verify with Supabase
+        final user = await _getCurrentUser();
+
+        if (user != null && user.id == localUser.id) {
+          // User exists in both ISAR and Supabase, authentication is valid
+          if (ref.mounted) {
+            state = AuthState(
+              isAuthenticated: true,
+              userProfile: user,
+            );
           }
         } else {
-          // No user in ISAR, set to non-authenticated
+          // User doesn't exist in Supabase anymore, clear local data
+          await userProfileService.deleteAllUserProfiles();
           if (ref.mounted) {
             state = const AuthState();
           }
         }
       } else {
-        // Fallback to the original method if service is not available
-        final usecase = ref.read(getCurrentUserUsecaseProvider);
-        final user = await usecase();
+        // No user in ISAR, set to non-authenticated
         if (ref.mounted) {
-          state = AuthState(
-            isAuthenticated: user != null,
-            userProfile: user,
-          );
+          state = const AuthState();
         }
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      // Log the error with stack trace for debugging
+      print('Error in checkCurrentUser: $e');
+      print('Stack trace: $stackTrace');
+
       if (ref.mounted) {
         // For development purposes, don't set the error state permanently
         // as it will block the development bypass
         state = const AuthState();
       }
+    }
+  }
+
+  // Helper method to safely get user profile service with error handling
+  Future<UserProfileService> _getUserProfileService() async {
+    try {
+      return await ref.read(userProfileServiceProvider.future);
+    } catch (e) {
+      print('Error getting user profile service: $e');
+      rethrow;
+    }
+  }
+
+  // Helper method to safely get current user with error handling
+  Future<UserProfile?> _getCurrentUser() async {
+    try {
+      final usecase = ref.read(getCurrentUserUsecaseProvider);
+      return await usecase();
+    } catch (e) {
+      print('Error getting current user: $e');
+      rethrow;
     }
   }
 

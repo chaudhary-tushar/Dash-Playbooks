@@ -274,7 +274,7 @@ class SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _selectLibraryDirectory() async {
     try {
-      final selectedDirectory = await FilePicker.platform.getDirectoryPath();
+      final selectedDirectory = await FilePicker.getDirectoryPath();
 
       if (selectedDirectory != null) {
         setState(() {

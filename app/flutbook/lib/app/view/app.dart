@@ -30,6 +30,7 @@ class App extends ConsumerWidget {
 
     // If still loading, show a loading screen
     if (authState.isLoading) {
+      print('here in isLoading ${NavigationService.navigatorKey.currentState}');
       return MaterialApp(
         title: 'Flutbook',
         theme: AppTheme.lightTheme,
@@ -50,6 +51,9 @@ class App extends ConsumerWidget {
       );
     }
 
+    // Pre-read the auth state to avoid using ref in onGenerateRoute
+    final currentAuthState = ref.read(authProvider);
+
     return MaterialApp(
       title: 'Flutbook',
       theme: AppTheme.lightTheme,
@@ -65,11 +69,14 @@ class App extends ConsumerWidget {
       navigatorKey: NavigationService.navigatorKey,
       initialRoute: '/',
       onGenerateRoute: (RouteSettings settings) {
-        // Get current auth state each time a route is generated
-        final currentAuthState = ref.read(authProvider);
-
         // Check if route can be activated using AuthGuard
-        final canActivate = AuthGuard.canActivate(settings.name ?? '/', currentAuthState);
+        final canActivate = AuthGuard.canActivate(
+          settings.name ?? '/',
+          currentAuthState,
+        );
+        print(currentAuthState);
+
+        print(canActivate);
 
         // If cannot activate and not already on auth page, redirect to auth
         // But allow development bypass for specific routes
@@ -80,6 +87,10 @@ class App extends ConsumerWidget {
         }
 
         // Existing route generation logic
+        print(settings.name);
+        print(
+          'here authstate true Loading ${NavigationService.navigatorKey.currentState}',
+        );
         switch (settings.name) {
           case '/':
             return MaterialPageRoute(builder: (_) => const SplashScreen());
@@ -97,18 +108,27 @@ class App extends ConsumerWidget {
             );
           case '/playback':
             // Handle both direct Audiobook object and Map<String, AudiobookModel> format
-            if (settings.arguments is Audiobook) {
-              final audiobook = settings.arguments! as Audiobook;
+            if (settings.arguments != null && settings.arguments is Audiobook) {
+              final audiobook = settings.arguments as Audiobook;
               return MaterialPageRoute(
                 builder: (_) => PlaybackScreen(audiobook: audiobook),
               );
-            } else if (settings.arguments is Map<String, AudiobookModel>) {
-              final args = settings.arguments! as Map<String, AudiobookModel>;
-              return MaterialPageRoute(
-                builder: (_) => PlaybackScreen(
-                  audiobook: args['audiobook']!.toDomain(),
-                ),
-              );
+            } else if (settings.arguments != null &&
+                settings.arguments is Map<String, AudiobookModel>) {
+              final args = settings.arguments as Map<String, AudiobookModel>;
+              final audiobookData = args['audiobook'];
+              if (audiobookData != null) {
+                return MaterialPageRoute(
+                  builder: (_) => PlaybackScreen(
+                    audiobook: audiobookData.toDomain(),
+                  ),
+                );
+              } else {
+                // Handle case where 'audiobook' key is missing or null
+                throw Exception(
+                  'Missing audiobook data in arguments for /playback route',
+                );
+              }
             } else {
               // Fallback or error handling
               throw Exception('Invalid arguments type for /playback route');

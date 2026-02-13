@@ -270,11 +270,17 @@ class UserRepositoryImpl implements UserRepository {
       // Use the auth result from the datasource (which has the user field)
       final datasourceResult = await _authDatasource.anonymousSignIn();
 
-      // If successful, save user profile to ISAR database
-      if (datasourceResult.success && datasourceResult.user != null) {
-        await _userProfileService.updateUserProfileDuringAuth(
-          datasourceResult.user!,
-        );
+      // If successful and user is not null, save user profile to ISAR database
+      if (datasourceResult.success) {
+        if (datasourceResult.user != null) {
+          await _userProfileService.updateUserProfileDuringAuth(
+            datasourceResult.user!,
+          );
+        } else {
+          // Handle the case where anonymous sign-in succeeded but user is null
+          // This can happen with SupabaseAuthDatasource.anonymousSignIn()
+          // We'll still return success but won't update the user profile
+        }
       }
 
       // Return a repository-compatible AuthResult (without user field)

@@ -31,9 +31,13 @@ import 'package:flutbook/features/library/data/datasources/remote/supabase_libra
 import 'package:flutbook/features/library/data/repositories/library_repository_impl.dart';
 import 'package:flutbook/features/library/domain/repositories/library_repository.dart';
 import 'package:flutbook/features/library/domain/services/audiobook_grouping_service.dart';
+import 'package:flutbook/features/player/data/datasources/bookmark_local_ds.dart';
 import 'package:flutbook/features/player/data/datasources/playback_local_ds.dart';
 import 'package:flutbook/features/player/data/datasources/remote/supabase_playback_sync.dart';
+import 'package:flutbook/features/player/data/repositories/bookmark_repository_impl.dart';
 import 'package:flutbook/features/player/data/repositories/playback_repository_impl.dart';
+import 'package:flutbook/features/player/domain/usecases/create_bookmark_usecase.dart';
+import 'package:flutbook/features/player/domain/usecases/get_bookmarks_usecase.dart';
 import 'package:flutbook/features/settings/data/datasources/preferences_datasource.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -161,6 +165,35 @@ final playbackLocalDatasourceProvider = FutureProvider<PlaybackLocalDatasource>(
 );
 
 // =============================================================================
+// BOOKMARK LOCAL DATASOURCE PROVIDER
+// =============================================================================
+
+/// Provides BookmarkLocalDatasource for database operations.
+///
+/// This datasource:
+/// - Stores and retrieves bookmarks from Isar
+/// - Queries the database for bookmark-related data
+///
+/// **Important**: The DatabaseService must be initialized before this datasource is used.
+/// This provider explicitly depends on databaseServiceProvider to ensure proper initialization order.
+final bookmarkLocalDatasourceProvider = FutureProvider<BookmarkLocalDatasource>(
+  (ref) async {
+    // Explicitly wait for database service to be initialized
+    // This ensures the database is ready before creating the datasource
+    final databaseService = await ref.watch(databaseServiceProvider.future);
+
+    // Validate that the database is properly initialized
+    if (!databaseService.isar.isOpen) {
+      throw UninitializedDatasourceException(
+        'Database is not open for bookmark operations',
+      );
+    }
+
+    return BookmarkLocalDatasource(databaseService.isar);
+  },
+);
+
+// =============================================================================
 // PLAYBACK REPOSITORY PROVIDER
 // =============================================================================
 
@@ -240,6 +273,76 @@ final playbackRepositoryProvider = FutureProvider<PlaybackRepositoryImpl>((
   // This line should never be reached due to the retry logic above
   throw UninitializedDatasourceException(
     'PlaybackRepository initialization failed',
+  );
+});
+
+// =============================================================================
+// BOOKMARK REPOSITORY PROVIDER
+// =============================================================================
+
+/// Provides BookmarkRepositoryImpl for bookmark operations.
+///
+/// This repository:
+/// - Manages bookmark creation, retrieval, and deletion
+/// - Handles local storage of bookmarks
+/// - Provides graceful degradation when datasources are not available
+/// - Implements retry mechanisms for failed initializations
+///
+/// **Initialization Order**:
+/// 1. DatabaseService (must be initialized first)
+/// 2. BookmarkLocalDatasource (depends on DatabaseService)
+/// 3. BookmarkRepositoryImpl (depends on all above)
+final bookmarkRepositoryProvider = FutureProvider<BookmarkRepositoryImpl>((
+  ref,
+) async {
+  const maxRetries = 3;
+  int retryCount = 0;
+
+  while (retryCount < maxRetries) {
+    try {
+      // Step 1: Ensure database service is initialized first
+      // This is the most critical dependency for all bookmark operations
+      final databaseService = await ref.watch(databaseServiceProvider.future);
+
+      // Validate database is properly initialized
+      if (!databaseService.isar.isOpen) {
+        throw UninitializedDatasourceException(
+          'Database is not ready for bookmark repository',
+        );
+      }
+
+      // Step 2: Wait for the local datasource to be initialized
+      // This depends on the database service being ready
+      final localDatasource = await ref.watch(
+        bookmarkLocalDatasourceProvider.future,
+      );
+
+      // Validate that local datasource is properly initialized
+      if (!localDatasource.isInitialized) {
+        throw UninitializedDatasourceException(
+          'Bookmark local datasource is not initialized',
+        );
+      }
+
+      return BookmarkRepositoryImpl(
+        localDatasource: localDatasource,
+      );
+    } catch (e) {
+      retryCount++;
+      if (retryCount >= maxRetries) {
+        throw UninitializedDatasourceException(
+          'Failed to initialize BookmarkRepository after $maxRetries attempts: ${ErrorHandler.handleException(e)}',
+        );
+      }
+
+      // Wait before retrying
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+    }
+  }
+
+  // This line should never be reached due to the retry logic above
+  throw UninitializedDatasourceException(
+    'BookmarkRepository initialization failed',
   );
 });
 
@@ -665,4 +768,48 @@ final scanLibraryUseCaseProvider = FutureProvider<ScanLibraryUseCaseImpl>((
     extractor: extractor,
     localDatasource: localDatasource,
   );
+});
+
+// =============================================================================
+// BOOKMARK USE CASE PROVIDERS
+// =============================================================================
+
+/// Provides CreateBookmarkUsecase for creating bookmarks.
+/// This depends on the bookmark repository.
+final createBookmarkUsecaseProvider = Provider<CreateBookmarkUsecase>((ref) {
+  // Handle the async bookmark repository properly
+  final bookmarkRepoAsync = ref.watch(bookmarkRepositoryProvider);
+  final bookmarkRepository = bookmarkRepoAsync.whenOrNull(
+    data: (repo) => repo,
+    loading: () => null,
+    error: (error, stack) => null,
+  );
+
+  if (bookmarkRepository == null) {
+    throw UninitializedDatasourceException(
+      'Bookmark repository not initialized',
+    );
+  }
+
+  return CreateBookmarkUsecase(bookmarkRepository);
+});
+
+/// Provides GetBookmarksUsecase for retrieving bookmarks.
+/// This depends on the bookmark repository.
+final getBookmarksUsecaseProvider = Provider<GetBookmarksUsecase>((ref) {
+  // Handle the async bookmark repository properly
+  final bookmarkRepoAsync = ref.watch(bookmarkRepositoryProvider);
+  final bookmarkRepository = bookmarkRepoAsync.whenOrNull(
+    data: (repo) => repo,
+    loading: () => null,
+    error: (error, stack) => null,
+  );
+
+  if (bookmarkRepository == null) {
+    throw UninitializedDatasourceException(
+      'Bookmark repository not initialized',
+    );
+  }
+
+  return GetBookmarksUsecase(bookmarkRepository);
 });

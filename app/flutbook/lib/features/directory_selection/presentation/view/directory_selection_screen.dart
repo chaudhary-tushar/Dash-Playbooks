@@ -48,7 +48,7 @@ class _DirectorySelectionScreenState
 
   Future<void> _selectDirectory() async {
     try {
-      final selectedDirectory = await FilePicker.platform.getDirectoryPath();
+      final selectedDirectory = await FilePicker.getDirectoryPath();
 
       if (selectedDirectory != null) {
         setState(() {

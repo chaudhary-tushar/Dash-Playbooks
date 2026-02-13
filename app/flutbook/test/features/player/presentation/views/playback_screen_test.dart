@@ -29,9 +29,7 @@ class MockPlaybackNotifier extends Notifier<PlaybackState> {
 
   Future<bool> setCurrentAudiobook(Audiobook audiobook) async {
     // Ensure state is initialized
-    if (_state == null) {
-      _state = PlaybackState.initial();
-    }
+    _state ??= PlaybackState.initial();
 
     _currentAudiobook = audiobook;
     _state = _state!.copyWith(
@@ -44,54 +42,42 @@ class MockPlaybackNotifier extends Notifier<PlaybackState> {
 
   void setState(PlaybackState newState) {
     // Ensure state is initialized
-    if (_state == null) {
-      _state = PlaybackState.initial();
-    }
+    _state ??= PlaybackState.initial();
 
     _state = newState;
   }
 
   void triggerPlay() {
     // Ensure state is initialized
-    if (_state == null) {
-      _state = PlaybackState.initial();
-    }
+    _state ??= PlaybackState.initial();
 
     _state = _state!.copyWith(isPlaying: true);
   }
 
   void triggerPause() {
     // Ensure state is initialized
-    if (_state == null) {
-      _state = PlaybackState.initial();
-    }
+    _state ??= PlaybackState.initial();
 
     _state = _state!.copyWith(isPlaying: false);
   }
 
   void setPosition(Duration position) {
     // Ensure state is initialized
-    if (_state == null) {
-      _state = PlaybackState.initial();
-    }
+    _state ??= PlaybackState.initial();
 
     _state = _state!.copyWith(currentPosition: position);
   }
 
   void setPlaybackSpeed(double speed) {
     // Ensure state is initialized
-    if (_state == null) {
-      _state = PlaybackState.initial();
-    }
+    _state ??= PlaybackState.initial();
 
     _state = _state!.copyWith(playbackSpeed: speed);
   }
 
   void setSleepTimerActive(bool active, [Duration? duration]) {
     // Ensure state is initialized
-    if (_state == null) {
-      _state = PlaybackState.initial();
-    }
+    _state ??= PlaybackState.initial();
 
     _state = _state!.copyWith(
       sleepTimerActive: active,
@@ -101,9 +87,7 @@ class MockPlaybackNotifier extends Notifier<PlaybackState> {
 
   Future<bool> play() async {
     // Ensure state is initialized
-    if (_state == null) {
-      _state = PlaybackState.initial();
-    }
+    _state ??= PlaybackState.initial();
 
     if (_shouldThrowError) {
       return false;
@@ -114,9 +98,7 @@ class MockPlaybackNotifier extends Notifier<PlaybackState> {
 
   Future<bool> pause() async {
     // Ensure state is initialized
-    if (_state == null) {
-      _state = PlaybackState.initial();
-    }
+    _state ??= PlaybackState.initial();
 
     if (_shouldThrowError) {
       return false;
@@ -127,9 +109,7 @@ class MockPlaybackNotifier extends Notifier<PlaybackState> {
 
   Future<void> seekTo(Duration position) async {
     // Ensure state is initialized
-    if (_state == null) {
-      _state = PlaybackState.initial();
-    }
+    _state ??= PlaybackState.initial();
 
     if (_shouldThrowError) {
       throw Exception('Seek error');
@@ -139,9 +119,7 @@ class MockPlaybackNotifier extends Notifier<PlaybackState> {
 
   Future<void> setSpeed(double speed) async {
     // Ensure state is initialized
-    if (_state == null) {
-      _state = PlaybackState.initial();
-    }
+    _state ??= PlaybackState.initial();
 
     if (_shouldThrowError) {
       throw Exception('Speed error');
@@ -151,9 +129,7 @@ class MockPlaybackNotifier extends Notifier<PlaybackState> {
 
   void setSleepTimer(Duration duration, {bool endOfChapter = false}) {
     // Ensure state is initialized
-    if (_state == null) {
-      _state = PlaybackState.initial();
-    }
+    _state ??= PlaybackState.initial();
 
     if (_shouldThrowError) {
       throw Exception('Sleep timer error');
@@ -163,9 +139,7 @@ class MockPlaybackNotifier extends Notifier<PlaybackState> {
 
   void cancelSleepTimer() {
     // Ensure state is initialized
-    if (_state == null) {
-      _state = PlaybackState.initial();
-    }
+    _state ??= PlaybackState.initial();
 
     if (_shouldThrowError) {
       throw Exception('Cancel sleep timer error');
@@ -175,9 +149,7 @@ class MockPlaybackNotifier extends Notifier<PlaybackState> {
 
   Future<void> skipForward(Duration interval) async {
     // Ensure state is initialized
-    if (_state == null) {
-      _state = PlaybackState.initial();
-    }
+    _state ??= PlaybackState.initial();
 
     if (_shouldThrowError) {
       throw Exception('Skip forward error');
@@ -190,9 +162,7 @@ class MockPlaybackNotifier extends Notifier<PlaybackState> {
 
   Future<void> skipBackward(Duration interval) async {
     // Ensure state is initialized
-    if (_state == null) {
-      _state = PlaybackState.initial();
-    }
+    _state ??= PlaybackState.initial();
 
     if (_shouldThrowError) {
       throw Exception('Skip backward error');
@@ -205,9 +175,7 @@ class MockPlaybackNotifier extends Notifier<PlaybackState> {
 
   Future<PlaybackSession?> getCurrentPlaybackSession() async {
     // Ensure state is initialized
-    if (_state == null) {
-      _state = PlaybackState.initial();
-    }
+    _state ??= PlaybackState.initial();
 
     if (_shouldThrowError) {
       throw Exception('Get session error');

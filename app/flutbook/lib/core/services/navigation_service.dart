@@ -6,22 +6,51 @@ class NavigationService {
   NavigationService._internal();
   static final NavigationService _instance = NavigationService._internal();
 
-  static GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  static final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 
-  static BuildContext? get context => navigatorKey.currentContext;
+  static GlobalKey<NavigatorState> get navigatorKey => _navigatorKey;
+
+  static BuildContext? get context => _navigatorKey.currentContext;
 
   static Future<void> navigateToLibrary() async {
-    if (context != null) {
-      await navigatorKey.currentState?.pushReplacementNamed('/directory');
-    }
+    await _waitForNavigatorReady(() async {
+      final currentState = _navigatorKey.currentState;
+      if (currentState != null) {
+        await currentState.pushReplacementNamed('/directory');
+      }
+    });
   }
 
   static Future<void> navigateTo(String routeName, {Object? arguments}) async {
-    if (context != null) {
-      await navigatorKey.currentState?.pushReplacementNamed(
-        routeName,
-        arguments: arguments,
-      );
+    await _waitForNavigatorReady(() async {
+      final currentState = _navigatorKey.currentState;
+      if (currentState != null) {
+        await currentState.pushReplacementNamed(
+          routeName,
+          arguments: arguments,
+        );
+      }
+    });
+  }
+
+  // Helper method to wait for the navigator to be ready
+  static Future<void> _waitForNavigatorReady(Future<void> Function() navigationAction) async {
+    int attempts = 0;
+    const maxAttempts = 10;
+    const delay = Duration(milliseconds: 100);
+
+    while (attempts < maxAttempts) {
+      final currentState = _navigatorKey.currentState;
+      if (currentState != null) {
+        await navigationAction();
+        return;
+      }
+
+      await Future.delayed(delay);
+      attempts++;
     }
+
+    // If navigator is still not ready after max attempts, log an error
+    debugPrint('Warning: Navigator was not ready after ${maxAttempts * 100}ms');
   }
 }

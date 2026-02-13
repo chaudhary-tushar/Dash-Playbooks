@@ -220,7 +220,7 @@ class UserProfileService {
 
     // Keep the most recently added profile (highest ID) and remove others
     allProfiles.sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0)); // Sort by ID descending
-    final mostRecentProfile = allProfiles.first;
+    final _ = allProfiles.first;
 
     // Remove all other profiles except the most recent one
     for (int i = 1; i < allProfiles.length; i++) {

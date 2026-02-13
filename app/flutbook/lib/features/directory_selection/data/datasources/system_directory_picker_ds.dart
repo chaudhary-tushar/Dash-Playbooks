@@ -39,7 +39,7 @@ class SystemDirectoryPickerDatasource {
   /// Web-specific implementation using file_picker for audio files
   Future<String?> _pickAudioFilesForWeb() async {
     try {
-      final result = await FilePicker.platform.pickFiles(
+      final FilePickerResult? result = await FilePicker.pickFiles(
         type: FileType.audio,
         allowMultiple: true,
         dialogTitle: 'Select audio files',

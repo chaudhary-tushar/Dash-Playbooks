@@ -48,67 +48,105 @@ Future<void> bootstrap(
   String? env,
 }) async {
   // Ensure WidgetsFlutterBinding is initialized before using any Flutter services
-  WidgetsFlutterBinding.ensureInitialized();
+  try {
+    WidgetsFlutterBinding.ensureInitialized();
+    log('WidgetsFlutterBinding initialized successfully');
+  } catch (e) {
+    log('ERROR: Failed to initialize WidgetsFlutterBinding: $e', level: 1000);
+    rethrow;
+  }
 
   // Handle Flutter errors globally
   FlutterError.onError = (details) {
-    log(details.exceptionAsString(), stackTrace: details.stack);
+    log(
+      'Flutter Error: ${details.exception}',
+      stackTrace: details.stack,
+    );
   };
+  log('Global error handler configured');
 
   // Create a ProviderContainer with custom observer for state management logging
-  final container = ProviderContainer(
-    observers: [const RiverpodObserver()],
-  );
-
-  // Initialize the database service early - this must happen before any datasource tries to use Isar
   try {
-    await container.read(databaseServiceProvider.future);
-  } catch (e) {
-    print('Warning: Database initialization failed in bootstrap: $e');
-  }
+    final container = ProviderContainer(
+      observers: [const RiverpodObserver()],
+    );
+    log('ProviderContainer created successfully');
 
-  // Initialize application configuration
-  try {
-    final configProvider = ConfigProvider();
-    AppEnvironment environment;
+    // Initialize the database service early - this must happen before any datasource tries to use Isar
+    try {
+      final databaseFuture = container.read(databaseServiceProvider.future);
 
-    // Use provided environment or detect based on build mode
-    if (env != null) {
-      switch (env.toLowerCase()) {
-        case 'development':
-          environment = AppEnvironment.development;
-        case 'staging':
-          environment = AppEnvironment.staging;
-        case 'production':
-          environment = AppEnvironment.production;
-        default:
-          environment = AppEnvironment.development; // default fallback
-          print('Warning: Unknown environment "$env", defaulting to development');
-      }
-    } else if (kDebugMode) {
-      // For development builds
-      environment = AppEnvironment.development;
-    } else {
-      // For release builds, detect environment from build flavor
-      // This can be enhanced to detect based on build-specific flags
-      environment = const String.fromEnvironment('FLAVOR') == 'staging'
-          ? AppEnvironment.staging
-          : AppEnvironment.production;
+      await databaseFuture;
+    } catch (e, stackTrace) {
+      log(
+        'ERROR: Database initialization failed: $e',
+        level: 1000,
+        stackTrace: stackTrace,
+      );
+      // Continue execution but log the error
     }
-    await configProvider.initialize(environment: environment);
-    print('App configuration loaded successfully');
-    print(configProvider.config.getSummary());
-  } catch (e) {
-    print('Warning: Configuration initialization failed in bootstrap: $e');
-    print('Continuing app startup with default configuration...');
-  }
 
-  // Add cross-flavor configuration here
-  // Note: Supabase initialization will be handled by datasources when needed
-  runApp(
-    UncontrolledProviderScope(
-      container: container,
-      child: await builder(),
-    ),
-  );
+    // Initialize application configuration
+    try {
+      final configProvider = ConfigProvider();
+
+      AppEnvironment environment;
+
+      // Use provided environment or detect based on build mode
+      if (env != null) {
+        switch (env.toLowerCase()) {
+          case 'development':
+            environment = AppEnvironment.development;
+          case 'staging':
+            environment = AppEnvironment.staging;
+          case 'production':
+            environment = AppEnvironment.production;
+          default:
+            environment = AppEnvironment.development; // default fallback
+            print(
+              'Warning: Unknown environment "$env", defaulting to development',
+            );
+        }
+      } else if (kDebugMode) {
+        // For development builds
+        environment = AppEnvironment.development;
+      } else {
+        // For release builds, detect environment from build flavor
+        const flavor = String.fromEnvironment('FLAVOR');
+
+        environment = flavor == 'staging'
+            ? AppEnvironment.staging
+            : AppEnvironment.production;
+      }
+
+      log('Initializing config provider with environment: ${environment.name}');
+      await configProvider.initialize(environment: environment);
+
+      log('App configuration loaded successfully');
+      print('App configuration loaded successfully');
+      print(configProvider.config.getSummary());
+    } catch (e, stackTrace) {
+      log(
+        'ERROR: Configuration initialization failed: $e',
+        level: 1000,
+        stackTrace: stackTrace,
+      );
+      print('Warning: Configuration initialization failed in bootstrap: $e');
+      print('Continuing app startup with default configuration...');
+      // Continue with default configuration
+    }
+
+    // Add cross-flavor configuration here
+    // Note: Supabase initialization will be handled by datasources when needed
+    runApp(
+      UncontrolledProviderScope(
+        container: container,
+        child: await builder(),
+      ),
+    );
+    log('Application started successfully');
+  } catch (e, stackTrace) {
+    log('CRITICAL ERROR in bootstrap: $e', level: 1000, stackTrace: stackTrace);
+    rethrow;
+  }
 }
