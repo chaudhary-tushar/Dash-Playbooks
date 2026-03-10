@@ -1,10 +1,8 @@
 // lib/features/player/data/datasources/audio_service_handler.dart
 import 'dart:async';
 import 'dart:io';
-
 import 'package:audio_service/audio_service.dart';
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
-import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 
 // Define a simple PlaybackState class for internal use that matches the expected structure
@@ -34,6 +32,8 @@ class CustomPlaybackState {
 
 class AudioServiceHandler extends BaseAudioHandler {
   AudioServiceHandler() {
+    print('[AudioServiceHandler] Constructor called');
+    _initializePlayer();
     _setupPlayer();
     _setupAudioFocus();
     _notifyAudioHandlerAboutPlaybackState();
@@ -41,11 +41,10 @@ class AudioServiceHandler extends BaseAudioHandler {
 
   static const _skipInterval = Duration(seconds: 30);
 
-  final AudioPlayer _player = AudioPlayer();
+  late final AudioPlayer _player;
   final _playbackStateStream = StreamController<CustomPlaybackState>();
 
-  Stream<CustomPlaybackState> get playbackStateStream =>
-      _playbackStateStream.stream;
+  Stream<CustomPlaybackState> get playbackStateStream => _playbackStateStream.stream;
 
   // Current audiobook being played
   Audiobook? _currentAudiobook;
@@ -56,65 +55,84 @@ class AudioServiceHandler extends BaseAudioHandler {
 
   // Audio focus management
   bool _hasAudioFocus = false;
-  final bool _isPlayPauseActionInProgress = false;
+
+  // Initialize the appropriate audio player based on platform
+  void _initializePlayer() {
+    // Create the AudioPlayer with appropriate settings
+    _player = AudioPlayer(
+      handleInterruptions: true,
+    );
+    // Ensure volume is at maximum
+    _player.setVolume(1.0);
+  }
 
   @override
   Future<void> play() async {
-    // Handle rapid taps - debounce play/pause actions
-    if (_isPlayPauseActionInProgress) {
-      return; // Ignore rapid taps
+    print(
+      '[AudioServiceHandler] play() called. Current audiobook: ${_currentAudiobook?.id}, player.playing: ${_player.playing}',
+    );
+
+    if (_currentAudiobook == null) {
+      print('[AudioServiceHandler] play() aborted: no audiobook set');
+      throw StateError('Cannot play: no audiobook has been set');
     }
 
-    // Use debounce for play action
-    await Future(() async {
-      // Request audio focus before playing
-      await _requestAudioFocus();
+    // Request audio focus before playing
+    await _requestAudioFocus();
+    print('[AudioServiceHandler] Audio focus: $_hasAudioFocus');
 
-      if (_hasAudioFocus) {
+    if (_hasAudioFocus) {
+      // Log player state before play
+      print(
+        '[AudioServiceHandler] Player state before play: processingState=${_player.processingState}, playing=${_player.playing}',
+      );
+      try {
+        print('[AudioServiceHandler] Calling _player.play()');
         await _player.play();
+        print('[AudioServiceHandler] _player.play() completed successfully');
+        // Log player state after play
+        print(
+          '[AudioServiceHandler] Player state after play: processingState=${_player.processingState}, playing=${_player.playing}',
+        );
         _updatePlaybackState(
           CustomPlaybackState(
             isPlaying: true,
             currentPosition: _player.position,
             playbackSpeed: _player.speed,
             sleepTimerActive: _sleepTimerActive,
-            audiobookId: _currentAudiobook?.id ?? '',
+            audiobookId: _currentAudiobook!.id,
             lastPlayedAt: DateTime.now(),
             bufferedPosition: _player.bufferedPosition,
           ),
         );
-      } else {
-        // Handle audio focus conflict
-        _handleAudioFocusConflict();
+      } catch (e) {
+        print('[AudioServiceHandler] Error during play: $e');
+        rethrow;
       }
-    });
+    } else {
+      print('[AudioServiceHandler] Audio focus conflict, handling...');
+      // Handle audio focus conflict
+      _handleAudioFocusConflict();
+    }
   }
 
   @override
   Future<void> pause() async {
-    // Handle rapid taps - debounce play/pause actions
-    if (_isPlayPauseActionInProgress) {
-      return; // Ignore rapid taps
-    }
+    await _player.pause();
+    _updatePlaybackState(
+      CustomPlaybackState(
+        isPlaying: false,
+        currentPosition: _player.position,
+        playbackSpeed: _player.speed,
+        sleepTimerActive: _sleepTimerActive,
+        audiobookId: _currentAudiobook?.id ?? '',
+        lastPlayedAt: DateTime.now(),
+        bufferedPosition: _player.bufferedPosition,
+      ),
+    );
 
-    // Use debounce for pause action
-    await Future(() async {
-      await _player.pause();
-      _updatePlaybackState(
-        CustomPlaybackState(
-          isPlaying: false,
-          currentPosition: _player.position,
-          playbackSpeed: _player.speed,
-          sleepTimerActive: _sleepTimerActive,
-          audiobookId: _currentAudiobook?.id ?? '',
-          lastPlayedAt: DateTime.now(),
-          bufferedPosition: _player.bufferedPosition,
-        ),
-      );
-
-      // Abandon audio focus when paused
-      await _abandonAudioFocus();
-    });
+    // Abandon audio focus when paused
+    await _abandonAudioFocus();
   }
 
   @override
@@ -198,9 +216,13 @@ class AudioServiceHandler extends BaseAudioHandler {
     });
   }
 
-  Future<void> _setupPlayer() async {
+  void _setupPlayer() {
+    print('[AudioServiceHandler] _setupPlayer() setting up listeners');
     // Set up player event listeners
     _player.playerStateStream.listen((playerState) {
+      print(
+        '[AudioServiceHandler] playerStateStream: playing=${playerState.playing}, processingState=${playerState.processingState}',
+      );
       if (playerState.playing) {
         _updatePlaybackState(
           CustomPlaybackState(
@@ -228,9 +250,16 @@ class AudioServiceHandler extends BaseAudioHandler {
       }
     });
 
-    _player.positionStream.listen(_updatePosition);
+    _player.positionStream.listen((position) {
+      // Throttle logging for position updates to avoid spam
+      if (position.inMilliseconds % 1000 == 0) {
+        print('[AudioServiceHandler] positionStream: ${position.inSeconds}s');
+      }
+      _updatePosition(position);
+    });
 
     _player.processingStateStream.listen((processingState) {
+      print('[AudioServiceHandler] processingStateStream: $processingState');
       if (processingState == ProcessingState.completed) {
         _updatePlaybackState(
           CustomPlaybackState(
@@ -295,28 +324,40 @@ class AudioServiceHandler extends BaseAudioHandler {
     }
   }
 
-  void setCurrentAudiobook(Audiobook audiobook) {
+  Future<void> setCurrentAudiobook(Audiobook audiobook) async {
+    print(
+      '[AudioServiceHandler] setCurrentAudiobook() called. Audiobook ID: ${audiobook.id}, title: ${audiobook.title}, filePath: ${audiobook.filePath}',
+    );
     _currentAudiobook = audiobook;
-    _loadAudioSource(audiobook.filePath);
+    try {
+      await _loadAudioSource(audiobook.filePath);
+      print('[AudioServiceHandler] setCurrentAudiobook() completed');
+    } catch (e) {
+      print('[AudioServiceHandler] setCurrentAudiobook() failed: $e');
+      rethrow;
+    }
   }
 
   Future<void> _loadAudioSource(String filePath) async {
+    print('[AudioServiceHandler] _loadAudioSource() starting. filePath: $filePath');
     try {
-      // Add platform-specific initialization check
-      if (kIsWeb || Platform.isAndroid || Platform.isIOS) {
-        await _player.setAudioSource(AudioSource.uri(Uri.file(filePath)));
-      } else {
-        // For desktop platforms, use a different approach or show unsupported message
-        print(
-          'Warning: Audio playback not fully supported on desktop platforms',
-        );
-        throw UnsupportedError(
-          'Audio playback is not fully supported on this platform',
-        );
-      }
+      // Load audio source with a timeout to prevent indefinite hanging
+      await _player
+          .setAudioSource(AudioSource.uri(Uri.file(filePath)))
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () {
+              print('[AudioServiceHandler] setAudioSource timed out after 30 seconds');
+              throw TimeoutException('Failed to load audio source within 30 seconds');
+            },
+          );
+      print('[AudioServiceHandler] _loadAudioSource() completed successfully');
+      // Log duration and position after loading
+      final duration = _player.duration;
+      final position = _player.position;
+      print('[AudioServiceHandler] Audio source loaded. Duration: $duration, Position: $position');
     } catch (e) {
-      print('Error loading audio source: $e');
-
+      print('[AudioServiceHandler] Error loading audio source: $e');
       // Handle MissingPluginException specifically
       if (e.toString().contains('MissingPluginException')) {
         print(
@@ -324,7 +365,7 @@ class AudioServiceHandler extends BaseAudioHandler {
         );
         print('Please ensure you have run: flutter pub add just_audio');
         print(
-          'And for Android, ensure proper native setup with: flutter pub add just_audio --platforms android',
+          'And for desktop, ensure proper native setup with: flutter pub add just_audio_media_kit media_kit_libs_linux',
         );
       }
 
@@ -531,6 +572,7 @@ class AudioServiceHandler extends BaseAudioHandler {
   }
 
   Future<void> dispose() async {
+    print('[AudioServiceHandler] dispose() called');
     _sleepTimer?.cancel();
     await _player.dispose();
     await _playbackStateStream.close();

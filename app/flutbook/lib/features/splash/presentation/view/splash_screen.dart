@@ -27,6 +27,9 @@ class SplashScreenState extends ConsumerState<SplashScreen> {
 
   Future<void> _initializeApp() async {
     try {
+      // Initialize audio services early to ensure they're ready when needed
+      await _initializeAudioServices();
+      
       // Initialize app services
       await _checkAuthAndNavigate();
     } catch (e) {
@@ -37,6 +40,18 @@ class SplashScreenState extends ConsumerState<SplashScreen> {
         _isLoading = false;
         _errorMessage = 'Initialization failed: $e';
       });
+    }
+  }
+
+  /// Initialize audio services to ensure they're ready when the user starts playing audiobooks
+  Future<void> _initializeAudioServices() async {
+    try {
+      // Wait for audio initialization service to complete
+      await ref.read(audioInitializationServiceProvider.future);
+      print('Audio services initialized successfully in splash screen');
+    } catch (e) {
+      print('Error initializing audio services in splash screen: $e');
+      // Continue with app initialization even if audio services fail to initialize
     }
   }
 

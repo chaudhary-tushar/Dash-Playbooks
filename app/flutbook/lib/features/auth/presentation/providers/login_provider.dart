@@ -17,9 +17,12 @@ class LoginNotifier extends Notifier<AsyncValue<UserProfile>> {
     state = const AsyncValue.loading();
 
     try {
+      // Get the usecase which waits for the user repository to be ready
+      final usecase = await ref.read(loginUsecaseProvider.future);
+      
       // Use AsyncValue.guard to handle the login operation
       final authResult = await AsyncValue.guard(
-        () => _loginUsecase.call(email: email, password: password),
+        () => usecase.call(email: email, password: password),
       );
 
       // Check if the login was successful
@@ -67,8 +70,6 @@ class LoginNotifier extends Notifier<AsyncValue<UserProfile>> {
     }
   }
 
-  /// Gets the current LoginUsecase from the provider
-  LoginUsecase get _loginUsecase => ref.read(loginUsecaseProvider);
 }
 
 /// Provider for LoginNotifier

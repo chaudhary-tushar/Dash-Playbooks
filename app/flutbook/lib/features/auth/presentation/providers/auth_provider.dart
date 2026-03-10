@@ -58,7 +58,8 @@ class AuthNotifier extends Notifier<AuthState> {
 
   @override
   AuthState build() {
-    // Initialize with loading state and check current user
+    // Initialize with a default state initially to avoid hanging the UI
+    // Then asynchronously check the current user status
     ref.onDispose(() {
       // Cleanup if needed
     });
@@ -80,7 +81,8 @@ class AuthNotifier extends Notifier<AuthState> {
       }
     });
 
-    // Start with loading state, but avoid calls if they would fail
+    // Start with a minimal loading state, but return quickly to avoid UI hanging
+    // The actual user check will happen asynchronously
     return const AuthState(isLoading: true);
   }
 
@@ -160,11 +162,15 @@ class AuthNotifier extends Notifier<AuthState> {
   // Helper method to safely get current user with error handling
   Future<UserProfile?> _getCurrentUser() async {
     try {
-      final usecase = ref.read(getCurrentUserUsecaseProvider);
-      return await usecase();
+      final usecaseAsync = ref.read(getCurrentUserUsecaseProvider.future);
+      final usecase = await usecaseAsync;
+      final user = await usecase();
+      return user;
     } catch (e) {
       print('Error getting current user: $e');
-      rethrow;
+      // Don't rethrow here as this might be expected during initialization
+      // Just return null to indicate no user is available yet
+      return null;
     }
   }
 
@@ -174,11 +180,13 @@ class AuthNotifier extends Notifier<AuthState> {
     state = state.copyWith(isLoading: true);
 
     try {
-      final usecase = ref.read(authenticateUsecaseProvider);
+      // Get the usecase which waits for the user repository to be ready
+      final usecase = await ref.read(authenticateUsecaseProvider.future);
       final result = await usecase(email: email, password: password);
 
       if (result.success) {
-        final usercase = ref.read(getCurrentUserUsecaseProvider);
+        final usercaseAsync = ref.read(getCurrentUserUsecaseProvider.future);
+        final usercase = await usercaseAsync;
         final user = await usercase();
         if (ref.mounted) {
           state = AuthState(
@@ -226,11 +234,13 @@ class AuthNotifier extends Notifier<AuthState> {
     state = state.copyWith(isLoading: true);
 
     try {
-      final usecase = ref.read(anonymousLoginUsecaseProvider);
+      // Get the usecase which waits for the user repository to be ready
+      final usecase = await ref.read(anonymousLoginUsecaseProvider.future);
       final result = await usecase();
 
       if (result.success) {
-        final usercase = ref.read(getCurrentUserUsecaseProvider);
+        final usercaseAsync = ref.read(getCurrentUserUsecaseProvider.future);
+        final usercase = await usercaseAsync;
         final user = await usercase();
         if (ref.mounted) {
           state = AuthState(
@@ -266,7 +276,8 @@ class AuthNotifier extends Notifier<AuthState> {
     state = state.copyWith(isLoading: true);
 
     try {
-      final usecase = ref.read(logoutUsecaseProvider);
+      // Get the usecase which waits for the user repository to be ready
+      final usecase = await ref.read(logoutUsecaseProvider.future);
       await usecase();
       // Clear session data
       await _sessionManager.clearSession();
@@ -306,11 +317,13 @@ class AuthNotifier extends Notifier<AuthState> {
     state = state.copyWith(isLoading: true);
 
     try {
-      final usecase = ref.read(googleSigninUsecaseProvider);
+      // Get the usecase which waits for the user repository to be ready
+      final usecase = await ref.read(googleSigninUsecaseProvider.future);
       final result = await usecase();
 
       if (result.success) {
-        final usercase = ref.read(getCurrentUserUsecaseProvider);
+        final usercaseAsync = ref.read(getCurrentUserUsecaseProvider.future);
+        final usercase = await usercaseAsync;
         final user = await usercase();
         if (ref.mounted) {
           state = AuthState(

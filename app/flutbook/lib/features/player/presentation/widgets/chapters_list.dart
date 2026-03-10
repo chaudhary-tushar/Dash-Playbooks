@@ -20,9 +20,11 @@ class ChaptersList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Load bookmarks for this audiobook
-    final bookmarkNotifier = ref.read(bookmarkProvider.notifier);
-    bookmarkNotifier.loadBookmarks(audiobook.id);
+    // Load bookmarks for this audiobook - defer to avoid modifying provider during build
+    // Use a post-frame callback to ensure this runs after the build phase
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(bookmarkProvider.notifier).loadBookmarks(audiobook.id);
+    });
 
     // Get current bookmark state
     final bookmarkState = ref.watch(bookmarkProvider);
@@ -43,8 +45,7 @@ class ChaptersList extends ConsumerWidget {
 
     return ListView.builder(
       shrinkWrap: true,
-      physics:
-          const NeverScrollableScrollPhysics(), // Allow embedding in other scroll views
+      physics: const NeverScrollableScrollPhysics(), // Allow embedding in other scroll views
       itemCount: audiobook.chapters.length,
       itemBuilder: (context, index) {
         final chapter = audiobook.chapters[index];
@@ -62,12 +63,8 @@ class ChaptersList extends ConsumerWidget {
             title: Text(
               chapter.title,
               style: TextStyle(
-                fontWeight: isCurrentChapter
-                    ? FontWeight.bold
-                    : FontWeight.normal,
-                color: isCurrentChapter
-                    ? Theme.of(context).colorScheme.primary
-                    : null,
+                fontWeight: isCurrentChapter ? FontWeight.bold : FontWeight.normal,
+                color: isCurrentChapter ? Theme.of(context).colorScheme.primary : null,
               ),
             ),
             subtitle: Column(
@@ -76,9 +73,7 @@ class ChaptersList extends ConsumerWidget {
                 Text(
                   '${_formatDuration(chapter.startTime)} - ${_formatDuration(chapter.endTime)}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: isCurrentChapter
-                        ? Theme.of(context).colorScheme.primary
-                        : null,
+                    color: isCurrentChapter ? Theme.of(context).colorScheme.primary : null,
                   ),
                 ),
                 if (hasBookmarks) ...[
@@ -109,9 +104,7 @@ class ChaptersList extends ConsumerWidget {
                   backgroundColor: isCurrentChapter
                       ? Theme.of(context).colorScheme.primary
                       : Colors.grey[300],
-                  foregroundColor: isCurrentChapter
-                      ? Colors.white
-                      : Colors.black,
+                  foregroundColor: isCurrentChapter ? Colors.white : Colors.black,
                   child: Text(
                     '${index + 1}',
                     style: const TextStyle(fontSize: 12),
@@ -151,9 +144,7 @@ class ChaptersList extends ConsumerWidget {
                 IconButton(
                   icon: Icon(
                     hasBookmarks ? Icons.bookmark : Icons.bookmark_border,
-                    color: hasBookmarks
-                        ? Theme.of(context).colorScheme.secondary
-                        : Colors.grey,
+                    color: hasBookmarks ? Theme.of(context).colorScheme.secondary : Colors.grey,
                   ),
                   onPressed: () => _showBookmarkManagementDialog(
                     context,
@@ -184,8 +175,7 @@ class ChaptersList extends ConsumerWidget {
   }
 
   bool _isChapterCurrent(Chapter chapter, Duration currentPosition) {
-    return currentPosition >= chapter.startTime &&
-        currentPosition < chapter.endTime;
+    return currentPosition >= chapter.startTime && currentPosition < chapter.endTime;
   }
 
   String _formatDuration(Duration duration) {
@@ -203,9 +193,7 @@ class ChaptersList extends ConsumerWidget {
     String chapterId,
     List<Bookmark> allBookmarks,
   ) {
-    return allBookmarks
-        .where((bookmark) => bookmark.chapterId == chapterId)
-        .toList();
+    return allBookmarks.where((bookmark) => bookmark.chapterId == chapterId).toList();
   }
 
   void _showBookmarkManagementDialog(
@@ -231,15 +219,11 @@ class ChaptersList extends ConsumerWidget {
                   ...chapterBookmarks.map(
                     (bookmark) => ListTile(
                       title: Text(_formatDuration(bookmark.timestamp)),
-                      subtitle: bookmark.note != null
-                          ? Text(bookmark.note!)
-                          : null,
+                      subtitle: bookmark.note != null ? Text(bookmark.note!) : null,
                       trailing: IconButton(
                         icon: const Icon(Icons.delete, size: 20),
                         onPressed: () {
-                          ref
-                              .read(bookmarkProvider.notifier)
-                              .deleteBookmark(bookmark.id);
+                          ref.read(bookmarkProvider.notifier).deleteBookmark(bookmark.id);
                           Navigator.of(context).pop();
                         },
                       ),
@@ -266,9 +250,7 @@ class ChaptersList extends ConsumerWidget {
                     textColor: Colors.red,
                     iconColor: Colors.red,
                     onTap: () {
-                      ref
-                          .read(bookmarkProvider.notifier)
-                          .deleteAllBookmarksForChapter(chapter.id);
+                      ref.read(bookmarkProvider.notifier).deleteAllBookmarksForChapter(chapter.id);
                       Navigator.of(context).pop();
                     },
                   ),

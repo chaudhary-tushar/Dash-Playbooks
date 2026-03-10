@@ -40,8 +40,8 @@ class NavigationService {
     const delay = Duration(milliseconds: 100);
 
     while (attempts < maxAttempts) {
-      final currentState = _navigatorKey.currentState;
-      if (currentState != null) {
+      // Check if the navigator key is globally mounted before accessing currentState
+      if (_navigatorKey.currentContext != null && _navigatorKey.currentState != null) {
         await navigationAction();
         return;
       }
@@ -52,5 +52,10 @@ class NavigationService {
 
     // If navigator is still not ready after max attempts, log an error
     debugPrint('Warning: Navigator was not ready after ${maxAttempts * 100}ms');
+  }
+  
+  // Method to check if navigator is ready
+  static bool get isNavigatorReady {
+    return _navigatorKey.currentContext != null && _navigatorKey.currentState != null;
   }
 }

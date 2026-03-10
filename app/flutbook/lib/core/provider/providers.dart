@@ -2,14 +2,16 @@
 ///
 /// This file wires all application dependencies in the correct order:
 /// 1. DatabaseService - Initializes Isar database
-/// 2. Datasources - Depend on DatabaseService
-/// 3. Use Cases - Depend on datasources
-/// 4. Repositories - Depend on datasources and use cases
-/// 5. Notifiers - Depend on repositories
+/// 2. AudioInitializationService - Initializes audio services
+/// 3. Datasources - Depend on DatabaseService
+/// 4. Use Cases - Depend on datasources
+/// 5. Repositories - Depend on datasources and use cases
+/// 6. Notifiers - Depend on repositories
 library;
 
 import 'package:flutbook/core/config/app_config.dart';
 import 'package:flutbook/core/error/exceptions.dart';
+import 'package:flutbook/core/services/audio_initialization_service.dart';
 import 'package:flutbook/core/services/database_service.dart';
 import 'package:flutbook/core/services/json_storage_service.dart';
 import 'package:flutbook/features/auth/data/datasources/supabase_auth_datasource.dart';
@@ -70,6 +72,18 @@ final databaseServiceProvider = FutureProvider<DatabaseService>((ref) async {
   }
 
   return service;
+});
+
+// =============================================================================
+// AUDIO INITIALIZATION SERVICE PROVIDER
+// =============================================================================
+
+/// Provides the AudioInitializationService for early audio service initialization.
+/// This service initializes audio session management, background audio processing,
+/// and other audio-related services early in the app lifecycle.
+final audioInitializationServiceProvider = FutureProvider<void>((ref) async {
+  await AudioInitializationService.initialize();
+  return;
 });
 
 // =============================================================================
@@ -522,127 +536,64 @@ final userRepositoryProvider = FutureProvider<UserRepository>((ref) async {
 
 /// Provides the Login usecase.
 /// This depends on the user repository.
-final loginUsecaseProvider = Provider<LoginUsecase>((ref) {
-  // Handle the async user repository properly
-  final userRepoAsync = ref.watch(userRepositoryProvider);
-  final userRepository = userRepoAsync.whenOrNull(
-    data: (repo) => repo,
-    loading: () => null,
-    error: (error, stack) => null,
-  );
-
-  if (userRepository == null) {
-    throw UninitializedDatasourceException('User repository not initialized');
-  }
-
+final loginUsecaseProvider = FutureProvider<LoginUsecase>((ref) async {
+  // Wait for the user repository to be ready
+  final userRepository = await ref.watch(userRepositoryProvider.future);
+  
   return LoginUsecase(userRepository);
 });
 
 /// Provides the Anonymous Login usecase.
 /// This depends on the user repository.
-final anonymousLoginUsecaseProvider = Provider<AnonymousLoginUsecase>((ref) {
-  // Handle the async user repository properly
-  final userRepoAsync = ref.watch(userRepositoryProvider);
-  final userRepository = userRepoAsync.whenOrNull(
-    data: (repo) => repo,
-    loading: () => null,
-    error: (error, stack) => null,
-  );
-
-  if (userRepository == null) {
-    throw UninitializedDatasourceException('User repository not initialized');
-  }
-
+final anonymousLoginUsecaseProvider = FutureProvider<AnonymousLoginUsecase>((ref) async {
+  // Wait for the user repository to be ready
+  final userRepository = await ref.watch(userRepositoryProvider.future);
+  
   return AnonymousLoginUsecase(userRepository);
 });
 
 /// Provides the Google Sign-in usecase.
 /// This depends on the user repository.
-final googleSigninUsecaseProvider = Provider<GoogleSigninUsecase>((ref) {
-  // Handle the async user repository properly
-  final userRepoAsync = ref.watch(userRepositoryProvider);
-  final userRepository = userRepoAsync.whenOrNull(
-    data: (repo) => repo,
-    loading: () => null,
-    error: (error, stack) => null,
-  );
-
-  if (userRepository == null) {
-    throw UninitializedDatasourceException('User repository not initialized');
-  }
-
+final googleSigninUsecaseProvider = FutureProvider<GoogleSigninUsecase>((ref) async {
+  // Wait for the user repository to be ready
+  final userRepository = await ref.watch(userRepositoryProvider.future);
+  
   return GoogleSigninUsecase(userRepository);
 });
 
 /// Provides the Logout usecase.
 /// This depends on the user repository.
-final logoutUsecaseProvider = Provider<LogoutUsecase>((ref) {
-  // Handle the async user repository properly
-  final userRepoAsync = ref.watch(userRepositoryProvider);
-  final userRepository = userRepoAsync.whenOrNull(
-    data: (repo) => repo,
-    loading: () => null,
-    error: (error, stack) => null,
-  );
-
-  if (userRepository == null) {
-    throw UninitializedDatasourceException('User repository not initialized');
-  }
-
+final logoutUsecaseProvider = FutureProvider<LogoutUsecase>((ref) async {
+  // Wait for the user repository to be ready
+  final userRepository = await ref.watch(userRepositoryProvider.future);
+  
   return LogoutUsecase(userRepository);
 });
 
 /// Provides the Get Current User usecase.
 /// This depends on the user repository.
-final getCurrentUserUsecaseProvider = Provider<GetCurrentUserUsecase>((ref) {
-  // Handle the async user repository properly
-  final userRepoAsync = ref.watch(userRepositoryProvider);
-  final userRepository = userRepoAsync.whenOrNull(
-    data: (repo) => repo,
-    loading: () => null,
-    error: (error, stack) => null,
-  );
-
-  if (userRepository == null) {
-    throw UninitializedDatasourceException('User repository not initialized');
-  }
-
+final getCurrentUserUsecaseProvider = FutureProvider<GetCurrentUserUsecase>((ref) async {
+  // Wait for the user repository to be initialized
+  final userRepository = await ref.watch(userRepositoryProvider.future);
+  
   return GetCurrentUserUsecase(userRepository);
 });
 
 /// Provides the Signup usecase.
 /// This depends on the user repository.
-final signupUsecaseProvider = Provider<SignupUsecase>((ref) {
-  // Handle the async user repository properly
-  final userRepoAsync = ref.watch(userRepositoryProvider);
-  final userRepository = userRepoAsync.whenOrNull(
-    data: (repo) => repo,
-    loading: () => null,
-    error: (error, stack) => null,
-  );
-
-  if (userRepository == null) {
-    throw UninitializedDatasourceException('User repository not initialized');
-  }
-
+final signupUsecaseProvider = FutureProvider<SignupUsecase>((ref) async {
+  // Wait for the user repository to be ready
+  final userRepository = await ref.watch(userRepositoryProvider.future);
+  
   return SignupUsecase(userRepository);
 });
 
 /// Provides the Authenticate usecase (unified login/signup).
 /// This depends on the user repository.
-final authenticateUsecaseProvider = Provider<AuthenticateUsecase>((ref) {
-  // Handle the async user repository properly
-  final userRepoAsync = ref.watch(userRepositoryProvider);
-  final userRepository = userRepoAsync.whenOrNull(
-    data: (repo) => repo,
-    loading: () => null,
-    error: (error, stack) => null,
-  );
-
-  if (userRepository == null) {
-    throw UninitializedDatasourceException('User repository not initialized');
-  }
-
+final authenticateUsecaseProvider = FutureProvider<AuthenticateUsecase>((ref) async {
+  // Wait for the user repository to be ready
+  final userRepository = await ref.watch(userRepositoryProvider.future);
+  
   return AuthenticateUsecase(userRepository);
 });
 

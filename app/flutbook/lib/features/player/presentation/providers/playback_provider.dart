@@ -1,12 +1,10 @@
 // lib/presentation/providers/playback_provider.dart
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutbook/core/error/exceptions.dart';
 import 'package:flutbook/core/provider/providers.dart'
-    show
-        databaseServiceProvider,
-        playbackRemoteDatasourceProvider,
-        playbackRepositoryProvider;
+    show databaseServiceProvider, playbackRemoteDatasourceProvider, playbackRepositoryProvider;
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
 import 'package:flutbook/features/player/data/datasources/audio_service_handler.dart';
 import 'package:flutbook/features/player/data/repositories/playback_repository_impl.dart';
@@ -98,6 +96,7 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
   late final AudioServiceHandler _audioService;
   late final PlaybackRepositoryImpl _playbackRepo;
   late final StreamSubscription<dynamic> _playbackStreamSubscription;
+  bool _audioServiceInitialized = false;
 
   // Retry mechanism state
   int _retryCount = 0;
@@ -105,58 +104,87 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
 
   @override
   PlaybackState build() {
+    print('[PlaybackNotifier] build() called. _audioServiceInitialized: $_audioServiceInitialized');
+
+    // If audio service already initialized, return current state
+    if (_audioServiceInitialized) {
+      print('[PlaybackNotifier] Already initialized, returning current state');
+      return state;
+    }
+
+    // Determine a safe base state, handling uninitialized state
+    PlaybackState baseState;
+    try {
+      baseState = state;
+    } catch (_) {
+      baseState = PlaybackState.initial();
+    }
+
     try {
       // Initialize playback repository with proper error handling
       final playbackRepoAsync = ref.watch(playbackRepositoryProvider);
 
       // Handle different states of the async provider
       return playbackRepoAsync.when(
-        loading: () => state.copyWith(
-          isLoading: true,
-        ),
-        error: (error, stackTrace) => state.copyWith(
-          isLoading: false,
-          errorMessage: ErrorHandler.handlePlaybackException(error),
-        ),
+        loading: () {
+          print('[PlaybackNotifier] Repository loading');
+          return baseState.copyWith(
+            isLoading: true,
+          );
+        },
+        error: (error, stackTrace) {
+          print('[PlaybackNotifier] Repository error: $error');
+          return baseState.copyWith(
+            isLoading: false,
+            errorMessage: ErrorHandler.handlePlaybackException(error),
+          );
+        },
         data: (playbackRepo) {
+          print('[PlaybackNotifier] Repository data received, initializing audio service');
           _playbackRepo = playbackRepo;
 
           // Initialize audio service after repository is ready to avoid circular dependency
           _audioService = AudioServiceHandler();
 
           // Listen to playback state changes from audio service
-          _playbackStreamSubscription = _audioService
-              .getPlaybackStateStream()
-              .listen(
-                (playbackState) {
-                  state = state.copyWith(
-                    isPlaying: playbackState.isPlaying,
-                    currentPosition: playbackState.currentPosition,
-                    playbackSpeed: playbackState.playbackSpeed,
-                    sleepTimerActive: playbackState.sleepTimerActive,
-                    bufferedPosition: playbackState.bufferedPosition,
-                    isLoading: false,
-                  );
-                },
-                onError: (Object error) {
-                  state = state.copyWith(
-                    errorMessage: ErrorHandler.handlePlaybackException(error),
-                    isLoading: false,
-                  );
-                },
+          _playbackStreamSubscription = _audioService.getPlaybackStateStream().listen(
+            (playbackState) {
+              print(
+                '[PlaybackNotifier] Received playback state update: isPlaying=${playbackState.isPlaying}, position=${playbackState.currentPosition}',
               );
+              state = state.copyWith(
+                isPlaying: playbackState.isPlaying,
+                currentPosition: playbackState.currentPosition,
+                playbackSpeed: playbackState.playbackSpeed,
+                sleepTimerActive: playbackState.sleepTimerActive,
+                bufferedPosition: playbackState.bufferedPosition,
+                isLoading: false,
+              );
+            },
+            onError: (Object error) {
+              print('[PlaybackNotifier] Stream error: $error');
+              state = state.copyWith(
+                errorMessage: ErrorHandler.handlePlaybackException(error),
+                isLoading: false,
+              );
+            },
+          );
 
           ref.onDispose(() {
+            print('[PlaybackNotifier] Disposing resources');
             _playbackStreamSubscription.cancel();
             _audioService.dispose();
           });
 
+          _audioServiceInitialized = true;
+          print('[PlaybackNotifier] Audio service initialized');
           return PlaybackState.initial();
         },
       );
     } catch (e) {
       // Handle initialization errors
-      return state.copyWith(
+      print('[PlaybackNotifier] Build exception: $e');
+      return baseState.copyWith(
         isLoading: false,
         errorMessage: ErrorHandler.handlePlaybackException(e),
       );
@@ -174,9 +202,13 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
   ///
   /// Returns: true if successful, false if failed with graceful degradation
   Future<bool> setCurrentAudiobook(Audiobook audiobook) async {
+    print('[PlaybackNotifier] setCurrentAudiobook() called for book: ${audiobook.id}');
     state = state.copyWith(isLoading: true);
     try {
-      _audioService.setCurrentAudiobook(audiobook);
+      // Attempt to load audio source
+      print('[PlaybackNotifier] Calling _audioService.setCurrentAudiobook()');
+      await _audioService.setCurrentAudiobook(audiobook);
+      print('[PlaybackNotifier] Audio source set successfully');
 
       // Load saved playback position if available with error handling
       try {
@@ -184,6 +216,9 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
           audiobook.id,
         );
         if (savedSession != null) {
+          print(
+            '[PlaybackNotifier] Found saved session, seeking to ${savedSession.currentPosition}',
+          );
           await _audioService.seekTo(savedSession.currentPosition);
           state = state.copyWith(
             currentPosition: savedSession.currentPosition,
@@ -194,15 +229,16 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
           );
 
           // If sleep timer was active, restart it
-          if (savedSession.sleepTimerActive &&
-              savedSession.sleepTimerDuration != null) {
+          if (savedSession.sleepTimerActive && savedSession.sleepTimerDuration != null) {
             _audioService.setSleepTimer(savedSession.sleepTimerDuration!);
           }
         } else {
+          print('[PlaybackNotifier] No saved session, using default duration');
           state = state.copyWith(duration: audiobook.duration);
         }
       } catch (e) {
         // Graceful degradation - continue with default values
+        print('[PlaybackNotifier] Error loading saved session: $e');
         state = state.copyWith(
           duration: audiobook.duration,
           errorMessage: ErrorHandler.handlePlaybackException(e),
@@ -210,8 +246,11 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
         return false;
       }
 
+      print('[PlaybackNotifier] setCurrentAudiobook() completed successfully');
       return true;
     } catch (e) {
+      // Catch errors from audio source loading
+      print('[PlaybackNotifier] setCurrentAudiobook() failed: $e');
       state = state.copyWith(
         errorMessage: ErrorHandler.handlePlaybackException(e),
         isLoading: false,
@@ -226,13 +265,16 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
   ///
   /// Returns: true if successful, false if failed with graceful degradation
   Future<bool> play() async {
+    print('[PlaybackNotifier] play() called');
     try {
       await _audioService.play();
+      print('[PlaybackNotifier] _audioService.play() completed, updating state to playing');
       state = state.copyWith(
         isPlaying: true,
       );
       return true;
     } catch (e) {
+      print('[PlaybackNotifier] play() failed: $e');
       state = state.copyWith(
         errorMessage: ErrorHandler.handlePlaybackException(e),
       );
@@ -395,9 +437,7 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
   /// Throws: Exception if there's an error seeking to the new position
   Future<void> skipBackward(Duration interval) async {
     final newPosition = state.currentPosition - interval;
-    final clampedPosition = newPosition.isNegative
-        ? Duration.zero
-        : newPosition;
+    final clampedPosition = newPosition.isNegative ? Duration.zero : newPosition;
 
     await seekTo(clampedPosition);
   }

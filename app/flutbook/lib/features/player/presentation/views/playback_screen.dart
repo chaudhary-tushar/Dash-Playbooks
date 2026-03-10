@@ -7,53 +7,93 @@ import 'package:flutbook/features/player/presentation/widgets/sleep_timer_dialog
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class PlaybackScreen extends ConsumerWidget {
+class PlaybackScreen extends ConsumerStatefulWidget {
   const PlaybackScreen({
     required this.audiobook,
     super.key,
   });
+
   final Audiobook audiobook;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Initialize the playback provider with the audiobook
-    final playbackNotifier = ref.read(playbackProvider.notifier);
-    final playbackState = ref.watch(playbackProvider);
+  ConsumerState<PlaybackScreen> createState() => _PlaybackScreenState();
+}
 
-    // Handle initialization with comprehensive error handling
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // Check if we're in an error state
-      if (playbackState.errorMessage != null) {
-        // Show error dialog for existing errors
-        _showErrorDialogWithRetry(context, playbackState.errorMessage!, () {
-          playbackNotifier.retryOperation(
-            () => playbackNotifier.setCurrentAudiobook(audiobook),
-          );
-        });
-      } else if (!playbackState.isLoading) {
-        // Initialize playback if not already loading and no error
-        final success = await playbackNotifier.setCurrentAudiobook(audiobook);
-        if (!success) {
-          // Show error dialog if initialization fails
-          _showErrorDialogWithRetry(
-            context,
-            playbackState.errorMessage ?? 'Failed to initialize playback',
-            () {
-              playbackNotifier.retryOperation(
-                () => playbackNotifier.setCurrentAudiobook(audiobook),
-              );
-            },
-          );
-        }
+class _PlaybackScreenState extends ConsumerState<PlaybackScreen> {
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Listen for playback state changes to trigger initialization when ready
+      ref.listen<PlaybackState>(
+        playbackProvider,
+        (previous, next) {
+          if (!_initialized && !next.isLoading && next.errorMessage == null) {
+            _initializePlayback();
+          }
+        },
+      );
+      // Also check immediately in case already ready
+      final currentState = ref.read(playbackProvider);
+      if (!_initialized && !currentState.isLoading && currentState.errorMessage == null) {
+        _initializePlayback();
       }
     });
+  }
 
+  Future<void> _initializePlayback() async {
+    if (_initialized) return;
+    _initialized = true;
+
+    final playbackNotifier = ref.read(playbackProvider.notifier);
+    final playbackState = ref.read(playbackProvider);
+
+    print(
+      '[PlaybackScreen] _initializePlayback() called. isLoading: ${playbackState.isLoading}, error: ${playbackState.errorMessage}',
+    );
+
+    if (playbackState.errorMessage != null) {
+      if (mounted) {
+        _showErrorDialogWithRetry(
+          context,
+          playbackState.errorMessage!,
+          () {
+            playbackNotifier.retryOperation(
+              () => playbackNotifier.setCurrentAudiobook(widget.audiobook),
+            );
+          },
+        );
+      }
+    } else if (!playbackState.isLoading) {
+      print('[PlaybackScreen] Calling setCurrentAudiobook');
+      final success = await playbackNotifier.setCurrentAudiobook(widget.audiobook);
+      print('[PlaybackScreen] setCurrentAudiobook result: $success');
+      if (!success && mounted) {
+        final currentState = ref.read(playbackProvider);
+        _showErrorDialogWithRetry(
+          context,
+          currentState.errorMessage ?? 'Failed to initialize playback',
+          () {
+            playbackNotifier.retryOperation(
+              () => playbackNotifier.setCurrentAudiobook(widget.audiobook),
+            );
+          },
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final playbackState = ref.watch(playbackProvider);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Now Playing'),
         centerTitle: true,
       ),
-      body: _buildPlaybackBody(context, ref, playbackState, audiobook),
+      body: _buildPlaybackBody(context, ref, playbackState),
     );
   }
 
@@ -61,7 +101,6 @@ class PlaybackScreen extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     PlaybackState playbackState,
-    Audiobook audiobook,
   ) {
     // Show error state if there's an error
     if (playbackState.errorMessage != null) {
@@ -113,11 +152,11 @@ class PlaybackScreen extends ConsumerWidget {
                           ),
                         ],
                       ),
-                      child: audiobook.coverArtPath != null
+                      child: widget.audiobook.coverArtPath != null
                           ? ClipRRect(
                               borderRadius: BorderRadius.circular(12),
                               child: Image.network(
-                                audiobook.coverArtPath!,
+                                widget.audiobook.coverArtPath!,
                                 fit: BoxFit.cover,
                                 errorBuilder: (context, error, stackTrace) {
                                   return ColoredBox(
@@ -158,21 +197,20 @@ class PlaybackScreen extends ConsumerWidget {
                   child: Column(
                     children: [
                       Text(
-                        audiobook.title,
+                        widget.audiobook.title,
                         style: Theme.of(context).textTheme.headlineSmall,
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        audiobook.author.isEmpty
+                        widget.audiobook.author.isEmpty
                             ? 'Unknown Author'
-                            : audiobook.author,
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurfaceVariant,
-                            ),
+                            : widget.audiobook.author,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurfaceVariant,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -190,9 +228,8 @@ class PlaybackScreen extends ConsumerWidget {
                   child: ProgressBar(
                     currentPosition: playbackState.currentPosition,
                     totalDuration: playbackState.duration,
-                    bufferedPosition:
-                        playbackState.bufferedPosition ?? Duration.zero,
-                    chapterMarkers: audiobook.chapters
+                    bufferedPosition: playbackState.bufferedPosition ?? Duration.zero,
+                    chapterMarkers: widget.audiobook.chapters
                         .map((chapter) => chapter.startTime)
                         .toList(),
                     onSeek: (newPosition) {
@@ -315,8 +352,7 @@ class PlaybackScreen extends ConsumerWidget {
                                           ),
                                         )
                                         .toList(),
-                                    onChanged:
-                                        playbackState.errorMessage != null
+                                    onChanged: playbackState.errorMessage != null
                                         ? null
                                         : (speed) {
                                             ref
@@ -375,14 +411,10 @@ class PlaybackScreen extends ConsumerWidget {
                                         notifier.cancelSleepTimer();
                                       } else {
                                         // Show sleep timer dialog
-                                        final result =
-                                            await showDialog<
-                                              SleepTimerSelection?
-                                            >(
-                                              context: context,
-                                              builder: (context) =>
-                                                  const SleepTimerDialog(),
-                                            );
+                                        final result = await showDialog<SleepTimerSelection?>(
+                                          context: context,
+                                          builder: (context) => const SleepTimerDialog(),
+                                        );
 
                                         if (result != null) {
                                           if (result.endOfChapter) {
@@ -407,9 +439,7 @@ class PlaybackScreen extends ConsumerWidget {
                                     : null,
                               ),
                               label: Text(
-                                playbackState.sleepTimerActive
-                                    ? 'Cancel'
-                                    : 'Sleep',
+                                playbackState.sleepTimerActive ? 'Cancel' : 'Sleep',
                                 style: TextStyle(
                                   color: playbackState.sleepTimerActive
                                       ? Theme.of(context).colorScheme.primary
@@ -445,8 +475,7 @@ class PlaybackScreen extends ConsumerWidget {
                               const SizedBox(width: 8),
                               Text(
                                 _formatDuration(
-                                  playbackState.sleepTimerDuration ??
-                                      const Duration(minutes: 30),
+                                  playbackState.sleepTimerDuration ?? const Duration(minutes: 30),
                                 ),
                                 style: TextStyle(
                                   fontSize: 16,
@@ -467,17 +496,14 @@ class PlaybackScreen extends ConsumerWidget {
                 Container(
                   constraints: BoxConstraints(
                     maxHeight:
-                        constraints.maxHeight *
-                        0.3, // Reduced to 30% to make room for bookmarks
+                        constraints.maxHeight * 0.3, // Reduced to 30% to make room for bookmarks
                   ),
                   child: ChaptersList(
-                    audiobook: audiobook,
+                    audiobook: widget.audiobook,
                     currentPosition: playbackState.currentPosition,
                     onChapterTap: (chapter) {
                       if (playbackState.errorMessage == null) {
-                        ref
-                            .read(playbackProvider.notifier)
-                            .seekTo(chapter.startTime);
+                        ref.read(playbackProvider.notifier).seekTo(chapter.startTime);
                       }
                     },
                   ),
@@ -492,7 +518,7 @@ class PlaybackScreen extends ConsumerWidget {
                 //         0.2, // Use 20% of available height for bookmarks
                 //   ),
                 //   child: BookmarkWidget(
-                //     audiobookId: audiobook.id,
+                //     audiobookId: widget.audiobook.id,
                 //     currentPosition: playbackState.currentPosition,
                 //   ),
                 // ),
@@ -518,21 +544,21 @@ class PlaybackScreen extends ConsumerWidget {
     WidgetRef ref,
     PlaybackState playbackState,
   ) {
-    // Show error dialog when error state is detected
+    // Show error dialog when error state is detected, but only if still mounted
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _showErrorDialogWithRetry(
-        context,
-        playbackState.errorMessage ?? 'Unknown playback error',
-        () {
-          ref
-              .read(playbackProvider.notifier)
-              .retryOperation(
-                () => ref
-                    .read(playbackProvider.notifier)
-                    .setCurrentAudiobook(audiobook),
-              );
-        },
-      );
+      if (mounted) {
+        _showErrorDialogWithRetry(
+          context,
+          playbackState.errorMessage ?? 'Unknown playback error',
+          () {
+            ref
+                .read(playbackProvider.notifier)
+                .retryOperation(
+                  () => ref.read(playbackProvider.notifier).setCurrentAudiobook(widget.audiobook),
+                );
+          },
+        );
+      }
     });
 
     return _buildFallbackUI(context, ref, playbackState);
@@ -549,10 +575,8 @@ class PlaybackScreen extends ConsumerWidget {
           'UninitializedDatasourceException',
         ) ??
         false;
-    final isFileNotFound =
-        playbackState.errorMessage?.contains('FileSystemException') ?? false;
-    final isPermissionIssue =
-        playbackState.errorMessage?.contains('PermissionException') ?? false;
+    final isFileNotFound = playbackState.errorMessage?.contains('FileSystemException') ?? false;
+    final isPermissionIssue = playbackState.errorMessage?.contains('PermissionException') ?? false;
 
     return Center(
       child: SingleChildScrollView(
@@ -606,7 +630,7 @@ class PlaybackScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  audiobook.title,
+                  widget.audiobook.title,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -614,9 +638,7 @@ class PlaybackScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  audiobook.author.isEmpty
-                      ? 'Unknown Author'
-                      : audiobook.author,
+                  widget.audiobook.author.isEmpty ? 'Unknown Author' : widget.audiobook.author,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -636,7 +658,7 @@ class PlaybackScreen extends ConsumerWidget {
                           .retryOperation(
                             () => ref
                                 .read(playbackProvider.notifier)
-                                .setCurrentAudiobook(audiobook),
+                                .setCurrentAudiobook(widget.audiobook),
                           );
                     },
                     child: const Text('Retry'),
@@ -699,9 +721,7 @@ class PlaybackScreen extends ConsumerWidget {
     final twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
     final twoDigitHours = twoDigits(duration.inHours);
 
-    return duration.inHours > 0
-        ? '$twoDigitHours:$twoDigitMinutes'
-        : twoDigitMinutes;
+    return duration.inHours > 0 ? '$twoDigitHours:$twoDigitMinutes' : twoDigitMinutes;
   }
 
   /// Helper method to show error dialog with retry option
@@ -740,8 +760,7 @@ class PlaybackScreen extends ConsumerWidget {
     if (errorMessage.contains('UninitializedDatasourceException') ||
         errorMessage.contains('not initialized')) {
       return 'Playback service is not ready. Please wait a moment and try again.';
-    } else if (errorMessage.contains('AudioException') ||
-        errorMessage.contains('audio playback')) {
+    } else if (errorMessage.contains('AudioException') || errorMessage.contains('audio playback')) {
       return 'Audio playback failed. The file may be corrupted or unsupported.';
     } else if (errorMessage.contains('PermissionException') ||
         errorMessage.contains('permission')) {
@@ -751,8 +770,7 @@ class PlaybackScreen extends ConsumerWidget {
       return 'Audio file not found. The file may have been moved or deleted.';
     } else if (errorMessage.contains('DatabaseException')) {
       return 'Failed to load playback position. Starting from beginning.';
-    } else if (errorMessage.contains('TimeoutException') ||
-        errorMessage.contains('timed out')) {
+    } else if (errorMessage.contains('TimeoutException') || errorMessage.contains('timed out')) {
       return 'Operation took too long. Please check your device performance.';
     } else if (errorMessage.contains('NetworkException')) {
       return 'Network connection required. Please check your internet connection.';

@@ -86,6 +86,20 @@ Future<void> bootstrap(
       // Continue execution but log the error
     }
 
+    // Initialize audio services early - this must happen before any audio operations
+    try {
+      final audioInitFuture = container.read(audioInitializationServiceProvider.future);
+
+      await audioInitFuture;
+    } catch (e, stackTrace) {
+      log(
+        'ERROR: Audio initialization failed: $e',
+        level: 1000,
+        stackTrace: stackTrace,
+      );
+      // Continue execution but log the error
+    }
+
     // Initialize application configuration
     try {
       final configProvider = ConfigProvider();

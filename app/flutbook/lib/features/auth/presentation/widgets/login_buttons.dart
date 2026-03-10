@@ -125,6 +125,20 @@ class LoginButtons extends ConsumerWidget {
               // Capture context reference immediately to avoid BuildContext sync issues
               final contextRef = context;
 
+              // Check if user repository is ready before proceeding
+              final userRepositoryAsync = ref.read(userRepositoryProvider);
+              if (userRepositoryAsync.isLoading || userRepositoryAsync.hasError) {
+                if (contextRef.mounted) {
+                  final messenger = ScaffoldMessenger.of(contextRef);
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('Please wait, initializing services...'),
+                    ),
+                  );
+                }
+                return; // Exit early if user repository is not ready
+              }
+
               // Show loading indicator
               final messenger = ScaffoldMessenger.of(contextRef);
               const snackBar = SnackBar(
@@ -143,7 +157,7 @@ class LoginButtons extends ConsumerWidget {
                 messenger.hideCurrentSnackBar();
 
                 // Navigate to directory selection screen after successful anonymous login
-                await Navigator.pushNamed(contextRef, '/directory');
+                Navigator.pushNamed(contextRef, '/directory');
               }
             } catch (e) {
               if (context.mounted) {

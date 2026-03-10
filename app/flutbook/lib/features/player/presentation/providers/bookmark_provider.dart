@@ -1,10 +1,7 @@
 // lib/features/player/presentation/providers/bookmark_provider.dart
 import 'package:flutbook/core/error/exceptions.dart';
 import 'package:flutbook/core/provider/providers.dart'
-    show
-        bookmarkRepositoryProvider,
-        createBookmarkUsecaseProvider,
-        getBookmarksUsecaseProvider;
+    show bookmarkRepositoryProvider, createBookmarkUsecaseProvider, getBookmarksUsecaseProvider;
 import 'package:flutbook/features/player/domain/entities/bookmark.dart';
 import 'package:flutbook/features/player/domain/repositories/bookmark_repository.dart';
 import 'package:flutbook/features/player/domain/usecases/create_bookmark_usecase.dart';
@@ -51,9 +48,10 @@ final bookmarkProvider = NotifierProvider<BookmarkNotifier, BookmarkState>(
 
 /// Notifier class that manages the bookmark state and business logic.
 class BookmarkNotifier extends Notifier<BookmarkState> {
-  late final CreateBookmarkUsecase _createBookmarkUsecase;
-  late final GetBookmarksUsecase _getBookmarksUsecase;
-  late final BookmarkRepository _bookmarkRepository;
+  // Dependencies
+  late CreateBookmarkUsecase _createBookmarkUsecase;
+  late GetBookmarksUsecase _getBookmarksUsecase;
+  late BookmarkRepository _bookmarkRepository;
 
   @override
   BookmarkState build() {
@@ -70,8 +68,10 @@ class BookmarkNotifier extends Notifier<BookmarkState> {
 
       return BookmarkState.initial();
     } catch (e) {
-      // Handle initialization errors
-      return state.copyWith(
+      // Handle initialization errors - avoid using state.copyWith() here
+      // because state is not yet available during build
+      return BookmarkState(
+        bookmarks: [],
         isLoading: false,
         errorMessage: ErrorHandler.handlePlaybackException(e),
       );
@@ -186,11 +186,10 @@ class BookmarkNotifier extends Notifier<BookmarkState> {
     state = state.copyWith(isLoading: true);
 
     try {
-      final bookmarks = await _bookmarkRepository
-          .getBookmarksForAudiobookChapter(
-            audiobookId: audiobookId,
-            chapterId: chapterId,
-          );
+      final bookmarks = await _bookmarkRepository.getBookmarksForAudiobookChapter(
+        audiobookId: audiobookId,
+        chapterId: chapterId,
+      );
       state = state.copyWith(
         bookmarks: bookmarks,
         isLoading: false,
@@ -205,9 +204,7 @@ class BookmarkNotifier extends Notifier<BookmarkState> {
 
   /// Filter bookmarks by chapter
   List<Bookmark> getBookmarksByChapter(String chapterId) {
-    return state.bookmarks
-        .where((bookmark) => bookmark.chapterId == chapterId)
-        .toList();
+    return state.bookmarks.where((bookmark) => bookmark.chapterId == chapterId).toList();
   }
 
   /// Delete a bookmark
@@ -258,9 +255,7 @@ class BookmarkNotifier extends Notifier<BookmarkState> {
       // Remove audiobook+chapter bookmarks from local state
       final updatedBookmarks = state.bookmarks
           .where(
-            (bookmark) =>
-                bookmark.audiobookId != audiobookId ||
-                bookmark.chapterId != chapterId,
+            (bookmark) => bookmark.audiobookId != audiobookId || bookmark.chapterId != chapterId,
           )
           .toList();
 
