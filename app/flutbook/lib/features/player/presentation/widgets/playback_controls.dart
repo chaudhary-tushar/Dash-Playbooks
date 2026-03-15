@@ -12,17 +12,21 @@ class PlaybackControls extends StatefulWidget {
     required this.onSleepTimerToggle,
     required this.onSkipForward,
     required this.onSkipBackward,
+    this.perBookSpeedEnabled = false,
+    this.onPerBookSpeedToggle,
     super.key,
   });
   final bool isPlaying;
   final double playbackSpeed;
   final bool sleepTimerActive;
   final Duration sleepTimerDuration;
-  final Function() onPlayPause;
-  final Function(double) onSpeedChanged;
-  final Function(bool) onSleepTimerToggle;
-  final Function(Duration) onSkipForward;
-  final Function(Duration) onSkipBackward;
+  final void Function() onPlayPause;
+  final void Function(double) onSpeedChanged;
+  final void Function({required bool value}) onSleepTimerToggle;
+  final void Function(Duration) onSkipForward;
+  final void Function(Duration) onSkipBackward;
+  final bool perBookSpeedEnabled;
+  final void Function(bool)? onPerBookSpeedToggle;
 
   @override
   PlaybackControlsState createState() => PlaybackControlsState();
@@ -38,9 +42,15 @@ class PlaybackControlsState extends State<PlaybackControls> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+  void didUpdateWidget(PlaybackControls oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.playbackSpeed != widget.playbackSpeed) {
+      _currentSpeed = widget.playbackSpeed;
+    }
+  }
 
+  @override
+  Widget build(BuildContext context) {
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -72,9 +82,7 @@ class PlaybackControlsState extends State<PlaybackControls> {
                 IconButton(
                   iconSize: 72,
                   icon: Icon(
-                    widget.isPlaying
-                        ? Icons.pause_rounded
-                        : Icons.play_arrow_rounded,
+                    widget.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
                     color: Theme.of(context).colorScheme.primary,
                   ),
                   onPressed: widget.onPlayPause,
@@ -123,7 +131,7 @@ class PlaybackControlsState extends State<PlaybackControls> {
                         child: DropdownButton<double>(
                           isExpanded: true,
                           value: _currentSpeed,
-                          items: [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
+                          items: [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
                               .map(
                                 (speed) => DropdownMenuItem(
                                   value: speed,
@@ -145,19 +153,41 @@ class PlaybackControlsState extends State<PlaybackControls> {
 
                 const SizedBox(width: 16),
 
+                // Per-book speed toggle
+                if (widget.onPerBookSpeedToggle != null)
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        widget.onPerBookSpeedToggle!(!widget.perBookSpeedEnabled);
+                      },
+                      icon: Icon(
+                        widget.perBookSpeedEnabled ? Icons.bookmark : Icons.bookmark_border,
+                        color: widget.perBookSpeedEnabled
+                            ? Theme.of(context).colorScheme.primary
+                            : null,
+                      ),
+                      label: Text(
+                        'Per Book',
+                        style: TextStyle(
+                          color: widget.perBookSpeedEnabled
+                              ? Theme.of(context).colorScheme.primary
+                              : null,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                const SizedBox(width: 16),
+
                 // Sleep timer toggle
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () {
-                      widget.onSleepTimerToggle(!widget.sleepTimerActive);
+                      widget.onSleepTimerToggle(value: !widget.sleepTimerActive);
                     },
                     icon: Icon(
-                      widget.sleepTimerActive
-                          ? Icons.bedtime_rounded
-                          : Icons.bedtime_outlined,
-                      color: widget.sleepTimerActive
-                          ? Theme.of(context).colorScheme.primary
-                          : null,
+                      widget.sleepTimerActive ? Icons.bedtime_rounded : Icons.bedtime_outlined,
+                      color: widget.sleepTimerActive ? Theme.of(context).colorScheme.primary : null,
                     ),
                     label: Text(
                       'Sleep',
@@ -182,7 +212,12 @@ class PlaybackControlsState extends State<PlaybackControls> {
                   horizontal: 16,
                 ),
                 decoration: BoxDecoration(
-                  color: Color.fromRGBO(Theme.of(context).colorScheme.primary.red, Theme.of(context).colorScheme.primary.green, Theme.of(context).colorScheme.primary.blue, 0.1),
+                  color: Color.fromRGBO(
+                    (Theme.of(context).colorScheme.primary.red * 255.0).round().clamp(0, 255),
+                    (Theme.of(context).colorScheme.primary.green * 255.0).round().clamp(0, 255),
+                    (Theme.of(context).colorScheme.primary.blue * 255.0).round().clamp(0, 255),
+                    0.1,
+                  ),
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: Row(
@@ -216,8 +251,6 @@ class PlaybackControlsState extends State<PlaybackControls> {
     final twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
     final twoDigitHours = twoDigits(duration.inHours);
 
-    return duration.inHours > 0
-        ? '$twoDigitHours:$twoDigitMinutes'
-        : twoDigitMinutes;
+    return duration.inHours > 0 ? '$twoDigitHours:$twoDigitMinutes' : twoDigitMinutes;
   }
 }

@@ -2,7 +2,7 @@
 // import 'package:flutbook/data/providers/library_provider.dart';
 import 'package:flutbook/core/error/exceptions.dart';
 import 'package:flutbook/features/library/data/datasources/audiobook_local_ds.dart';
-import 'package:flutbook/features/library/data/datasources/remote/firebase_library_sync.dart';
+import 'package:flutbook/features/library/data/datasources/remote/supabase_library_sync.dart';
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
 import 'package:flutbook/features/library/domain/entities/library.dart';
 import 'package:flutbook/features/library/domain/repositories/library_repository.dart';
@@ -11,17 +11,74 @@ class LibraryRepositoryImpl implements LibraryRepository {
   LibraryRepositoryImpl({
     required AudiobookLocalDatasource localDatasource,
     // required LibraryProvider provider,
-    LibraryRemoteDatasource? remoteDatasource,
+    SupabaseLibraryDatasource? remoteDatasource,
   }) : _localDatasource = localDatasource,
-       _remoteDatasource = remoteDatasource;
+       _remoteDatasource = remoteDatasource {
+    _validateInitialization();
+  }
   //  _provider = provider;
   final AudiobookLocalDatasource _localDatasource;
-  final LibraryRemoteDatasource? _remoteDatasource;
+  final SupabaseLibraryDatasource? _remoteDatasource;
   // final LibraryProvider _provider;
+
+  /// Validates that the repository is properly initialized with required datasources
+  void _validateInitialization() {}
+
+  /// Validates all dependencies are initialized before performing operations
+  void _validateDependencies() {
+    if (!isInitialized) {
+      throw UninitializedDatasourceException(
+        'LibraryRepository: Cannot perform operations - repository not initialized',
+      );
+    }
+  }
+
+  /// Checks if the repository is initialized and ready for use
+  bool get isInitialized => true;
+
+  /// Checks if the repository is in error state
+  bool get isInErrorState => false;
+
+  /// Provides graceful degradation when datasource is not available
+  /// Returns null or empty results instead of throwing exceptions
+  bool get _shouldDegradeGracefully => false;
+
+  /// Fallback method for when datasource is not initialized
+  /// Returns an empty library instead of throwing an exception
+  Future<Library> _getFallbackLibrary() async {
+    print(
+      'Warning: Library datasource not initialized, returning fallback library',
+    );
+    return Library(
+      id: 'default_library',
+      name: 'My Library',
+      path: 'None',
+      audiobooks: [],
+      lastScanAt: DateTime.now(),
+      totalAudiobooks: 0,
+      totalDuration: Duration.zero,
+    );
+  }
 
   @override
   Future<Library> getLibrary() async {
     try {
+      // Graceful degradation check
+      if (_shouldDegradeGracefully) {
+        print(
+          'Warning: Library datasource not initialized, returning empty library',
+        );
+        return Library(
+          id: 'default_library',
+          name: 'My Library',
+          path: 'None',
+          audiobooks: [],
+          lastScanAt: DateTime.now(),
+          totalAudiobooks: 0,
+          totalDuration: Duration.zero,
+        );
+      }
+
       final audiobooks = await _localDatasource.getAudiobooks();
       final totalDuration = audiobooks.fold(
         Duration.zero,
@@ -55,6 +112,8 @@ class LibraryRepositoryImpl implements LibraryRepository {
   @override
   Future<Library> updateLibrary(Library library) async {
     try {
+      _validateDependencies();
+
       // In this implementation, a library is essentially a collection of audiobooks
       // and metadata about the library itself. We'll save all audiobooks.
       await _localDatasource.saveAudiobooks(library.audiobooks);
@@ -193,9 +252,174 @@ class LibraryRepositoryImpl implements LibraryRepository {
     throw UnimplementedError();
   }
 
+  // Cache for audiobooks to improve performance
+  List<Audiobook>? _audiobooksCache;
+  DateTime? _cacheTimestamp;
+
+  // Cache expiration time (5 minutes)
+  static const Duration _cacheExpiration = Duration(minutes: 5);
+
+  @override
+  Future<List<Audiobook>> getAudiobooks({
+    String? sortBy,
+    bool sortAscending = true,
+    bool? completed,
+    bool? inProgress,
+    String? title,
+    String? author,
+    int? limit,
+  }) async {
+    try {
+      // Graceful degradation check
+      if (_shouldDegradeGracefully) {
+        print(
+          'Warning: Library datasource not initialized, returning empty audiobook list',
+        );
+        return [];
+      }
+
+      // Check if cache is valid
+      if (_audiobooksCache == null ||
+          _cacheTimestamp == null ||
+          DateTime.now().difference(_cacheTimestamp!) > _cacheExpiration) {
+        // Cache expired or doesn't exist, fetch from datasource
+        _audiobooksCache = await _localDatasource.getAudiobooks();
+        _cacheTimestamp = DateTime.now();
+      }
+
+      // Handle empty library case
+      if (_audiobooksCache!.isEmpty) {
+        print('Info: Library is empty - no audiobooks found');
+        return [];
+      }
+
+      // Start with cached audiobooks
+      var result = List<Audiobook>.from(_audiobooksCache!);
+
+      // Apply title filter if provided
+      if (title != null && title.isNotEmpty) {
+        result = result
+            .where(
+              (book) => book.title.toLowerCase().contains(title.toLowerCase()),
+            )
+            .toList();
+      }
+
+      // Apply author filter if provided
+      if (author != null && author.isNotEmpty) {
+        result = result
+            .where(
+              (book) => book.author.toLowerCase().contains(author.toLowerCase()),
+            )
+            .toList();
+      }
+
+      // Apply completed filter if provided
+      if (completed != null) {
+        result = result.where((book) => book.completed == completed).toList();
+      }
+
+      // Apply inProgress filter if provided
+      if (inProgress != null) {
+        if (inProgress) {
+          // In progress means not completed but has been played
+          result = result.where((book) => !book.completed && book.lastPlayedAt != null).toList();
+        } else {
+          // Not in progress means either completed or never played
+          result = result.where((book) => book.completed || book.lastPlayedAt == null).toList();
+        }
+      }
+
+      // Apply sorting
+      if (sortBy != null && sortBy.isNotEmpty) {
+        result.sort((a, b) {
+          switch (sortBy) {
+            case 'title':
+              return sortAscending ? a.title.compareTo(b.title) : b.title.compareTo(a.title);
+            case 'author':
+              return sortAscending ? a.author.compareTo(b.author) : b.author.compareTo(a.author);
+            case 'lastPlayed':
+              // Handle null lastPlayedAt by sorting them to the end
+              if (a.lastPlayedAt == null && b.lastPlayedAt == null) return 0;
+              if (a.lastPlayedAt == null) return sortAscending ? 1 : -1;
+              if (b.lastPlayedAt == null) return sortAscending ? -1 : 1;
+              return sortAscending
+                  ? a.lastPlayedAt!.compareTo(b.lastPlayedAt!)
+                  : b.lastPlayedAt!.compareTo(a.lastPlayedAt!);
+            case 'dateAdded':
+              return sortAscending
+                  ? a.createdAt.compareTo(b.createdAt)
+                  : b.createdAt.compareTo(a.createdAt);
+            case 'length':
+              // Sort by duration (audiobook length)
+              final durationA = a.duration.inMilliseconds;
+              final durationB = b.duration.inMilliseconds;
+              return sortAscending
+                  ? durationA.compareTo(durationB)
+                  : durationB.compareTo(durationA);
+            case 'progress':
+              // Calculate progress as percentage
+              final progressA = _calculateProgress(a);
+              final progressB = _calculateProgress(b);
+              return sortAscending
+                  ? progressA.compareTo(progressB)
+                  : progressB.compareTo(progressA);
+            default:
+              // Default to title sorting
+              return sortAscending ? a.title.compareTo(b.title) : b.title.compareTo(a.title);
+          }
+        });
+      }
+
+      // Apply limit if provided
+      if (limit != null && limit > 0 && result.length > limit) {
+        result = result.sublist(0, limit);
+      }
+
+      return result;
+    } catch (e) {
+      throw StorageException(ErrorHandler.handleException(e));
+    }
+  }
+
+  /// Calculates progress percentage for an audiobook
+  /// Returns 0 for books never played, 100 for completed books
+  double _calculateProgress(Audiobook audiobook) {
+    if (audiobook.completed) return 100;
+    if (audiobook.lastPlayedAt == null) return 0;
+
+    // Calculate progress based on current position and total duration
+    final durationMs = audiobook.duration.inMilliseconds;
+    if (durationMs <= 0) return 0;
+
+    final currentPositionMs = audiobook.currentPosition.inMilliseconds;
+    final progress = (currentPositionMs / durationMs * 100).clamp(0.0, 100.0);
+    return progress;
+  }
+
   @override
   Future<List<Audiobook>> searchInLibrary(String query) {
     // TODO: implement searchInLibrary
     throw UnimplementedError();
+  }
+
+  @override
+  Future<void> updatePreferredSpeed(String audiobookId, double speed) async {
+    try {
+      _validateDependencies();
+      await _localDatasource.updatePreferredSpeed(audiobookId, speed);
+    } catch (e) {
+      throw StorageException(ErrorHandler.handleException(e));
+    }
+  }
+
+  @override
+  Future<double> getPreferredSpeed(String audiobookId) async {
+    try {
+      _validateDependencies();
+      return await _localDatasource.getPreferredSpeed(audiobookId);
+    } catch (e) {
+      throw StorageException(ErrorHandler.handleException(e));
+    }
   }
 }

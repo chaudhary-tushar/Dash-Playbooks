@@ -2,10 +2,13 @@
 
 import 'package:flutbook/features/directory_selection/data/datasources/metadat_extractor_ds.dart';
 import 'package:flutbook/features/library/data/datasources/audiobook_local_ds.dart';
+import 'package:flutbook/features/library/domain/entities/audiobook.dart';
 
-abstract class ScanLibraryUseCase {
+class ScanLibraryUseCase {
   /// Scans a directory and updates the local library
-  Future<ScanResult> execute(String directoryPath);
+  Future<ScanResult> execute(String directoryPath) async {
+    throw UnimplementedError();
+  }
 }
 
 class ScanResult {
@@ -48,14 +51,20 @@ class ScanLibraryUseCaseImpl implements ScanLibraryUseCase {
     try {
       // Step 1: Scan directory and extract metadata from all audio files
       final audioFiles = await extractor.scanDirectoryForAudioFiles(directoryPath);
-      final audiobooks = <dynamic>[];
+      final audiobooks = <Audiobook>[];
 
       // Step 2: Extract metadata for each file, collecting errors for individual files
       for (final filePath in audioFiles) {
         try {
-          final audiobook = await extractor.extractMetadata(filePath);
+          final Audiobook? audiobook = await extractor.extractMetadata(filePath);
           if (audiobook != null) {
-            audiobooks.add(audiobook);
+            // Check if this audiobook already exists in the database based on file path
+            final exists = await localDatasource.audiobookExistsByFilePath(filePath);
+            if (!exists) {
+              audiobooks.add(audiobook);
+            } else {
+              print('Audiobook already exists in database: $filePath');
+            }
           }
         } catch (e) {
           // Log individual file errors but continue processing
@@ -63,15 +72,39 @@ class ScanLibraryUseCaseImpl implements ScanLibraryUseCase {
         }
       }
 
-      // Step 3: Save all successfully extracted audiobooks to database
+      // Step 3: Get all audiobooks in the database that are in the scanned directory
+      final allAudiobooksInDb = await localDatasource.getAudiobooks();
+      final audiobooksInScannedDir = allAudiobooksInDb
+          .where((audiobook) => audiobook.filePath.startsWith(directoryPath))
+          .toList();
+
+      // Step 4: Identify audiobooks that are in the database but no longer in the directory
+      final audiobooksToRemove = <Audiobook>[];
+      for (final dbAudiobook in audiobooksInScannedDir) {
+        final stillExists = audioFiles.any((filePath) => filePath == dbAudiobook.filePath);
+        if (!stillExists) {
+          // Check if file actually exists on disk before marking as missing
+          if (!await extractor.isFileAccessible(dbAudiobook.filePath)) {
+            audiobooksToRemove.add(dbAudiobook);
+          }
+        }
+      }
+
+      // Step 5: Remove audiobooks that are no longer in the directory
+      for (final audiobook in audiobooksToRemove) {
+        await localDatasource.deleteAudiobook(audiobook.id);
+        print('Removed audiobook no longer in directory: ${audiobook.filePath}');
+      }
+
+      // Step 6: Save all newly found audiobooks to database
       if (audiobooks.isNotEmpty) {
-        await localDatasource.saveAudiobooks(audiobooks.cast());
+        await localDatasource.saveAudiobooks(audiobooks);
       }
 
       stopwatch.stop();
       final totalSize = audiobooks.fold<int>(
         0,
-        (sum, audiobook) => sum + (audiobook.totalSize as int),
+        (sum, audiobook) => sum + audiobook.totalSize,
       );
 
       return ScanResult(

@@ -6,11 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('AuthGuard Tests', () {
     test('Public routes should be accessible when not authenticated', () {
-      final authState = const AuthState(
-        isAuthenticated: false,
-        userProfile: null,
-        isLoading: false,
-        errorMessage: null,
+      const authState = AuthState(
+
       );
 
       expect(AuthGuard.canActivate('/', authState), true);
@@ -19,11 +16,8 @@ void main() {
     });
 
     test('Non-public routes should not be accessible when not authenticated', () {
-      final authState = const AuthState(
-        isAuthenticated: false,
-        userProfile: null,
-        isLoading: false,
-        errorMessage: null,
+      const authState = AuthState(
+
       );
 
       expect(AuthGuard.canActivate('/library', authState), false);
@@ -38,12 +32,10 @@ void main() {
         authMethod: 'email', // Non-anonymous auth method
         syncEnabled: true,
       );
-      
+
       final authState = AuthState(
         isAuthenticated: true,
         userProfile: userProfile,
-        isLoading: false,
-        errorMessage: null,
       );
 
       // Should be able to access protected routes with non-anonymous auth
@@ -59,12 +51,10 @@ void main() {
         authMethod: 'anonymous', // Anonymous auth method
         syncEnabled: false,
       );
-      
+
       final authState = AuthState(
         isAuthenticated: true,
         userProfile: userProfile,
-        isLoading: false,
-        errorMessage: null,
       );
 
       // Should NOT be able to access protected routes with anonymous auth
@@ -80,12 +70,10 @@ void main() {
         authMethod: 'anonymous', // Anonymous auth method
         syncEnabled: false,
       );
-      
+
       final authState = AuthState(
         isAuthenticated: true,
         userProfile: userProfile,
-        isLoading: false,
-        errorMessage: null,
       );
 
       // Should be able to access routes that allow anonymous users
@@ -101,12 +89,10 @@ void main() {
         authMethod: 'email', // Non-anonymous auth method
         syncEnabled: true,
       );
-      
+
       final authState = AuthState(
         isAuthenticated: true,
         userProfile: userProfile,
-        isLoading: false,
-        errorMessage: null,
       );
 
       // Should be able to access routes that allow any authenticated user
@@ -130,7 +116,7 @@ void main() {
         authMethod: 'anonymous',
         syncEnabled: false,
       );
-      
+
       final emailProfile = UserProfile(
         id: 'user123',
         email: 'test@example.com',
@@ -141,15 +127,11 @@ void main() {
       final anonymousState = AuthState(
         isAuthenticated: true,
         userProfile: anonymousProfile,
-        isLoading: false,
-        errorMessage: null,
       );
 
       final emailState = AuthState(
         isAuthenticated: true,
         userProfile: emailProfile,
-        isLoading: false,
-        errorMessage: null,
       );
 
       expect(AuthGuard.isAnonymousUser(anonymousState), true);

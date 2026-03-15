@@ -1,5 +1,6 @@
 // lib/presentation/screens/settings_screen.dart
 import 'package:file_picker/file_picker.dart';
+import 'package:flutbook/features/player/presentation/widgets/audio_effects_panel.dart';
 import 'package:flutter/material.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -18,6 +19,7 @@ class SettingsScreenState extends State<SettingsScreen> {
   String _libraryPath = '/storage/emulated/0/Audiobooks';
   bool _autoDownload = false;
   bool _reduceAnimations = false;
+  bool _audioEffectsEnabled = false;
 
   @override
   Widget build(BuildContext context) {
@@ -113,6 +115,36 @@ class SettingsScreenState extends State<SettingsScreen> {
                   trailing: const Icon(Icons.chevron_right),
                   onTap: _showSkipIntervalDialog,
                 ),
+
+                // Clear playback history
+                ListTile(
+                  title: const Text('Clear Playback History'),
+                  leading: const Icon(Icons.history),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: _showClearHistoryDialog,
+                ),
+
+                // Audio Effects
+                SwitchListTile(
+                  title: const Text('Audio Effects'),
+                  subtitle: const Text('Equalizer, bass boost, treble'),
+                  value: _audioEffectsEnabled,
+                  onChanged: (bool value) {
+                    setState(() {
+                      _audioEffectsEnabled = value;
+                    });
+                  },
+                  secondary: const Icon(Icons.equalizer),
+                ),
+
+                // Audio Effects Settings (only shown when enabled)
+                if (_audioEffectsEnabled)
+                  ListTile(
+                    title: const Text('Audio Effects Settings'),
+                    leading: const Icon(Icons.tune),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: _showAudioEffectsPanel,
+                  ),
               ],
             ),
           ),
@@ -266,7 +298,7 @@ class SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _selectLibraryDirectory() async {
     try {
-      final selectedDirectory = await FilePicker.platform.getDirectoryPath();
+      final selectedDirectory = await FilePicker.getDirectoryPath();
 
       if (selectedDirectory != null) {
         setState(() {
@@ -348,46 +380,18 @@ class SettingsScreenState extends State<SettingsScreen> {
           title: const Text('Default Skip Interval'),
           content: StatefulBuilder(
             builder: (BuildContext context, StateSetter setState) {
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  RadioListTile<int>(
-                    title: const Text('10 seconds'),
-                    value: 10,
-                    groupValue: currentInterval,
-                    onChanged: (int? value) {
-                      if (value != null) {
-                        setState(() {
-                          currentInterval = value;
-                        });
-                      }
-                    },
-                  ),
-                  RadioListTile<int>(
-                    title: const Text('15 seconds'),
-                    value: 15,
-                    groupValue: currentInterval,
-                    onChanged: (int? value) {
-                      if (value != null) {
-                        setState(() {
-                          currentInterval = value;
-                        });
-                      }
-                    },
-                  ),
-                  RadioListTile<int>(
-                    title: const Text('30 seconds'),
-                    value: 30,
-                    groupValue: currentInterval,
-                    onChanged: (int? value) {
-                      if (value != null) {
-                        setState(() {
-                          currentInterval = value;
-                        });
-                      }
-                    },
-                  ),
+              return SegmentedButton<int>(
+                segments: const [
+                  ButtonSegment(label: Text('10s'), value: 10),
+                  ButtonSegment(label: Text('15s'), value: 15),
+                  ButtonSegment(label: Text('30s'), value: 30),
                 ],
+                selected: {currentInterval},
+                onSelectionChanged: (Set<int> newSelection) {
+                  setState(() {
+                    currentInterval = newSelection.first;
+                  });
+                },
               );
             },
           ),
@@ -436,6 +440,56 @@ class SettingsScreenState extends State<SettingsScreen> {
           ],
         );
       },
+    );
+  }
+
+  Future<void> _showClearHistoryDialog() async {
+    await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Clear Playback History'),
+          content: const Text(
+            'Are you sure you want to clear all playback history? This action cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              child: const Text('CANCEL'),
+              onPressed: () {
+                Navigator.of(context).pop(false);
+              },
+            ),
+            TextButton(
+              child: const Text('CLEAR'),
+              onPressed: () {
+                Navigator.of(context).pop(true);
+              },
+            ),
+          ],
+        );
+      },
+    ).then((confirmed) {
+      if (confirmed ?? false) {
+        // TODO: Implement actual history clearing
+        // _playbackRepository.clearPlaybackHistory();
+        final contextRef = context;
+        if (contextRef.mounted) {
+          ScaffoldMessenger.of(contextRef).showSnackBar(
+            const SnackBar(
+              content: Text('Playback history cleared'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    });
+  }
+
+  Future<void> _showAudioEffectsPanel() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => const AudioEffectsPanel(),
     );
   }
 }

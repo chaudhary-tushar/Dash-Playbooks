@@ -12,25 +12,30 @@ class AuthGuard {
       return true;
     }
 
-    // Check if user is authenticated
-    if (!authState.isAuthenticated) {
-      // Unauthenticated users get redirected to auth page
-      return false;
-    }
-
-    // Anonymous users have limited access
-    if (isAnonymousUser(authState) && !isAnonymousAllowedRoute(route)) {
-      // Anonymous users can only access limited routes
-      return false;
-    }
-
-    // Authenticated users (not anonymous) can access protected routes
-    if (isProtectedRoute(route) && !isAnonymousUser(authState)) {
+    // Allow development bypass for specific routes
+    if (route == 'dev_directory') {
       return true;
     }
 
-    // For routes accessible by any authenticated user (including anonymous)
-    if (isAnyAuthRoute(route)) {
+    // If auth is still loading, allow access to prevent UI flickering
+    if (authState.isLoading) {
+      return true;
+    }
+
+    // Check if user is authenticated
+    if (!authState.isAuthenticated) {
+      // Unauthenticated users can only access public routes (handled above)
+      return false;
+    }
+
+    // Authenticated users: check specific route permissions
+    if (isProtectedRoute(route)) {
+      // Protected routes require non-anonymous authentication
+      return !isAnonymousUser(authState);
+    }
+
+    if (isAnonymousAllowedRoute(route)) {
+      // Routes that allow anonymous users
       return true;
     }
 
@@ -45,7 +50,8 @@ class AuthGuard {
 
   /// Helper method to check if user is anonymous
   static bool isAnonymousUser(AuthState authState) {
-    return authState.userProfile?.authMethod == 'anonymous';
+    final authMethod = authState.userProfile?.authMethod;
+    return authMethod == 'anonymous' || authMethod == 'development';
   }
 
   /// Helper method to check if route is protected (requires non-anonymous auth)

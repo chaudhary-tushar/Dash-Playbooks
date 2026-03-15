@@ -1,34 +1,41 @@
-import 'package:flutbook/features/auth/data/datasources/firebase_auth_datasource.dart';
+import 'package:flutbook/core/error/sync_result.dart';
+import 'package:flutbook/features/auth/data/datasources/supabase_auth_datasource.dart';
+import 'package:flutbook/features/auth/data/services/user_profile_service.dart';
 import 'package:flutbook/features/auth/domain/entities/auth_result.dart';
 import 'package:flutbook/features/auth/domain/entities/user_profile.dart';
 import 'package:flutbook/features/auth/domain/repositories/user_repository.dart'
     show UserRepository;
-import 'package:flutbook/features/library/data/datasources/remote/firebase_library_sync.dart';
-import 'package:flutbook/features/player/data/datasources/remote/firebase_playback_sync.dart';
+import 'package:flutbook/features/library/data/datasources/remote/supabase_library_sync.dart';
+import 'package:flutbook/features/player/data/datasources/remote/supabase_playback_sync.dart';
 import 'package:flutbook/features/settings/data/datasources/preferences_datasource.dart';
 import 'package:flutbook/features/settings/domain/entities/sync_status.dart';
-import 'package:flutbook/core/error/sync_result.dart';
 import 'package:flutbook/features/settings/domain/entities/user_settings.dart';
 
 class UserRepositoryImpl implements UserRepository {
   UserRepositoryImpl({
-    required FirebaseAuthDatasource authDatasource,
-    required LibraryRemoteDatasource syncDatasource,
-    required PlaybackRemoteDatasource playbackRemoteDatasource,
+    required SupabaseAuthDatasource authDatasource,
+    required SupabaseLibraryDatasource syncDatasource,
+    required SupabasePlaybackDatasource playbackRemoteDatasource,
     required PreferencesDatasource preferencesDatasource,
+    required UserProfileService userProfileService,
   }) : _authDatasource = authDatasource,
        _syncDatasource = syncDatasource,
        _playbackRemoteDatasource = playbackRemoteDatasource,
-       _preferencesDatasource = preferencesDatasource;
-  final FirebaseAuthDatasource _authDatasource;
-  final LibraryRemoteDatasource _syncDatasource;
-  final PlaybackRemoteDatasource _playbackRemoteDatasource;
+       _preferencesDatasource = preferencesDatasource,
+       _userProfileService = userProfileService;
+  final SupabaseAuthDatasource _authDatasource;
+  final SupabaseLibraryDatasource _syncDatasource;
+  final SupabasePlaybackDatasource _playbackRemoteDatasource;
   final PreferencesDatasource _preferencesDatasource;
+  final UserProfileService _userProfileService;
   // late final LibraryRepository _libraryRepo;
   // late final PlaybackRepository _playbackRepo;
 
   @override
-  Future<AuthResult> signInWithEmailAndPassword(String email, String password) async {
+  Future<AuthResult> signInWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
     try {
       final result = await _authDatasource.signInWithEmailAndPassword(
         email,
@@ -36,8 +43,8 @@ class UserRepositoryImpl implements UserRepository {
       );
 
       if (result.success && result.user != null) {
-        // Save user preferences
-        await _preferencesDatasource.saveUserPreferences(result.user);
+        // Save user profile to ISAR database
+        await _userProfileService.updateUserProfileDuringAuth(result.user!);
       }
 
       return result;
@@ -55,8 +62,8 @@ class UserRepositoryImpl implements UserRepository {
       final result = await _authDatasource.signInWithGoogle();
 
       if (result.success && result.user != null) {
-        // Save user preferences
-        await _preferencesDatasource.saveUserPreferences(result.user);
+        // Save user profile to ISAR database
+        await _userProfileService.updateUserProfileDuringAuth(result.user!);
       }
 
       return result;
@@ -80,8 +87,8 @@ class UserRepositoryImpl implements UserRepository {
       );
 
       if (result.success && result.user != null) {
-        // Save user preferences
-        await _preferencesDatasource.saveUserPreferences(result.user);
+        // Save user profile to ISAR database
+        await _userProfileService.updateUserProfileDuringAuth(result.user!);
       }
 
       return result;
@@ -89,6 +96,31 @@ class UserRepositoryImpl implements UserRepository {
       return AuthResult(
         success: false,
         errorMessage: 'Sign up failed: $e',
+      );
+    }
+  }
+
+  @override
+  Future<AuthResult> authenticateWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
+    try {
+      final result = await _authDatasource.authenticateWithEmailAndPassword(
+        email,
+        password,
+      );
+
+      if (result.success && result.user != null) {
+        // Save user profile to ISAR database
+        await _userProfileService.updateUserProfileDuringAuth(result.user!);
+      }
+
+      return result;
+    } catch (e) {
+      return AuthResult(
+        success: false,
+        errorMessage: 'Authentication failed: $e',
       );
     }
   }
@@ -106,13 +138,16 @@ class UserRepositoryImpl implements UserRepository {
   @override
   Future<SyncStatus> getSyncStatus() async {
     try {
-      final hasPendingSync = await _preferencesDatasource.hasPendingSyncChanges();
+      final hasPendingSync = await _preferencesDatasource
+          .hasPendingSyncChanges();
       final lastSyncAt = await _preferencesDatasource.getLastSyncTime();
 
       return SyncStatus(
-        isSyncing: false, // Would track actual sync status in real implementation
+        isSyncing:
+            false, // Would track actual sync status in real implementation
         syncEnabled: true, // Would come from user settings
-        lastSyncSuccessful: await _preferencesDatasource.getLastSyncSuccessful(),
+        lastSyncSuccessful: await _preferencesDatasource
+            .getLastSyncSuccessful(),
         lastSyncAt: lastSyncAt,
         hasPendingChanges: hasPendingSync,
       );
@@ -159,7 +194,8 @@ class UserRepositoryImpl implements UserRepository {
       // For simplicity, we'll sync audiobook metadata and playback sessions
       // In a real implementation, we'd also sync user settings and preferences
       final remoteAudiobooks = await _syncDatasource.getAudiobookMetadata();
-      final remoteSessions = await _playbackRemoteDatasource.getPlaybackSessions();
+      final remoteSessions = await _playbackRemoteDatasource
+          .getPlaybackSessions();
 
       return SyncResult(
         success: true,
@@ -182,7 +218,7 @@ class UserRepositoryImpl implements UserRepository {
       return UserSettings.fromMap(settings);
     } catch (e) {
       // Return default settings if none exist
-      return UserSettings.defaultSettings();
+      return UserSettings.defaults();
     }
   }
 
@@ -234,9 +270,17 @@ class UserRepositoryImpl implements UserRepository {
       // Use the auth result from the datasource (which has the user field)
       final datasourceResult = await _authDatasource.anonymousSignIn();
 
-      // If successful, save user preferences using the user from datasource result
-      if (datasourceResult.success && datasourceResult.user != null) {
-        await _preferencesDatasource.saveUserPreferences(datasourceResult.user);
+      // If successful and user is not null, save user profile to ISAR database
+      if (datasourceResult.success) {
+        if (datasourceResult.user != null) {
+          await _userProfileService.updateUserProfileDuringAuth(
+            datasourceResult.user!,
+          );
+        } else {
+          // Handle the case where anonymous sign-in succeeded but user is null
+          // This can happen with SupabaseAuthDatasource.anonymousSignIn()
+          // We'll still return success but won't update the user profile
+        }
       }
 
       // Return a repository-compatible AuthResult (without user field)
@@ -272,7 +316,7 @@ class UserRepositoryImpl implements UserRepository {
   }
 
   @override
-  Future<void> updateLocalData(String itemId, data) {
+  Future<void> updateLocalData(String itemId, dynamic data) {
     // TODO: implement updateLocalData
     throw UnimplementedError();
   }
@@ -284,7 +328,7 @@ class UserRepositoryImpl implements UserRepository {
   }
 
   @override
-  Future<void> updateRemoteData(String itemId, data) {
+  Future<void> updateRemoteData(String itemId, dynamic data) {
     // TODO: implement updateRemoteData
     throw UnimplementedError();
   }

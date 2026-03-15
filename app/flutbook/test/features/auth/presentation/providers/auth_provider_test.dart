@@ -115,7 +115,7 @@ void main() {
       ).called(1);
       verify(
         () => mockGetCurrentUserUsecase(),
-      ).called(1); // Called once during login
+      ).called(2); // Called once during login and once for state update
     });
 
     test('should update state with error on failed login', () async {

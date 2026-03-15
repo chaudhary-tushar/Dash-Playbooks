@@ -2,7 +2,7 @@
 // import 'package:flutbook/data/providers/audiobook_provider.dart';
 import 'package:flutbook/core/error/exceptions.dart';
 import 'package:flutbook/features/library/data/datasources/audiobook_local_ds.dart';
-import 'package:flutbook/features/library/data/datasources/remote/firebase_library_sync.dart';
+import 'package:flutbook/features/library/data/datasources/remote/supabase_library_sync.dart';
 import 'package:flutbook/features/library/data/models/audiobook_model.dart';
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
 import 'package:flutbook/features/library/domain/repositories/audiobook_repository.dart';
@@ -11,12 +11,13 @@ class AudiobookRepositoryImpl implements AudiobookRepository {
   AudiobookRepositoryImpl({
     required AudiobookLocalDatasource localDatasource,
     // required AudiobookProvider provider,
-    LibraryRemoteDatasource? remoteDatasource,
+    SupabaseLibraryDatasource? remoteDatasource,
   }) : _localDatasource = localDatasource,
        _remoteDatasource = remoteDatasource;
   //  _provider = provider;
   final AudiobookLocalDatasource _localDatasource;
-  final LibraryRemoteDatasource? _remoteDatasource; // Nullable for anonymous users
+  final SupabaseLibraryDatasource?
+  _remoteDatasource; // Nullable for anonymous users
   // final AudiobookProvider _provider;
 
   @override
@@ -78,7 +79,9 @@ class AudiobookRepositoryImpl implements AudiobookRepository {
       // If user is authenticated, sync the update
       if (_remoteDatasource != null) {
         try {
-          await _remoteDatasource.uploadAudiobookMetadata(audiobook as AudiobookModel);
+          await _remoteDatasource.uploadAudiobookMetadata(
+            audiobook as AudiobookModel,
+          );
         } catch (e) {
           print('Warning: Could not sync audiobook update to remote: $e');
           // Continue anyway, local storage is the primary source
@@ -94,7 +97,9 @@ class AudiobookRepositoryImpl implements AudiobookRepository {
     try {
       // For this implementation, we're not deleting the actual file, just the record
       final allAudiobooks = await _localDatasource.getAudiobooks();
-      final remainingAudiobooks = allAudiobooks.where((a) => a.id != id).toList();
+      final remainingAudiobooks = allAudiobooks
+          .where((a) => a.id != id)
+          .toList();
 
       // Note: This removes from database but not the actual file
       // In a full implementation, we might want to handle file deletion separately
@@ -174,7 +179,8 @@ class AudiobookRepositoryImpl implements AudiobookRepository {
       // Update the last played time
       final updatedAudiobook = audiobook.copyWith(
         lastPlayedAt: DateTime.now(),
-        completed: position.inMilliseconds / audiobook.duration.inMilliseconds >= 0.95,
+        completed:
+            position.inMilliseconds / audiobook.duration.inMilliseconds >= 0.95,
       );
 
       await updateAudiobook(updatedAudiobook);
@@ -199,7 +205,8 @@ class AudiobookRepositoryImpl implements AudiobookRepository {
 
       final updatedAudiobook = audiobook.copyWith(
         lastPlayedAt: DateTime.now(),
-        completed: position.inMilliseconds / audiobook.duration.inMilliseconds >= 0.95,
+        completed:
+            position.inMilliseconds / audiobook.duration.inMilliseconds >= 0.95,
       );
 
       await updateAudiobook(updatedAudiobook);

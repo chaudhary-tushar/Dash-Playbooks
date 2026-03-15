@@ -1,10 +1,15 @@
 // lib/presentation/screens/audiobook_detail_screen.dart
-import 'dart:async';
+import 'dart:io';
 
+import 'package:flutbook/core/error/exceptions.dart';
+import 'package:flutbook/core/provider/providers.dart'
+    show playbackRepositoryProvider;
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
+import 'package:flutbook/features/player/presentation/providers/playback_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AudiobookDetailScreen extends StatefulWidget {
+class AudiobookDetailScreen extends ConsumerWidget {
   const AudiobookDetailScreen({
     required this.audiobook,
     super.key,
@@ -12,13 +17,8 @@ class AudiobookDetailScreen extends StatefulWidget {
   final Audiobook audiobook;
 
   @override
-  AudiobookDetailScreenState createState() => AudiobookDetailScreenState();
-}
-
-class AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(playbackProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -40,9 +40,9 @@ class AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
                     borderRadius: BorderRadius.circular(8),
                     color: Theme.of(context).cardColor,
                   ),
-                  child: widget.audiobook.coverArtPath != null
+                  child: audiobook.coverArtPath != null
                       ? Image.network(
-                          widget.audiobook.coverArtPath!,
+                          audiobook.coverArtPath!,
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) {
                             return Icon(
@@ -66,7 +66,7 @@ class AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
 
               // Title and author
               Text(
-                widget.audiobook.title,
+                audiobook.title,
                 style: Theme.of(context).textTheme.headlineSmall,
                 textAlign: TextAlign.center,
               ),
@@ -74,7 +74,7 @@ class AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
               const SizedBox(height: 8),
 
               Text(
-                widget.audiobook.author.isEmpty ? 'Unknown Author' : widget.audiobook.author,
+                audiobook.author.isEmpty ? 'Unknown Author' : audiobook.author,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
@@ -91,29 +91,43 @@ class AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildMetadataRow(
+                        context,
                         'Duration',
-                        _formatDuration(widget.audiobook.duration),
+                        _formatDuration(audiobook.duration),
                       ),
                       _buildMetadataRow(
+                        context,
                         'File Size',
-                        _formatFileSize(widget.audiobook.totalSize),
+                        _formatFileSize(audiobook.totalSize),
                       ),
                       _buildMetadataRow(
+                        context,
                         'File Path',
-                        widget.audiobook.filePath.split('/').last,
+                        audiobook.filePath.split('/').last,
                       ),
                       _buildMetadataRow(
+                        context,
                         'Added',
-                        widget.audiobook.createdAt.toLocal().toString().split('.').first,
+                        audiobook.createdAt
+                            .toLocal()
+                            .toString()
+                            .split('.')
+                            .first,
                       ),
-                      if (widget.audiobook.lastPlayedAt != null)
+                      if (audiobook.lastPlayedAt != null)
                         _buildMetadataRow(
+                          context,
                           'Last Played',
-                          widget.audiobook.lastPlayedAt!.toLocal().toString().split('.').first,
+                          audiobook.lastPlayedAt!
+                              .toLocal()
+                              .toString()
+                              .split('.')
+                              .first,
                         ),
                       _buildMetadataRow(
+                        context,
                         'Status',
-                        widget.audiobook.completed ? 'Completed' : 'In Progress',
+                        audiobook.completed ? 'Completed' : 'In Progress',
                       ),
                     ],
                   ),
@@ -148,8 +162,10 @@ class AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
                           width:
                               0.6 *
                               MediaQuery.of(
-                                context,
-                              ).size.width, // Placeholder: actual progress would be dynamic
+                                    context,
+                                  )
+                                  .size
+                                  .width, // Placeholder: actual progress would be dynamic
                           height: 4,
                           decoration: BoxDecoration(
                             color: Theme.of(context).colorScheme.primary,
@@ -168,7 +184,7 @@ class AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                           Text(
-                            _formatDuration(widget.audiobook.duration),
+                            _formatDuration(audiobook.duration),
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ],
@@ -181,7 +197,7 @@ class AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
               const SizedBox(height: 16),
 
               // Chapter navigation (if chapters exist)
-              if (widget.audiobook.chapters.isNotEmpty) ...[
+              if (audiobook.chapters.isNotEmpty) ...[
                 Text(
                   'Chapters',
                   style: Theme.of(context).textTheme.titleMedium,
@@ -194,11 +210,11 @@ class AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
                     padding: const EdgeInsets.all(8),
                     child: Column(
                       children: [
-                        for (int i = 0; i < widget.audiobook.chapters.length; i++)
+                        for (int i = 0; i < audiobook.chapters.length; i++)
                           ListTile(
-                            title: Text(widget.audiobook.chapters[i].title),
+                            title: Text(audiobook.chapters[i].title),
                             subtitle: Text(
-                              '${_formatDuration(widget.audiobook.chapters[i].startTime)} - ${_formatDuration(widget.audiobook.chapters[i].endTime)}',
+                              '${_formatDuration(audiobook.chapters[i].startTime)} - ${_formatDuration(audiobook.chapters[i].endTime)}',
                             ),
                             trailing: const Icon(Icons.play_arrow),
                             onTap: () {
@@ -220,15 +236,82 @@ class AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
                     child: ElevatedButton.icon(
                       icon: const Icon(Icons.play_arrow),
                       label: const Text('Play'),
-                      onPressed: () {
-                        // Handle the returned Future properly
-                        unawaited(
+                      onPressed: () async {
+                        try {
+                          // Check playback feature availability first
+                          final playbackNotifier = ref.read(
+                            playbackProvider.notifier,
+                          );
+                          final featureStatus = playbackNotifier
+                              .getPlaybackFeatureStatus();
+
+                          final canProceed =
+                              await ErrorHandler.checkPlaybackFeaturesAndNotify(
+                                context,
+                                featureStatus,
+                              );
+
+                          if (!canProceed) {
+                            return;
+                          }
+
+                          // Validate if playback is available
+                          final playbackState = ref.watch(playbackProvider);
+
+                          // Check if there's an existing playback error
+                          if (playbackState.errorMessage != null) {
+                            ErrorHandler.showPlaybackErrorWithRetry(
+                              context,
+                              playbackState.errorMessage!,
+                              () => _retryPlayback(context, ref, audiobook),
+                            );
+                            return;
+                          }
+
+                          // Check if the audiobook has a valid file path
+                          if (audiobook.filePath.isEmpty ||
+                              !await File(audiobook.filePath).exists()) {
+                            ErrorHandler.showFeatureUnavailableNotification(
+                              context,
+                              'Playback',
+                              'Audio file not found. Please check your files.',
+                            );
+                            return;
+                          }
+
+                          // Check if playback repository is available
+                          final playbackRepoAsync = ref.watch(
+                            playbackRepositoryProvider,
+                          );
+                          final playbackRepo = playbackRepoAsync.whenOrNull(
+                            data: (repo) => repo,
+                            loading: () => null,
+                            error: (error, stack) => null,
+                          );
+
+                          if (playbackRepo == null) {
+                            ErrorHandler.showFeatureUnavailableNotification(
+                              context,
+                              'Playback',
+                              'Playback service not available. Please try again later.',
+                            );
+                            return;
+                          }
+
+                          // If all validations pass, navigate to playback
                           Navigator.pushNamed(
                             context,
                             '/playback',
-                            arguments: {'audiobook': widget.audiobook},
-                          ),
-                        );
+                            arguments: audiobook,
+                          );
+                        } catch (e) {
+                          // Handle any unexpected errors gracefully
+                          ErrorHandler.showFeatureUnavailableNotification(
+                            context,
+                            'Playback',
+                            'Failed to start playback. Please try again later.',
+                          );
+                        }
                       },
                     ),
                   ),
@@ -251,7 +334,7 @@ class AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
     );
   }
 
-  Widget _buildMetadataRow(String label, String value) {
+  Widget _buildMetadataRow(BuildContext context, String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -295,5 +378,51 @@ class AudiobookDetailScreenState extends State<AudiobookDetailScreen> {
       return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
     }
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+  }
+
+  /// Retry playback after a failure
+  Future<void> _retryPlayback(
+    BuildContext context,
+    WidgetRef ref,
+    Audiobook audiobook,
+  ) async {
+    try {
+      // Clear any existing error
+      ref.read(playbackProvider.notifier).clearError();
+
+      // Show retry attempt notification
+      ErrorHandler.showRetryAttemptNotification(context, 1);
+
+      // Wait a moment before retrying
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Check if playback repository is available
+      final playbackRepoAsync = ref.watch(playbackRepositoryProvider);
+      final playbackRepo = playbackRepoAsync.whenOrNull(
+        data: (repo) => repo,
+        loading: () => null,
+        error: (error, stack) => null,
+      );
+
+      if (playbackRepo == null) {
+        ErrorHandler.showPlaybackUnavailableNotification(
+          context,
+          'Playback service still not available. Please try again later.',
+        );
+        return;
+      }
+
+      // Navigate to playback if successful
+      Navigator.pushNamed(
+        context,
+        '/playback',
+        arguments: audiobook,
+      );
+    } catch (e) {
+      ErrorHandler.showPlaybackUnavailableNotification(
+        context,
+        'Retry failed. Please try again later.',
+      );
+    }
   }
 }

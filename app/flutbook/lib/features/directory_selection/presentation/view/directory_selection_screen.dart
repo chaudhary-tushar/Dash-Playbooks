@@ -1,9 +1,11 @@
 // lib/presentation/screens/directory_selection_screen.dart
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutbook/core/provider/providers.dart';
+import 'package:flutbook/features/directory_selection/data/datasources/system_directory_picker_ds.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -44,7 +46,7 @@ class _DirectorySelectionScreenState extends ConsumerState<DirectorySelectionScr
 
   Future<void> _selectDirectory() async {
     try {
-      final selectedDirectory = await FilePicker.platform.getDirectoryPath();
+      final selectedDirectory = await FilePicker.getDirectoryPath();
 
       if (selectedDirectory != null) {
         setState(() {
@@ -60,66 +62,129 @@ class _DirectorySelectionScreenState extends ConsumerState<DirectorySelectionScr
   }
 
   Future<void> _handleContinuePressed() async {
+    final contextRef = context;
+
     if (_selectedDirectory == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(contextRef).showSnackBar(
         const SnackBar(content: Text('Please select a directory first')),
       );
       return;
     }
 
+    // Validate that the directory exists and is readable
     final path = mapHostPathToContainer(_selectedDirectory!);
+    final directoryExists = await _validateDirectory(path);
+
+    if (!directoryExists) {
+      ScaffoldMessenger.of(contextRef).showSnackBar(
+        SnackBar(
+          content: Text('Directory does not exist or is not readable: $path'),
+        ),
+      );
+      return;
+    }
+
+    // Request storage permission if not already granted
+    final ds = SystemDirectoryPickerDatasource();
+    final hasPermission = await ds.requestStoragePermission();
+
+    if (!hasPermission) {
+      // Show permission rationale to user
+      ScaffoldMessenger.of(contextRef).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Storage permission is required to scan for audiobooks. Please grant permission in settings.',
+          ),
+        ),
+      );
+      // Optionally, redirect to app settings
+      return;
+    }
 
     try {
       // Get the use case from Riverpod
       final scanUseCase = await ref.read(scanLibraryUseCaseProvider.future);
 
-      // Show loading indicator
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      if (!contextRef.mounted) return;
+
+      // Navigate to Library screen immediately without waiting for scan to complete
+      // The scan will continue in the background
+      print('INFO - Navigating to library immediately, starting background scan');
+      Navigator.of(contextRef).pushReplacementNamed('/library');
+
+      // Show toast notification that scanning has started
+      ScaffoldMessenger.of(contextRef).showSnackBar(
         SnackBar(
-          content: Text('Scanning directory... $path'),
-          duration: const Duration(milliseconds: 5000),
+          content: Text('Scanning directory $path for audiobooks...'),
+          duration: const Duration(seconds: 3),
         ),
       );
 
-      // Execute the scan
-      print('DEBUG - Starting scan for $path');
-      final result = await scanUseCase.execute(path);
-      print('DEBUG - Scan finished');
-      print('Scanned files: ${result.scannedFiles}');
-      print('Errors: ${result.errors}');
-      print('Elapsed: ${result.elapsedTime}');
-      print('Total size: ${result.totalSize}');
+      // Execute the scan in the background (don't await)
+      // This allows the UI to respond immediately while scanning continues
+      Future<void>.microtask(() async {
+        try {
+          print('DEBUG - Starting background scan for $path');
+          final result = await scanUseCase.execute(path);
+          print('DEBUG - Background scan finished');
+          print('Scanned files: ${result.scannedFiles}');
+          print('Errors: ${result.errors}');
+          print('Elapsed: ${result.elapsedTime}');
+          print('Total size: ${result.totalSize}');
 
-      if (!mounted) return;
-
-      // Hide the loading snackbar
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-
-      // Show result
-      final message = result.success
-          ? 'Scanned ${result.scannedFiles} files in ${result.elapsedTime.inSeconds}s'
-          : 'Scan completed with errors. Check logs for details.';
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
-
-      // Navigate to Library screen after successful scan
-      if (result.scannedFiles > 0) {
-        Navigator.of(context).pushReplacementNamed('/library');
-      }
+          // Optionally, show a notification when scan completes
+          if (contextRef.mounted) {
+            String message;
+            if (result.success) {
+              message = 'Scan complete: ${result.scannedFiles} files found';
+            } else {
+              message = 'Scan complete with ${result.errors.length} errors';
+            }
+            ScaffoldMessenger.of(contextRef).showSnackBar(
+              SnackBar(
+                content: Text(message),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+        } catch (e) {
+          print('Error during background scan: $e');
+          if (contextRef.mounted) {
+            ScaffoldMessenger.of(contextRef).showSnackBar(
+              SnackBar(
+                content: Text('Background scan error: $e'),
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          }
+        }
+      });
     } catch (e) {
-      print('Error during scan: $e');
-      if (!mounted) return;
-
-      // Hide the loading snackbar
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      print('Error getting scan use case: $e');
+      if (!contextRef.mounted) return;
 
       // Show error
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error scanning directory: $e')),
+      ScaffoldMessenger.of(contextRef).showSnackBar(
+        SnackBar(content: Text('Error starting scan: $e')),
       );
+    }
+  }
+
+  /// Validates that the directory exists and is readable
+  Future<bool> _validateDirectory(String directoryPath) async {
+    try {
+      final directory = Directory(directoryPath);
+      if (!await directory.exists()) {
+        print('Directory does not exist: $directoryPath');
+        return false;
+      }
+
+      // Try to list contents to verify read access
+      await directory.list().first;
+      return true;
+    } catch (e) {
+      print('Directory is not readable: $directoryPath, Error: $e');
+      return false;
     }
   }
 
@@ -216,9 +281,8 @@ class _DirectorySelectionScreenState extends ConsumerState<DirectorySelectionScr
             if (_selectedDirectory != null) ...[
               const SizedBox(height: 16),
               ElevatedButton(
-                onPressed: () {
-                  // Properly handle the Future returned by _handleContinuePressed
-                  unawaited(_handleContinuePressed());
+                onPressed: () async {
+                  await _handleContinuePressed();
                 },
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),

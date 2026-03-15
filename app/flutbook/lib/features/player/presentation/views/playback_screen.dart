@@ -1,100 +1,191 @@
-// lib/presentation/screens/playback_screen.dart
-import 'package:flutbook/features/library/data/models/audiobook_model.dart';
+// lib/features/player/presentation/views/playback_screen.dart
+import 'package:flutbook/core/provider/providers.dart';
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
-import 'package:flutbook/features/player/presentation/widgets/playback_controls.dart';
+import 'package:flutbook/features/player/presentation/providers/bookmark_provider.dart';
+import 'package:flutbook/features/player/presentation/providers/playback_provider.dart';
+import 'package:flutbook/features/player/presentation/widgets/audio_effects_panel.dart';
+import 'package:flutbook/features/player/presentation/widgets/bookmark_widget.dart';
+import 'package:flutbook/features/player/presentation/widgets/chapters_list.dart';
 import 'package:flutbook/features/player/presentation/widgets/progress_bar.dart';
+import 'package:flutbook/features/player/presentation/widgets/queue_manager_widget.dart';
+import 'package:flutbook/features/player/presentation/widgets/sleep_timer_dialog.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class PlaybackScreen extends StatefulWidget {
+class PlaybackScreen extends ConsumerStatefulWidget {
   const PlaybackScreen({
     required this.audiobook,
     super.key,
   });
-  final AudiobookModel audiobook;
+
+  final Audiobook audiobook;
 
   @override
-  PlaybackScreenState createState() => PlaybackScreenState();
+  ConsumerState<PlaybackScreen> createState() => _PlaybackScreenState();
 }
 
-class PlaybackScreenState extends State<PlaybackScreen> {
-  late Audiobook audiobook;
+class _PlaybackScreenState extends ConsumerState<PlaybackScreen> {
+  bool _initialized = false;
+  bool _isInitializing = false;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Get the audiobook from the route arguments
-    final args = ModalRoute.of(context)!.settings.arguments;
-    if (args is Audiobook) {
-      audiobook = args;
-    } else {
-      // Default audiobook in case arguments are not passed correctly
-      audiobook = Audiobook(
-        id: 'default',
-        title: 'Default Title',
-        author: 'Default Author',
-        album: 'Default Album',
-        duration: Duration.zero,
-        filePath: '',
-        chapters: [],
-        createdAt: DateTime.now(),
-        completed: false,
-        totalSize: 0,
-      );
+  void initState() {
+    super.initState();
+    // Start initialization immediately
+    _startInitialization();
+  }
+
+  Future<void> _startInitialization() async {
+    if (_initialized || _isInitializing) return;
+    _isInitializing = true;
+
+    // Wait for provider to be ready
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializePlayback();
+    });
+  }
+
+  Future<void> _initializePlayback() async {
+    if (_initialized) return;
+
+    final playbackNotifier = ref.read(playbackProvider.notifier);
+
+    print('[PlaybackScreen] _initializePlayback() called');
+
+    try {
+      print('[PlaybackScreen] Calling setCurrentAudiobook');
+      final success = await playbackNotifier.setCurrentAudiobook(widget.audiobook);
+      print('[PlaybackScreen] setCurrentAudiobook result: $success');
+
+      if (!success) {
+        final currentState = ref.read(playbackProvider);
+        if (mounted) {
+          _showErrorDialogWithRetry(
+            context,
+            currentState.errorMessage ?? 'Failed to initialize playback',
+            () {
+              playbackNotifier.retryOperation(
+                () => playbackNotifier.setCurrentAudiobook(widget.audiobook),
+              );
+            },
+          );
+        }
+      } else {
+        _initialized = true;
+        print('[PlaybackScreen] Initialization complete');
+      }
+    } catch (e) {
+      print('[PlaybackScreen] Initialization error: $e');
+      if (mounted) {
+        _showErrorDialogWithRetry(
+          context,
+          'Failed to initialize playback: $e',
+          () {
+            playbackNotifier.retryOperation(
+              () => playbackNotifier.setCurrentAudiobook(widget.audiobook),
+            );
+          },
+        );
+      }
+    } finally {
+      _isInitializing = false;
     }
   }
 
-  // These would connect to actual playback state providers in a complete implementation
-  bool _isPlaying = false;
-  double _playbackSpeed = 1;
-  bool _sleepTimerActive = false;
-  final Duration _sleepTimerDuration = const Duration(minutes: 30);
-  Duration _currentPosition = Duration.zero;
-  Duration _scrubPosition = Duration.zero;
-  bool _isScrubbing = false;
-
   @override
   Widget build(BuildContext context) {
-    final _ = Theme.of(context);
-
+    final playbackState = ref.watch(playbackProvider);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Now Playing'),
         centerTitle: true,
       ),
-      body: Column(
-        children: [
-          // Cover art display
-          Padding(
-            padding: const EdgeInsets.all(24),
-            child: Center(
-              child: Container(
-                width: 250,
-                height: 250,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color.fromARGB(
-                        255,
-                        0,
-                        0,
-                        0,
-                      ).withOpacity(0.2),
-                      spreadRadius: 2,
-                      blurRadius: 10,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
-                ),
-                child: audiobook.coverArtPath != null
-                    ? ClipRRect(
+      body: _buildPlaybackBody(context, ref, playbackState),
+    );
+  }
+
+  Widget _buildPlaybackBody(
+    BuildContext context,
+    WidgetRef ref,
+    PlaybackState playbackState,
+  ) {
+    // Show error state if there's an error
+    if (playbackState.errorMessage != null) {
+      return _buildErrorState(context, ref, playbackState);
+    }
+
+    // Show loading state if still loading
+    if (playbackState.isLoading) {
+      return _buildLoadingState(context);
+    }
+
+    // Check if playback provider is properly initialized
+    // This handles cases where the provider might be in a bad state
+    try {
+      // Verify that the audio service is ready
+      ref.read(playbackProvider.notifier);
+
+      // If we reach here, show normal playback UI
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          // Determine if we're on a small screen (mobile)
+          final isMobile = constraints.maxWidth < 600;
+          final coverSize = isMobile ? 250.0 : 300.0;
+          final horizontalPadding = isMobile ? 16.0 : 32.0;
+
+          return SingleChildScrollView(
+            child: Column(
+              children: [
+                // Cover art display
+                Padding(
+                  padding: EdgeInsets.all(isMobile ? 24 : 32),
+                  child: Center(
+                    child: Container(
+                      width: coverSize,
+                      height: coverSize,
+                      decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(12),
-                        child: Image.network(
-                          audiobook.coverArtPath!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return ColoredBox(
-                              color: Theme.of(context).cardColor,
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color.fromARGB(
+                              255,
+                              0,
+                              0,
+                              0,
+                            ).withOpacity(0.2),
+                            spreadRadius: 2,
+                            blurRadius: 10,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: widget.audiobook.coverArtPath != null
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.network(
+                                widget.audiobook.coverArtPath!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return ColoredBox(
+                                    color: Theme.of(context).cardColor,
+                                    child: Icon(
+                                      Icons.album_outlined,
+                                      size: 80,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
+                                    ),
+                                  );
+                                },
+                              ),
+                            )
+                          : Container(
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).cardColor,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                               child: Icon(
                                 Icons.album_outlined,
                                 size: 80,
@@ -102,133 +193,630 @@ class PlaybackScreenState extends State<PlaybackScreen> {
                                   context,
                                 ).colorScheme.onSurfaceVariant,
                               ),
-                            );
-                          },
+                            ),
+                    ),
+                  ),
+                ),
+
+                // Audiobook info
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: horizontalPadding,
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        widget.audiobook.title,
+                        style: Theme.of(context).textTheme.headlineSmall,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        widget.audiobook.author.isEmpty
+                            ? 'Unknown Author'
+                            : widget.audiobook.author,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurfaceVariant,
                         ),
-                      )
-                    : Container(
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).cardColor,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          Icons.album_outlined,
-                          size: 80,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Progress bar with seeking capability
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: horizontalPadding,
+                  ),
+                  width: double.infinity,
+                  child: ProgressBar(
+                    currentPosition: playbackState.currentPosition,
+                    totalDuration: playbackState.duration,
+                    bufferedPosition: playbackState.bufferedPosition ?? Duration.zero,
+                    chapterMarkers: widget.audiobook.chapters
+                        .map((chapter) => chapter.startTime)
+                        .toList(),
+                    onSeek: (newPosition) {
+                      ref.read(playbackProvider.notifier).seekTo(newPosition);
+                    },
+                    onSeekStart: () async {
+                      // Handle seek start if needed
+                    },
+                    onSeekEnd: (finalPosition) async {
+                      ref.read(playbackProvider.notifier).seekTo(finalPosition);
+                    },
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Playback controls with FAB
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: horizontalPadding,
+                  ),
+                  child: Column(
+                    children: [
+                      // Skip buttons row
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          // Skip backward button (15 sec)
+                          IconButton(
+                            iconSize: isMobile ? 48 : 56,
+                            icon: const Icon(Icons.replay_10_outlined),
+                            onPressed: playbackState.errorMessage != null
+                                ? null
+                                : () async {
+                                    await ref
+                                        .read(playbackProvider.notifier)
+                                        .skipBackward(
+                                          const Duration(seconds: 15),
+                                        );
+                                  },
+                          ),
+
+                          // Skip forward button (30 sec)
+                          IconButton(
+                            iconSize: isMobile ? 48 : 56,
+                            icon: const Icon(Icons.forward_30_outlined),
+                            onPressed: playbackState.errorMessage != null
+                                ? null
+                                : () async {
+                                    await ref
+                                        .read(playbackProvider.notifier)
+                                        .skipForward(
+                                          const Duration(seconds: 30),
+                                        );
+                                  },
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Main play/pause FAB
+                      Center(
+                        child: FloatingActionButton(
+                          onPressed: playbackState.errorMessage != null || !_initialized
+                              ? null
+                              : () async {
+                                  print(
+                                    '[PlaybackScreen] Play button pressed. _initialized: $_initialized, isPlaying: ${playbackState.isPlaying}',
+                                  );
+                                  final notifier = ref.read(
+                                    playbackProvider.notifier,
+                                  );
+                                  if (playbackState.isPlaying) {
+                                    await notifier.pause();
+                                  } else {
+                                    await notifier.play();
+                                  }
+                                },
+                          backgroundColor: !_initialized
+                              ? Theme.of(context).colorScheme.surfaceContainerHighest
+                              : Theme.of(context).colorScheme.primary,
+                          foregroundColor: Colors.white,
+                          child: !_initialized
+                              ? const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Icon(
+                                  playbackState.isPlaying
+                                      ? Icons.pause_rounded
+                                      : Icons.play_arrow_rounded,
+                                  size: isMobile ? 36 : 42,
+                                ),
                         ),
                       ),
-              ),
-            ),
-          ),
 
-          // Audiobook info
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              children: [
+                      const SizedBox(height: 16),
+
+                      // Secondary controls row
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          // Speed control dropdown
+                          Expanded(
+                            flex: 2,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: Theme.of(context).dividerColor,
+                                ),
+                                borderRadius: BorderRadius.circular(24),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: ButtonTheme(
+                                  alignedDropdown: true,
+                                  child: DropdownButton<double>(
+                                    isExpanded: true,
+                                    value: playbackState.playbackSpeed,
+                                    items: [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
+                                        .map(
+                                          (speed) => DropdownMenuItem(
+                                            value: speed,
+                                            child: Text('${speed}x'),
+                                          ),
+                                        )
+                                        .toList(),
+                                    onChanged: playbackState.errorMessage != null
+                                        ? null
+                                        : (speed) {
+                                            ref
+                                                .read(playbackProvider.notifier)
+                                                .setSpeed(speed ?? 1.0);
+                                          },
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(width: 16),
+
+                          // Per-book speed toggle
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: playbackState.errorMessage != null
+                                  ? null
+                                  : () {
+                                      final currentEnabled = ref.read(perBookSpeedEnabledProvider);
+                                      ref.read(perBookSpeedEnabledProvider.notifier).state =
+                                          !currentEnabled;
+                                    },
+                              icon: Icon(
+                                ref.watch(perBookSpeedEnabledProvider)
+                                    ? Icons.bookmark
+                                    : Icons.bookmark_border,
+                                color: ref.watch(perBookSpeedEnabledProvider)
+                                    ? Theme.of(context).colorScheme.primary
+                                    : null,
+                              ),
+                              label: Text(
+                                'Per Book',
+                                style: TextStyle(
+                                  color: ref.watch(perBookSpeedEnabledProvider)
+                                      ? Theme.of(context).colorScheme.primary
+                                      : null,
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(width: 16),
+
+                          // Bookmark button
+                          Expanded(
+                            child: IconButton(
+                              onPressed: playbackState.errorMessage != null
+                                  ? null
+                                  : () async {
+                                      // Add bookmark at current position using bookmark provider
+                                      try {
+                                        final bookmarkNotifier = ref.read(
+                                          bookmarkProvider.notifier,
+                                        );
+                                        await bookmarkNotifier.createBookmark(
+                                          audiobookId: widget.audiobook.id,
+                                          timestamp: playbackState.currentPosition,
+                                          note:
+                                              'Bookmarked at ${_formatDuration(playbackState.currentPosition)}',
+                                        );
+
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text('Bookmark added at current position'),
+                                              duration: Duration(seconds: 2),
+                                            ),
+                                          );
+                                        }
+                                      } catch (e) {
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text('Failed to add bookmark: $e'),
+                                              backgroundColor: Theme.of(context).colorScheme.error,
+                                            ),
+                                          );
+                                        }
+                                      }
+                                    },
+                              icon: const Icon(Icons.bookmark_add_outlined),
+                              tooltip: 'Add bookmark',
+                              style: IconButton.styleFrom(
+                                foregroundColor: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface,
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(width: 8),
+
+                          // Audio effects button
+                          Expanded(
+                            child: IconButton(
+                              onPressed: playbackState.errorMessage != null
+                                  ? null
+                                  : () async {
+                                      // Show audio effects panel
+                                      await showModalBottomSheet<void>(
+                                        context: context,
+                                        isScrollControlled: true,
+                                        builder: (context) => const AudioEffectsPanel(),
+                                      );
+                                    },
+                              icon: const Icon(Icons.equalizer),
+                              tooltip: 'Audio Effects',
+                              style: IconButton.styleFrom(
+                                foregroundColor: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface,
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(width: 8),
+
+                          // Sleep timer toggle
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: playbackState.errorMessage != null
+                                  ? null
+                                  : () async {
+                                      final notifier = ref.read(
+                                        playbackProvider.notifier,
+                                      );
+                                      if (playbackState.sleepTimerActive) {
+                                        notifier.cancelSleepTimer();
+                                      } else {
+                                        // Show sleep timer dialog
+                                        final result = await showDialog<SleepTimerSelection?>(
+                                          context: context,
+                                          builder: (context) => const SleepTimerDialog(),
+                                        );
+
+                                        if (result != null) {
+                                          if (result.endOfChapter) {
+                                            notifier.setSleepTimer(
+                                              Duration.zero,
+                                              endOfChapter: true,
+                                            );
+                                          } else if (result.duration != null) {
+                                            notifier.setSleepTimer(
+                                              result.duration!,
+                                            );
+                                          }
+                                        }
+                                      }
+                                    },
+                              icon: Icon(
+                                playbackState.sleepTimerActive
+                                    ? Icons.bedtime_rounded
+                                    : Icons.bedtime_outlined,
+                                color: playbackState.sleepTimerActive
+                                    ? Theme.of(context).colorScheme.primary
+                                    : null,
+                              ),
+                              label: Text(
+                                playbackState.sleepTimerActive ? 'Cancel' : 'Sleep',
+                                style: TextStyle(
+                                  color: playbackState.sleepTimerActive
+                                      ? Theme.of(context).colorScheme.primary
+                                      : null,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      // Sleep timer display if active
+                      if (playbackState.sleepTimerActive)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 8,
+                            horizontal: 16,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.timer,
+                                color: Theme.of(context).colorScheme.primary,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                _formatDuration(
+                                  playbackState.sleepTimerDuration ?? const Duration(minutes: 30),
+                                ),
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Chapters list - use a fixed height container instead of Expanded
+                Container(
+                  constraints: BoxConstraints(
+                    maxHeight:
+                        constraints.maxHeight * 0.3, // Reduced to 30% to make room for bookmarks
+                  ),
+                  child: ChaptersList(
+                    audiobook: widget.audiobook,
+                    currentPosition: playbackState.currentPosition,
+                    onChapterTap: (chapter) {
+                      if (playbackState.errorMessage == null) {
+                        ref.read(playbackProvider.notifier).seekTo(chapter.startTime);
+                      }
+                    },
+                  ),
+                ),
+
+                // Bookmarks section
+                Container(
+                  constraints: BoxConstraints(
+                    maxHeight:
+                        constraints.maxHeight * 0.2, // Use 20% of available height for bookmarks
+                  ),
+                  child: BookmarkWidget(
+                    audiobookId: widget.audiobook.id,
+                    currentPosition: playbackState.currentPosition,
+                    chapters: widget.audiobook.chapters,
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Queue manager section
+                Container(
+                  constraints: BoxConstraints(
+                    maxHeight: constraints.maxHeight * 0.2, // Use 20% of available height for queue
+                  ),
+                  child: QueueManagerWidget(
+                    currentAudiobook: widget.audiobook,
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    } catch (e) {
+      // If there's any error accessing the provider, show error state
+      return _buildErrorState(
+        context,
+        ref,
+        playbackState.copyWith(
+          errorMessage: 'Failed to access playback service: $e',
+        ),
+      );
+    }
+  }
+
+  Widget _buildErrorState(
+    BuildContext context,
+    WidgetRef ref,
+    PlaybackState playbackState,
+  ) {
+    // Show error dialog when error state is detected, but only if still mounted
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _showErrorDialogWithRetry(
+          context,
+          playbackState.errorMessage ?? 'Unknown playback error',
+          () {
+            ref
+                .read(playbackProvider.notifier)
+                .retryOperation(
+                  () => ref.read(playbackProvider.notifier).setCurrentAudiobook(widget.audiobook),
+                );
+          },
+        );
+      }
+    });
+
+    return _buildFallbackUI(context, ref, playbackState);
+  }
+
+  /// Builds a fallback UI when playback is unavailable or in error state
+  Widget _buildFallbackUI(
+    BuildContext context,
+    WidgetRef ref,
+    PlaybackState playbackState,
+  ) {
+    final isProviderUnavailable =
+        playbackState.errorMessage?.contains(
+          'UninitializedDatasourceException',
+        ) ??
+        false;
+    final isFileNotFound = playbackState.errorMessage?.contains('FileSystemException') ?? false;
+    final isPermissionIssue = playbackState.errorMessage?.contains('PermissionException') ?? false;
+
+    return Center(
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Show appropriate icon based on error type
+              Icon(
+                isProviderUnavailable
+                    ? Icons.hourglass_empty_outlined
+                    : isFileNotFound
+                    ? Icons.folder_off_outlined
+                    : isPermissionIssue
+                    ? Icons.lock_outline
+                    : Icons.error_outline,
+                size: 80,
+                color: Theme.of(context).colorScheme.error,
+              ),
+              const SizedBox(height: 24),
+              Text(
+                isProviderUnavailable
+                    ? 'Service Unavailable'
+                    : isFileNotFound
+                    ? 'File Not Found'
+                    : isPermissionIssue
+                    ? 'Permission Required'
+                    : 'Playback Error',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.error,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                _getUserFriendlyErrorMessage(
+                  playbackState.errorMessage ?? 'Unknown playback error',
+                ),
+                style: Theme.of(context).textTheme.bodyLarge,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+
+              // Show audiobook info as fallback
+              if (playbackState.errorMessage != null) ...[
+                const Divider(),
+                const SizedBox(height: 16),
                 Text(
-                  audiobook.title,
-                  style: Theme.of(context).textTheme.headlineSmall,
+                  'Audiobook:',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  widget.audiobook.title,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  audiobook.author.isEmpty
-                      ? 'Unknown Author'
-                      : audiobook.author,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  widget.audiobook.author.isEmpty ? 'Unknown Author' : widget.audiobook.author,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                   textAlign: TextAlign.center,
                 ),
+                const SizedBox(height: 16),
               ],
-            ),
-          ),
 
-          const SizedBox(height: 24),
-
-          // Progress bar with seeking capability
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            width: double.infinity,
-            child: ProgressBar(
-              currentPosition: _isScrubbing ? _scrubPosition : _currentPosition,
-              totalDuration: audiobook.duration,
-              chapterMarkers: audiobook.chapters
-                  .map((chapter) => chapter.startTime)
-                  .toList(),
-              onSeek: (newPosition) {
-                setState(() {
-                  _scrubPosition = newPosition;
-                });
-              },
-              onSeekStart: () async {
-                setState(() {
-                  _isScrubbing = true;
-                });
-              },
-              onSeekEnd: (finalPosition) async {
-                setState(() {
-                  _currentPosition = finalPosition;
-                  _isScrubbing = false;
-                  // In a real implementation, this would update the playback position
-                  print('Seek to: ${_formatDuration(finalPosition)}');
-                });
-              },
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Playback controls
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: PlaybackControls(
-                isPlaying: _isPlaying,
-                playbackSpeed: _playbackSpeed,
-                sleepTimerActive: _sleepTimerActive,
-                sleepTimerDuration: _sleepTimerDuration,
-                onPlayPause: () {
-                  setState(() {
-                    _isPlaying = !_isPlaying;
-                  });
-                  // In a real implementation, this would trigger playback/pause
-                },
-                onSpeedChanged: (newSpeed) {
-                  setState(() {
-                    _playbackSpeed = newSpeed;
-                  });
-                  // In a real implementation, this would update the playback speed
-                },
-                onSleepTimerToggle: (active) {
-                  setState(() {
-                    _sleepTimerActive = active;
-                  });
-                  // In a real implementation, this would activate/deactivate the sleep timer
-                },
-                onSkipForward: (duration) {
-                  setState(() {
-                    final newPosition = _currentPosition + duration;
-                    _currentPosition =
-                        newPosition.compareTo(audiobook.duration) > 0
-                        ? audiobook.duration
-                        : newPosition;
-                  });
-                  // In a real implementation, this would skip forward in playback
-                },
-                onSkipBackward: (duration) {
-                  setState(() {
-                    final newPosition = _currentPosition - duration;
-                    _currentPosition = newPosition.isNegative
-                        ? Duration.zero
-                        : newPosition;
-                  });
-                  // In a real implementation, this would skip backward in playback
-                },
+              // Action buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton(
+                    onPressed: () {
+                      ref
+                          .read(playbackProvider.notifier)
+                          .retryOperation(
+                            () => ref
+                                .read(playbackProvider.notifier)
+                                .setCurrentAudiobook(widget.audiobook),
+                          );
+                    },
+                    child: const Text('Retry'),
+                  ),
+                  const SizedBox(width: 16),
+                  OutlinedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    child: const Text('Back to Library'),
+                  ),
+                ],
               ),
-            ),
+
+              // Additional troubleshooting tips for specific error types
+              if (isPermissionIssue) ...[
+                const SizedBox(height: 24),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        Text(
+                          'Troubleshooting:',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '• Go to app settings and grant storage permission\n'
+                          '• Restart the app after granting permission',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingState(BuildContext context) {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(),
+          SizedBox(height: 24),
+          Text('Loading playback...'),
         ],
       ),
     );
@@ -238,10 +826,65 @@ class PlaybackScreenState extends State<PlaybackScreen> {
     String twoDigits(int n) => n.toString().padLeft(2, '0');
     final twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
     final twoDigitHours = twoDigits(duration.inHours);
-    final twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
 
-    return duration.inHours > 0
-        ? '$twoDigitHours:$twoDigitMinutes:$twoDigitSeconds'
-        : '$twoDigitMinutes:$twoDigitSeconds';
+    return duration.inHours > 0 ? '$twoDigitHours:$twoDigitMinutes' : twoDigitMinutes;
+  }
+
+  /// Helper method to show error dialog with retry option
+  void _showErrorDialogWithRetry(
+    BuildContext context,
+    String errorMessage,
+    VoidCallback onRetry,
+  ) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Playback Error'),
+          content: Text(_getUserFriendlyErrorMessage(errorMessage)),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                onRetry();
+              },
+              child: const Text('Retry'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Converts technical error messages to user-friendly ones
+  String _getUserFriendlyErrorMessage(String errorMessage) {
+    // Handle common error patterns
+    if (errorMessage.contains('UninitializedDatasourceException') ||
+        errorMessage.contains('not initialized')) {
+      return 'Playback service is not ready. Please wait a moment and try again.';
+    } else if (errorMessage.contains('AudioException') || errorMessage.contains('audio playback')) {
+      return 'Audio playback failed. The file may be corrupted or unsupported.';
+    } else if (errorMessage.contains('PermissionException') ||
+        errorMessage.contains('permission')) {
+      return 'Storage permission required. Please grant storage access to play audiobooks.';
+    } else if (errorMessage.contains('FileSystemException') ||
+        errorMessage.contains('file not found')) {
+      return 'Audio file not found. The file may have been moved or deleted.';
+    } else if (errorMessage.contains('DatabaseException')) {
+      return 'Failed to load playback position. Starting from beginning.';
+    } else if (errorMessage.contains('TimeoutException') || errorMessage.contains('timed out')) {
+      return 'Operation took too long. Please check your device performance.';
+    } else if (errorMessage.contains('NetworkException')) {
+      return 'Network connection required. Please check your internet connection.';
+    } else if (errorMessage.contains('Failed to initialize playback')) {
+      return 'Failed to initialize playback. Please try again.';
+    } else {
+      // Generic fallback message
+      return 'Playback error occurred. Please try again.';
+    }
   }
 }

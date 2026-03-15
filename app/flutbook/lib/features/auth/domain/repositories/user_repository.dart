@@ -1,8 +1,8 @@
 // lib/features/auth/domain/repositories/user_repository.dart
+import 'package:flutbook/core/error/sync_result.dart';
 import 'package:flutbook/features/auth/domain/entities/auth_result.dart';
 import 'package:flutbook/features/auth/domain/entities/user_profile.dart';
 import 'package:flutbook/features/settings/domain/entities/sync_status.dart';
-import 'package:flutbook/core/error/sync_result.dart';
 import 'package:flutbook/features/settings/domain/entities/user_settings.dart';
 // import 'package:isar_community/isar.dart';
 
@@ -15,6 +15,9 @@ abstract class UserRepository {
 
   /// Creates a new user account
   Future<AuthResult> signUpWithEmailAndPassword(String email, String password);
+
+  /// Unified authentication method that attempts login first and creates account if user does not exist
+  Future<AuthResult> authenticateWithEmailAndPassword(String email, String password);
 
   /// Signs out the current user
   Future<void> signOut();

@@ -61,9 +61,14 @@ const AudiobookModelSchema = CollectionSchema(
       name: r'lastPlayedAt',
       type: IsarType.dateTime,
     ),
-    r'title': PropertySchema(id: 10, name: r'title', type: IsarType.string),
+    r'preferredSpeed': PropertySchema(
+      id: 10,
+      name: r'preferredSpeed',
+      type: IsarType.double,
+    ),
+    r'title': PropertySchema(id: 11, name: r'title', type: IsarType.string),
     r'totalSize': PropertySchema(
-      id: 11,
+      id: 12,
       name: r'totalSize',
       type: IsarType.long,
     ),
@@ -138,8 +143,9 @@ void _audiobookModelSerialize(
   writer.writeString(offsets[7], object.filePath);
   writer.writeString(offsets[8], object.internalId);
   writer.writeDateTime(offsets[9], object.lastPlayedAt);
-  writer.writeString(offsets[10], object.title);
-  writer.writeLong(offsets[11], object.totalSize);
+  writer.writeDouble(offsets[10], object.preferredSpeed);
+  writer.writeString(offsets[11], object.title);
+  writer.writeLong(offsets[12], object.totalSize);
 }
 
 AudiobookModel _audiobookModelDeserialize(
@@ -166,8 +172,9 @@ AudiobookModel _audiobookModelDeserialize(
     filePath: reader.readString(offsets[7]),
     internalId: reader.readStringOrNull(offsets[8]),
     lastPlayedAt: reader.readDateTimeOrNull(offsets[9]),
-    title: reader.readString(offsets[10]),
-    totalSize: reader.readLong(offsets[11]),
+    preferredSpeed: reader.readDoubleOrNull(offsets[10]) ?? 1.0,
+    title: reader.readString(offsets[11]),
+    totalSize: reader.readLong(offsets[12]),
   );
   object.id = id;
   return object;
@@ -208,8 +215,10 @@ P _audiobookModelDeserializeProp<P>(
     case 9:
       return (reader.readDateTimeOrNull(offset)) as P;
     case 10:
-      return (reader.readString(offset)) as P;
+      return (reader.readDoubleOrNull(offset) ?? 1.0) as P;
     case 11:
+      return (reader.readString(offset)) as P;
+    case 12:
       return (reader.readLong(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -1378,6 +1387,81 @@ extension AudiobookModelQueryFilter
   }
 
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
+  preferredSpeedEqualTo(double value, {double epsilon = Query.epsilon}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'preferredSpeed',
+          value: value,
+
+          epsilon: epsilon,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
+  preferredSpeedGreaterThan(
+    double value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'preferredSpeed',
+          value: value,
+
+          epsilon: epsilon,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
+  preferredSpeedLessThan(
+    double value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'preferredSpeed',
+          value: value,
+
+          epsilon: epsilon,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
+  preferredSpeedBetween(
+    double lower,
+    double upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'preferredSpeed',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+
+          epsilon: epsilon,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<AudiobookModel, AudiobookModel, QAfterFilterCondition>
   titleEqualTo(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
@@ -1709,6 +1793,20 @@ extension AudiobookModelQuerySortBy
     });
   }
 
+  QueryBuilder<AudiobookModel, AudiobookModel, QAfterSortBy>
+  sortByPreferredSpeed() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'preferredSpeed', Sort.asc);
+    });
+  }
+
+  QueryBuilder<AudiobookModel, AudiobookModel, QAfterSortBy>
+  sortByPreferredSpeedDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'preferredSpeed', Sort.desc);
+    });
+  }
+
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterSortBy> sortByTitle() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'title', Sort.asc);
@@ -1869,6 +1967,20 @@ extension AudiobookModelQuerySortThenBy
     });
   }
 
+  QueryBuilder<AudiobookModel, AudiobookModel, QAfterSortBy>
+  thenByPreferredSpeed() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'preferredSpeed', Sort.asc);
+    });
+  }
+
+  QueryBuilder<AudiobookModel, AudiobookModel, QAfterSortBy>
+  thenByPreferredSpeedDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'preferredSpeed', Sort.desc);
+    });
+  }
+
   QueryBuilder<AudiobookModel, AudiobookModel, QAfterSortBy> thenByTitle() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'title', Sort.asc);
@@ -1964,6 +2076,13 @@ extension AudiobookModelQueryWhereDistinct
     });
   }
 
+  QueryBuilder<AudiobookModel, AudiobookModel, QDistinct>
+  distinctByPreferredSpeed() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'preferredSpeed');
+    });
+  }
+
   QueryBuilder<AudiobookModel, AudiobookModel, QDistinct> distinctByTitle({
     bool caseSensitive = true,
   }) {
@@ -2048,6 +2167,13 @@ extension AudiobookModelQueryProperty
   lastPlayedAtProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'lastPlayedAt');
+    });
+  }
+
+  QueryBuilder<AudiobookModel, double, QQueryOperations>
+  preferredSpeedProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'preferredSpeed');
     });
   }
 

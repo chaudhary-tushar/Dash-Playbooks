@@ -28,6 +28,7 @@ class AudiobookModel {
     this.internalId,
     this.coverArtPath,
     this.lastPlayedAt,
+    this.preferredSpeed = 1.0,
   });
 
   // Convert from domain entity
@@ -45,6 +46,7 @@ class AudiobookModel {
       lastPlayedAt: audiobook.lastPlayedAt,
       completed: audiobook.completed,
       totalSize: audiobook.totalSize,
+      preferredSpeed: audiobook.preferredSpeed,
     );
   }
   Id? id = Isar.autoIncrement;
@@ -61,6 +63,7 @@ class AudiobookModel {
   DateTime? lastPlayedAt;
   bool completed;
   int totalSize;
+  double preferredSpeed;
 
   // Convert to domain entity
   domain.Audiobook toDomain() {
@@ -77,6 +80,7 @@ class AudiobookModel {
       lastPlayedAt: lastPlayedAt,
       completed: completed,
       totalSize: totalSize,
+      preferredSpeed: preferredSpeed,
     );
   }
 

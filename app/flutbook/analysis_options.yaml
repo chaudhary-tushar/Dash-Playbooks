@@ -7,6 +7,8 @@ analyzer:
     avoid_slow_async_io: ignore
     document_ignores: ignore
     flutter_style_todos: ignore
+    omit_local_variable_types: ignore
+    unused_element: ignore
     use_setters_to_change_properties: ignore
   exclude:
     - lib/l10n/gen/*

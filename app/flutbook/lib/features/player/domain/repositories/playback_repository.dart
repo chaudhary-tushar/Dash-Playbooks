@@ -1,4 +1,5 @@
 // lib/domain/repositories/playback_repository.dart
+import 'package:flutbook/features/player/domain/entities/playback_history.dart';
 import 'package:flutbook/features/player/domain/entities/playback_session.dart';
 
 abstract class PlaybackRepository {
@@ -19,4 +20,26 @@ abstract class PlaybackRepository {
 
   /// Updates playback speed preference
   Future<void> updatePlaybackSpeed(String audiobookId, double speed);
+
+  /// Saves playback history entry
+  Future<void> savePlaybackHistory(PlaybackHistory history);
+
+  /// Gets playback history for a specific audiobook
+  Future<List<PlaybackHistory>> getPlaybackHistory(String audiobookId);
+
+  /// Gets all playback history entries
+  Future<List<PlaybackHistory>> getAllPlaybackHistory();
+
+  /// Clears all playback history
+  Future<void> clearPlaybackHistory();
+
+  /// Gets the last played position for an audiobook
+  Future<Duration?> getLastPlayedPosition(String audiobookId);
+
+  /// Gets total playback time for an audiobook
+  Future<Duration> getTotalPlaybackTime(String audiobookId);
+
+  /// Marks an audiobook as being read (in-progress)
+  /// This updates the audiobook to appear in the "Reading" list
+  Future<void> markAudiobookAsInProgress(String audiobookId);
 }

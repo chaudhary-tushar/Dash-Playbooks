@@ -22,10 +22,16 @@ class AudiobookLocalDatasource {
   AudiobookLocalDatasource(
     this._isar, {
     required JsonStorage jsonStorage,
-  }) : _jsonStorage = jsonStorage;
+  }) : _jsonStorage = jsonStorage {
+    _isInitialized = _isar.isOpen;
+  }
 
   final Isar _isar; // Injected via constructor
   final JsonStorage _jsonStorage;
+  bool _isInitialized = false;
+
+  /// Checks if the datasource is properly initialized
+  bool get isInitialized => _isInitialized;
 
   /// Saves audiobooks to Isar database with proper schema and indexing
   /// Handles large files (>10GB) with appropriate memory management
@@ -45,7 +51,11 @@ class AudiobookLocalDatasource {
   /// Pure Database Query.
   /// It does NOT check file existence (that is the Importer's job).
   /// This ensures the UI is instant.
-  Future<List<Audiobook>> findAudiobooks({String? author, bool? completed, int? limit}) async {
+  Future<List<Audiobook>> findAudiobooks({
+    String? author,
+    bool? completed,
+    int? limit,
+  }) async {
     try {
       var query = _isar.audiobookModels.where();
 
@@ -96,6 +106,25 @@ class AudiobookLocalDatasource {
       return null;
     } catch (e) {
       throw DatabaseException('Failed to retrieve audiobook by ID: $e');
+    }
+  }
+
+  /// Checks if an audiobook already exists in the database based on file path
+  /// This is used to prevent duplicate entries when scanning directories
+  Future<bool> audiobookExistsByFilePath(String filePath) async {
+    try {
+      final audiobookModel = await _isar.audiobookModels
+          .where()
+          .filter()
+          .filePathEqualTo(filePath)
+          .findFirst();
+
+      return audiobookModel != null;
+    } catch (e) {
+      debugPrint(
+        'Warning: Could not check if audiobook exists by file path: $e',
+      );
+      return false;
     }
   }
 
@@ -217,7 +246,9 @@ class AudiobookLocalDatasource {
       final metadataExtractor = MetadataExtractionDatasource();
 
       // Scan directory for audio files
-      final audioFiles = await metadataExtractor.scanDirectoryForAudioFiles(directoryPath);
+      final audioFiles = await metadataExtractor.scanDirectoryForAudioFiles(
+        directoryPath,
+      );
 
       // Extract metadata for each file
       final audiobooks = <Audiobook>[];
@@ -237,5 +268,40 @@ class AudiobookLocalDatasource {
   /// Closes the Isar database connection
   Future<void> close() async {
     await _isar.close();
+  }
+
+  /// Updates the preferred playback speed for an audiobook
+  Future<void> updatePreferredSpeed(String audiobookId, double speed) async {
+    try {
+      await _isar.writeTxn(() async {
+        final audiobookModel = await _isar.audiobookModels
+            .where()
+            .filter()
+            .internalIdEqualTo(audiobookId)
+            .findFirst();
+
+        if (audiobookModel != null) {
+          audiobookModel.preferredSpeed = speed;
+          await _isar.audiobookModels.put(audiobookModel);
+        }
+      });
+    } catch (e) {
+      throw DatabaseException('Failed to update preferred speed: $e');
+    }
+  }
+
+  /// Gets the preferred playback speed for an audiobook
+  Future<double> getPreferredSpeed(String audiobookId) async {
+    try {
+      final audiobookModel = await _isar.audiobookModels
+          .where()
+          .filter()
+          .internalIdEqualTo(audiobookId)
+          .findFirst();
+
+      return audiobookModel?.preferredSpeed ?? 1.0;
+    } catch (e) {
+      throw DatabaseException('Failed to get preferred speed: $e');
+    }
   }
 }

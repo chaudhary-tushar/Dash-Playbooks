@@ -1,6 +1,7 @@
 import 'package:flutbook/core/provider/providers.dart';
+import 'package:flutbook/features/auth/data/services/session_manager.dart';
+import 'package:flutbook/features/auth/data/services/user_profile_service.dart';
 import 'package:flutbook/features/auth/domain/entities/user_profile.dart';
-import 'package:flutbook/features/auth/domain/repositories/user_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // Auth State class to represent the authentication state
@@ -53,55 +54,147 @@ class AuthState {
 
 // AuthNotifier class that extends Notifier for Riverpod 3.x
 class AuthNotifier extends Notifier<AuthState> {
+  final SessionManager _sessionManager = SessionManager();
+
   @override
   AuthState build() {
-    // Initialize with loading state
+    // Initialize with a default state initially to avoid hanging the UI
+    // Then asynchronously check the current user status
     ref.onDispose(() {
       // Cleanup if needed
     });
 
+    // Check current user after provider initialization
+    // Using Future.microtask to defer the check until after the provider is fully set up
+    Future.microtask(() async {
+      try {
+        await checkCurrentUser();
+      } catch (e, stackTrace) {
+        print('Error in AuthNotifier build checkCurrentUser: $e');
+        print('Stack trace: $stackTrace');
+        // Handle initialization errors gracefully
+        // If session has expired, set to a non-authenticated state
+        if (ref.mounted) {
+          // Set to a default non-authenticated state to allow development flow
+          state = const AuthState();
+        }
+      }
+    });
+
+    // Start with a minimal loading state, but return quickly to avoid UI hanging
+    // The actual user check will happen asynchronously
     return const AuthState(isLoading: true);
   }
-
-  UserRepository get _userRepository => ref.read(userRepositoryProvider);
 
   // Check current user on initialization
   Future<void> checkCurrentUser() async {
     try {
-      final usecase = ref.read(getCurrentUserUsecaseProvider);
-      final user = await usecase();
-      if (ref.mounted) {
-        state = AuthState(
-          isAuthenticated: user != null,
-          userProfile: user,
-        );
+      // Check if session has expired
+      final isExpired = await _sessionManager.isSessionExpired();
+      if (isExpired) {
+        // Session has expired, clear any existing session data
+        await _sessionManager.clearSession();
+        if (ref.mounted) {
+          state = const AuthState();
+        }
+        return;
       }
-    } catch (e) {
+
+      // If we're in development bypass mode, skip checks
+      if (state.isAuthenticated &&
+          state.userProfile?.authMethod == 'development') {
+        return; // Already in dev mode, don't try to re-check
+      }
+
+      // First, try to get user from ISAR to see if we have a local user
+      // Use a try-catch around the async provider access
+      final userProfileService = await _getUserProfileService();
+      final localUser = await userProfileService.getCurrentUserProfile();
+
+      if (localUser != null) {
+        // We have a user in ISAR, now verify with Supabase
+        final user = await _getCurrentUser();
+
+        if (user != null && user.id == localUser.id) {
+          // User exists in both ISAR and Supabase, authentication is valid
+          if (ref.mounted) {
+            state = AuthState(
+              isAuthenticated: true,
+              userProfile: user,
+            );
+          }
+        } else {
+          // User doesn't exist in Supabase anymore, clear local data
+          await userProfileService.deleteAllUserProfiles();
+          if (ref.mounted) {
+            state = const AuthState();
+          }
+        }
+      } else {
+        // No user in ISAR, set to non-authenticated
+        if (ref.mounted) {
+          state = const AuthState();
+        }
+      }
+    } catch (e, stackTrace) {
+      // Log the error with stack trace for debugging
+      print('Error in checkCurrentUser: $e');
+      print('Stack trace: $stackTrace');
+
       if (ref.mounted) {
-        state = AuthState(
-          errorMessage: e.toString(),
-        );
+        // For development purposes, don't set the error state permanently
+        // as it will block the development bypass
+        state = const AuthState();
       }
     }
   }
 
-  // Login with email and password
-  Future<void> login(String email, String password) async {
+  // Helper method to safely get user profile service with error handling
+  Future<UserProfileService> _getUserProfileService() async {
+    try {
+      return await ref.read(userProfileServiceProvider.future);
+    } catch (e) {
+      print('Error getting user profile service: $e');
+      rethrow;
+    }
+  }
+
+  // Helper method to safely get current user with error handling
+  Future<UserProfile?> _getCurrentUser() async {
+    try {
+      final usecaseAsync = ref.read(getCurrentUserUsecaseProvider.future);
+      final usecase = await usecaseAsync;
+      final user = await usecase();
+      return user;
+    } catch (e) {
+      print('Error getting current user: $e');
+      // Don't rethrow here as this might be expected during initialization
+      // Just return null to indicate no user is available yet
+      return null;
+    }
+  }
+
+  // Authenticate with email and password (unified login/signup)
+  Future<void> authenticate(String email, String password) async {
     if (!ref.mounted) return;
     state = state.copyWith(isLoading: true);
 
     try {
-      final usecase = ref.read(loginUsecaseProvider);
+      // Get the usecase which waits for the user repository to be ready
+      final usecase = await ref.read(authenticateUsecaseProvider.future);
       final result = await usecase(email: email, password: password);
 
       if (result.success) {
-        final usercase = ref.read(getCurrentUserUsecaseProvider);
+        final usercaseAsync = ref.read(getCurrentUserUsecaseProvider.future);
+        final usercase = await usercaseAsync;
         final user = await usercase();
         if (ref.mounted) {
           state = AuthState(
             isAuthenticated: true,
             userProfile: user,
           );
+          // Set session expiry for 7-30 days
+          await _setSessionExpiry();
         }
       } else {
         if (ref.mounted) {
@@ -117,10 +210,22 @@ class AuthNotifier extends Notifier<AuthState> {
         state = state.copyWith(
           isAuthenticated: false,
           isLoading: false,
-          errorMessage: 'Login failed: $e',
+          errorMessage: 'Authentication failed: $e',
         );
       }
     }
+  }
+
+  // Login with email and password (kept for backward compatibility)
+  @Deprecated('Use authenticate() instead')
+  Future<void> login(String email, String password) async {
+    await authenticate(email, password);
+  }
+
+  // Signup with email and password (kept for backward compatibility)
+  @Deprecated('Use authenticate() instead')
+  Future<void> signup(String email, String password) async {
+    await authenticate(email, password);
   }
 
   // Login anonymously
@@ -129,17 +234,21 @@ class AuthNotifier extends Notifier<AuthState> {
     state = state.copyWith(isLoading: true);
 
     try {
-      final usecase = ref.read(anonymousLoginUsecaseProvider);
+      // Get the usecase which waits for the user repository to be ready
+      final usecase = await ref.read(anonymousLoginUsecaseProvider.future);
       final result = await usecase();
 
       if (result.success) {
-        final usercase = ref.read(getCurrentUserUsecaseProvider);
+        final usercaseAsync = ref.read(getCurrentUserUsecaseProvider.future);
+        final usercase = await usercaseAsync;
         final user = await usercase();
         if (ref.mounted) {
           state = AuthState(
             isAuthenticated: true,
             userProfile: user,
           );
+          // Set session expiry for 7-30 days
+          await _setSessionExpiry();
         }
       } else {
         if (ref.mounted) {
@@ -167,8 +276,11 @@ class AuthNotifier extends Notifier<AuthState> {
     state = state.copyWith(isLoading: true);
 
     try {
-      final usecase = ref.read(logoutUsecaseProvider);
+      // Get the usecase which waits for the user repository to be ready
+      final usecase = await ref.read(logoutUsecaseProvider.future);
       await usecase();
+      // Clear session data
+      await _sessionManager.clearSession();
       if (ref.mounted) {
         state = const AuthState();
       }
@@ -182,6 +294,13 @@ class AuthNotifier extends Notifier<AuthState> {
     }
   }
 
+  // Set session expiry for 7-30 days
+  Future<void> _setSessionExpiry() async {
+    final now = DateTime.now();
+    final expiryDate = _sessionManager.calculateExpiryDate(now);
+    await _sessionManager.setSessionExpiry(expiryDate);
+  }
+
   // Get current user profile
   UserProfile? getCurrentUser() {
     return state.userProfile;
@@ -190,6 +309,69 @@ class AuthNotifier extends Notifier<AuthState> {
   // Check if user is authenticated
   bool isAuthenticated() {
     return state.isAuthenticated;
+  }
+
+  // Sign in with Google
+  Future<void> signInWithGoogle() async {
+    if (!ref.mounted) return;
+    state = state.copyWith(isLoading: true);
+
+    try {
+      // Get the usecase which waits for the user repository to be ready
+      final usecase = await ref.read(googleSigninUsecaseProvider.future);
+      final result = await usecase();
+
+      if (result.success) {
+        final usercaseAsync = ref.read(getCurrentUserUsecaseProvider.future);
+        final usercase = await usercaseAsync;
+        final user = await usercase();
+        if (ref.mounted) {
+          state = AuthState(
+            isAuthenticated: true,
+            userProfile: user,
+          );
+          // Set session expiry for 7-30 days
+          await _setSessionExpiry();
+        }
+      } else {
+        if (ref.mounted) {
+          state = state.copyWith(
+            isAuthenticated: false,
+            isLoading: false,
+            errorMessage: result.errorMessage,
+          );
+        }
+      }
+    } catch (e) {
+      if (ref.mounted) {
+        state = state.copyWith(
+          isAuthenticated: false,
+          isLoading: false,
+          errorMessage: 'Google sign in failed: $e',
+        );
+      }
+    }
+  }
+
+  // Method for development purposes to bypass authentication
+  Future<void> loginAsDevelopmentUser() async {
+    if (!ref.mounted) return;
+
+    // Create a development user profile
+    final devUser = UserProfile(
+      id: 'dev_user_123',
+      email: 'dev@example.com',
+      authMethod: 'development',
+      syncEnabled: false,
+    );
+
+    // Set the state as authenticated with development user
+    state = AuthState(
+      isAuthenticated: true,
+      userProfile: devUser,
+    );
+    // Set session expiry for 7-30 days
+    await _setSessionExpiry();
   }
 }
 

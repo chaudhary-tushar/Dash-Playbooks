@@ -13,24 +13,42 @@ class ProgressBar extends StatefulWidget {
     this.onSeekStart,
     this.onSeekEnd,
     this.isLoading = false,
+    this.bufferedPosition = Duration.zero,
   });
   final Duration currentPosition;
   final Duration totalDuration;
   final List<Duration> chapterMarkers; // Positions of chapters if available
-  final Function(Duration) onSeek;
+  final void Function(Duration) onSeek;
   final Future<void> Function()? onSeekStart;
   final Future<void> Function(Duration)? onSeekEnd;
   final bool isLoading;
+  final Duration bufferedPosition;
 
   @override
   ProgressBarState createState() => ProgressBarState();
 }
 
 class ProgressBarState extends State<ProgressBar> {
+  double _dragPosition = -1; // -1 means not dragging, otherwise 0.0 to 1.0
+  bool _isDragging = false;
+  Timer? _debounceTimer;
+
   double get _currentSliderPosition {
     if (widget.totalDuration.inMilliseconds == 0) return 0;
     return widget.currentPosition.inMilliseconds /
         widget.totalDuration.inMilliseconds;
+  }
+
+  double get _bufferedSliderPosition {
+    if (widget.totalDuration.inMilliseconds == 0) return 0;
+    return widget.bufferedPosition.inMilliseconds /
+        widget.totalDuration.inMilliseconds;
+  }
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -40,10 +58,21 @@ class ProgressBarState extends State<ProgressBar> {
     final primaryColor = theme.colorScheme.primary;
     final inactiveColor = isDark ? Colors.grey[700] : Colors.grey[300];
 
+    // Calculate the effective position to display (either current position or drag position)
+    final effectivePosition = _isDragging && _dragPosition >= 0
+        ? _dragPosition
+        : _currentSliderPosition;
+
     return Column(
       children: [
         // Main progress bar
         GestureDetector(
+          onTapDown: (details) {
+            _handleSeekStart(details.localPosition.dx);
+          },
+          onTapUp: (details) {
+            _handleSeekEnd(details.localPosition.dx);
+          },
           onPanDown: (details) {
             _handleSeekStart(details.localPosition.dx);
           },
@@ -70,7 +99,8 @@ class ProgressBarState extends State<ProgressBar> {
                 ),
 
                 // Chapter markers
-                if (widget.chapterMarkers.isNotEmpty)
+                if (widget.chapterMarkers.isNotEmpty &&
+                    widget.totalDuration.inMilliseconds > 0)
                   for (int i = 0; i < widget.chapterMarkers.length; i++)
                     Positioned(
                       left:
@@ -80,68 +110,88 @@ class ProgressBarState extends State<ProgressBar> {
                       child: Container(
                         width: 2,
                         height: 8,
-                        color: Color.fromRGBO(primaryColor.red, primaryColor.green, primaryColor.blue, 0.7),
+                        color: Color.fromRGBO(
+                          (primaryColor.red * 255.0).round().clamp(0, 255),
+                          (primaryColor.green * 255.0).round().clamp(0, 255),
+                          (primaryColor.blue * 255.0).round().clamp(0, 255),
+                          0.7,
+                        ),
                       ),
                     ),
 
-                // Buffered progress (simulated)
-                Container(
-                  width: MediaQuery.of(context).size.width,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Color.fromRGBO(primaryColor.red, primaryColor.green, primaryColor.blue, 0.5),
-                        Color.fromRGBO(primaryColor.red, primaryColor.green, primaryColor.blue, 0.1),
-                      ],
+                // Buffered progress (actual buffered position)
+                if (widget.bufferedPosition > Duration.zero)
+                  Container(
+                    width:
+                        _bufferedSliderPosition *
+                        MediaQuery.of(context).size.width,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Color.fromRGBO(
+                            (primaryColor.red * 255.0).round().clamp(0, 255),
+                            (primaryColor.green * 255.0).round().clamp(0, 255),
+                            (primaryColor.blue * 255.0).round().clamp(0, 255),
+                            0.5,
+                          ),
+                          Color.fromRGBO(
+                            (primaryColor.red * 255.0).round().clamp(0, 255),
+                            (primaryColor.green * 255.0).round().clamp(0, 255),
+                            (primaryColor.blue * 255.0).round().clamp(0, 255),
+                            0.1,
+                          ),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(2),
                     ),
-                    borderRadius: BorderRadius.circular(2),
                   ),
-                ),
 
                 // Completed progress
                 Container(
-                  width:
-                      _currentSliderPosition *
-                      MediaQuery.of(context).size.width,
+                  width: effectivePosition * MediaQuery.of(context).size.width,
                   height: 4,
                   decoration: BoxDecoration(
                     color: primaryColor,
                     borderRadius: BorderRadius.only(
                       topLeft: const Radius.circular(2),
                       bottomLeft: const Radius.circular(2),
-                      topRight: _currentSliderPosition == 1.0
+                      topRight: effectivePosition == 1.0
                           ? const Radius.circular(2)
                           : Radius.zero,
-                      bottomRight: _currentSliderPosition == 1.0
+                      bottomRight: effectivePosition == 1.0
                           ? const Radius.circular(2)
                           : Radius.zero,
                     ),
                   ),
                 ),
 
-                // Seek handle
+                // Seek handle (larger when dragging)
                 Positioned(
-                  left:
-                      _currentSliderPosition *
-                      MediaQuery.of(context).size.width,
-                  child: Container(
-                    width: 16,
-                    height: 16,
+                  left: effectivePosition * MediaQuery.of(context).size.width,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 100),
+                    width: _isDragging ? 20 : 16,
+                    height: _isDragging ? 20 : 16,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Color.fromRGBO(Colors.black.red, Colors.black.green, Colors.black.blue, 0.3),
-                          blurRadius: 2,
+                          color: Color.fromRGBO(
+                            (Colors.black.red * 255.0).round().clamp(0, 255),
+                            (Colors.black.green * 255.0).round().clamp(0, 255),
+                            (Colors.black.blue * 255.0).round().clamp(0, 255),
+                            _isDragging ? 0.4 : 0.3,
+                          ),
+                          blurRadius: _isDragging ? 4 : 2,
                           offset: const Offset(1, 1),
                         ),
                       ],
                     ),
                     child: Container(
-                      width: 8,
-                      height: 8,
+                      width: _isDragging ? 12 : 8,
+                      height: _isDragging ? 12 : 8,
                       decoration: BoxDecoration(
                         color: primaryColor,
                         shape: BoxShape.circle,
@@ -161,7 +211,16 @@ class ProgressBarState extends State<ProgressBar> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              _formatDuration(widget.currentPosition),
+              _formatDuration(
+                _isDragging && _dragPosition >= 0
+                    ? Duration(
+                        milliseconds:
+                            (_dragPosition *
+                                    widget.totalDuration.inMilliseconds)
+                                .round(),
+                      )
+                    : widget.currentPosition,
+              ),
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
@@ -194,18 +253,38 @@ class ProgressBarState extends State<ProgressBar> {
     final renderBox = context.findRenderObject()! as RenderBox;
     final width = renderBox.size.width;
     final percent = (dx / width).clamp(0.0, 1.0);
-    final newDuration = Duration(
-      milliseconds: (percent * widget.totalDuration.inMilliseconds).round(),
-    );
 
-    if (mounted) {
-      widget.onSeek(newDuration);
-    }
+    // Update drag position for smooth visual feedback
+    setState(() {
+      _dragPosition = percent;
+      _isDragging = true;
+    });
+
+    // Debounce the actual seek operation to avoid too many updates
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 50), () {
+      final newDuration = Duration(
+        milliseconds: (percent * widget.totalDuration.inMilliseconds).round(),
+      );
+
+      if (mounted) {
+        widget.onSeek(newDuration);
+      }
+    });
   }
 
   void _handleSeekStart(double dx) {
     unawaited(widget.onSeekStart?.call());
-    _handleSeek(dx);
+
+    // Initialize drag position
+    final renderBox = context.findRenderObject()! as RenderBox;
+    final width = renderBox.size.width;
+    final percent = (dx / width).clamp(0.0, 1.0);
+
+    setState(() {
+      _dragPosition = percent;
+      _isDragging = true;
+    });
   }
 
   void _handleSeekEnd(double dx) {
@@ -215,6 +294,12 @@ class ProgressBarState extends State<ProgressBar> {
     final newDuration = Duration(
       milliseconds: (percent * widget.totalDuration.inMilliseconds).round(),
     );
+
+    // Reset drag state
+    setState(() {
+      _isDragging = false;
+      _dragPosition = -1;
+    });
 
     unawaited(widget.onSeekEnd?.call(newDuration));
   }
