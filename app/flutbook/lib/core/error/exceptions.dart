@@ -47,6 +47,11 @@ class FileSystemException implements Exception {
   final String message;
 }
 
+class NotFoundException implements Exception {
+  NotFoundException(this.message);
+  final String message;
+}
+
 class TimeoutException implements Exception {
   TimeoutException(this.message);
   final String message;

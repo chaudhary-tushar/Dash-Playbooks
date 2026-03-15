@@ -3,6 +3,8 @@ import 'dart:async';
 import 'dart:io';
 import 'package:audio_service/audio_service.dart';
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
+import 'package:flutbook/features/player/data/datasources/playback_local_ds.dart';
+import 'package:flutbook/features/player/domain/entities/playback_session.dart';
 import 'package:just_audio/just_audio.dart';
 
 // Define a simple PlaybackState class for internal use that matches the expected structure
@@ -31,8 +33,11 @@ class CustomPlaybackState {
 }
 
 class AudioServiceHandler extends BaseAudioHandler {
-  AudioServiceHandler() {
+  AudioServiceHandler({
+    required PlaybackLocalDatasource playbackDatasource,
+  }) {
     print('[AudioServiceHandler] Constructor called');
+    _playbackDatasource = playbackDatasource;
     _initializePlayer();
     _setupPlayer();
     _setupAudioFocus();
@@ -40,14 +45,17 @@ class AudioServiceHandler extends BaseAudioHandler {
   }
 
   static const _skipInterval = Duration(seconds: 30);
+  static const _autoSaveInterval = Duration(seconds: 5);
 
   late final AudioPlayer _player;
+  late final PlaybackLocalDatasource _playbackDatasource;
   final _playbackStateStream = StreamController<CustomPlaybackState>();
 
   Stream<CustomPlaybackState> get playbackStateStream => _playbackStateStream.stream;
 
   // Current audiobook being played
   Audiobook? _currentAudiobook;
+  Timer? _autoSaveTimer;
   Duration _sleepTimerDuration = Duration.zero;
   Timer? _sleepTimer;
   Timer? _sleepTimerCountdown;
@@ -59,11 +67,9 @@ class AudioServiceHandler extends BaseAudioHandler {
   // Initialize the appropriate audio player based on platform
   void _initializePlayer() {
     // Create the AudioPlayer with appropriate settings
-    _player = AudioPlayer(
-      handleInterruptions: true,
-    );
+    _player = AudioPlayer();
     // Ensure volume is at maximum
-    _player.setVolume(1.0);
+    _player.setVolume(1);
   }
 
   @override
@@ -77,6 +83,14 @@ class AudioServiceHandler extends BaseAudioHandler {
       throw StateError('Cannot play: no audiobook has been set');
     }
 
+    // Check if audio source is loaded
+    if (_player.processingState == ProcessingState.idle) {
+      print('[AudioServiceHandler] play() aborted: audio source not loaded (state=idle)');
+      throw StateError(
+        'Cannot play: audio source not loaded. Please ensure the audiobook file exists at: ${_currentAudiobook!.filePath}',
+      );
+    }
+
     // Request audio focus before playing
     await _requestAudioFocus();
     print('[AudioServiceHandler] Audio focus: $_hasAudioFocus');
@@ -84,13 +98,14 @@ class AudioServiceHandler extends BaseAudioHandler {
     if (_hasAudioFocus) {
       // Log player state before play
       print(
-        '[AudioServiceHandler] Player state before play: processingState=${_player.processingState}, playing=${_player.playing}',
+        '[AudioServiceHandler] Player state before play: processingState=${_player.processingState}, playing=${_player.playing}, duration=${_player.duration}',
       );
       try {
         print('[AudioServiceHandler] Calling _player.play()');
         await _player.play();
         print('[AudioServiceHandler] _player.play() completed successfully');
         // Log player state after play
+        await Future<void>.delayed(const Duration(milliseconds: 100));
         print(
           '[AudioServiceHandler] Player state after play: processingState=${_player.processingState}, playing=${_player.playing}',
         );
@@ -105,6 +120,9 @@ class AudioServiceHandler extends BaseAudioHandler {
             bufferedPosition: _player.bufferedPosition,
           ),
         );
+
+        // Start auto-save timer when playback starts
+        _startAutoSaveTimer();
       } catch (e) {
         print('[AudioServiceHandler] Error during play: $e');
         rethrow;
@@ -118,7 +136,14 @@ class AudioServiceHandler extends BaseAudioHandler {
 
   @override
   Future<void> pause() async {
+    // Stop auto-save timer when pausing
+    _stopAutoSaveTimer();
+
     await _player.pause();
+
+    // Save current playback position immediately when paused
+    await _savePlaybackSession();
+
     _updatePlaybackState(
       CustomPlaybackState(
         isPlaying: false,
@@ -332,6 +357,16 @@ class AudioServiceHandler extends BaseAudioHandler {
     try {
       await _loadAudioSource(audiobook.filePath);
       print('[AudioServiceHandler] setCurrentAudiobook() completed');
+
+      // Verify the audio source was loaded successfully
+      if (_player.processingState == ProcessingState.idle) {
+        print('[AudioServiceHandler] ERROR: Audio source failed to load, state is still idle');
+        throw StateError('Failed to load audio source. The file may not exist or is inaccessible.');
+      }
+
+      print(
+        '[AudioServiceHandler] Audio source loaded successfully. Duration: ${_player.duration}, State: ${_player.processingState}',
+      );
     } catch (e) {
       print('[AudioServiceHandler] setCurrentAudiobook() failed: $e');
       rethrow;
@@ -340,10 +375,47 @@ class AudioServiceHandler extends BaseAudioHandler {
 
   Future<void> _loadAudioSource(String filePath) async {
     print('[AudioServiceHandler] _loadAudioSource() starting. filePath: $filePath');
+
+    // Validate file path
+    if (filePath.isEmpty) {
+      throw ArgumentError('File path cannot be empty');
+    }
+
+    // Check if file exists (for local files)
+    // Note: On web, this check is not available, so we skip it
     try {
+      final file = File(filePath);
+      final exists = await file.exists();
+      print('[AudioServiceHandler] File exists: $exists, path: $filePath');
+
+      if (!exists) {
+        throw FileSystemException('Audio file does not exist', filePath);
+      }
+
+      // Check file size to ensure it's not empty
+      final size = await file.length();
+      print('[AudioServiceHandler] File size: $size bytes');
+
+      if (size == 0) {
+        throw FileSystemException('Audio file is empty', filePath);
+      }
+    } catch (e) {
+      // File check may not be available on all platforms (e.g., web)
+      // Continue with loading and let setAudioSource handle errors
+      print('[AudioServiceHandler] File validation skipped or failed: $e');
+    }
+
+    try {
+      // Clear any previous state
+      await _player.stop();
+
+      // Create audio source from file
+      final audioSource = AudioSource.uri(Uri.file(filePath));
+      print('[AudioServiceHandler] Created audio source, loading...');
+
       // Load audio source with a timeout to prevent indefinite hanging
       await _player
-          .setAudioSource(AudioSource.uri(Uri.file(filePath)))
+          .setAudioSource(audioSource)
           .timeout(
             const Duration(seconds: 30),
             onTimeout: () {
@@ -351,11 +423,35 @@ class AudioServiceHandler extends BaseAudioHandler {
               throw TimeoutException('Failed to load audio source within 30 seconds');
             },
           );
+
       print('[AudioServiceHandler] _loadAudioSource() completed successfully');
+
+      // Wait for the player to be ready
+      await _player.processingStateStream.firstWhere(
+        (state) => state != ProcessingState.loading,
+        orElse: () => _player.processingState,
+      );
+
       // Log duration and position after loading
       final duration = _player.duration;
       final position = _player.position;
-      print('[AudioServiceHandler] Audio source loaded. Duration: $duration, Position: $position');
+      final processingState = _player.processingState;
+      print(
+        '[AudioServiceHandler] Audio source loaded. Duration: $duration, Position: $position, State: $processingState',
+      );
+
+      // Verify the audio was loaded correctly
+      if (processingState == ProcessingState.idle) {
+        throw StateError(
+          'Audio source loaded but state is idle - file may be corrupted or unsupported format',
+        );
+      }
+
+      if (duration == null || duration == Duration.zero) {
+        print(
+          '[AudioServiceHandler] WARNING: Duration is null or zero, file may not be fully loaded',
+        );
+      }
     } catch (e) {
       print('[AudioServiceHandler] Error loading audio source: $e');
       // Handle MissingPluginException specifically
@@ -554,6 +650,17 @@ class AudioServiceHandler extends BaseAudioHandler {
 
   void _onTrackComplete() {
     // Handle track completion
+    _stopAutoSaveTimer();
+
+    // Save final position when track completes
+    _savePlaybackSession()
+        .then((_) {
+          print('[AudioServiceHandler] Saved final playback session on track complete');
+        })
+        .catchError((e) {
+          print('[AudioServiceHandler] Error saving on track complete: $e');
+        });
+
     _updatePlaybackState(
       CustomPlaybackState(
         isPlaying: false,
@@ -571,9 +678,67 @@ class AudioServiceHandler extends BaseAudioHandler {
     return _playbackStateStream.stream;
   }
 
+  /// Starts a timer to auto-save playback position every 5 seconds
+  void _startAutoSaveTimer() {
+    // Cancel any existing timer
+    _autoSaveTimer?.cancel();
+
+    // Create new timer that saves position periodically
+    _autoSaveTimer = Timer.periodic(_autoSaveInterval, (_) {
+      _savePlaybackSession().catchError((e) {
+        print('[AudioServiceHandler] Error in auto-save: $e');
+      });
+    });
+
+    print(
+      '[AudioServiceHandler] Auto-save timer started (interval: ${_autoSaveInterval.inSeconds}s)',
+    );
+  }
+
+  /// Stops the auto-save timer
+  void _stopAutoSaveTimer() {
+    _autoSaveTimer?.cancel();
+    _autoSaveTimer = null;
+    print('[AudioServiceHandler] Auto-save timer stopped');
+  }
+
+  /// Saves the current playback session to the datasource
+  Future<void> _savePlaybackSession() async {
+    if (_currentAudiobook == null) {
+      print('[AudioServiceHandler] Cannot save session: no audiobook set');
+      return;
+    }
+
+    try {
+      final session = PlaybackSession(
+        audiobookId: _currentAudiobook!.id,
+        currentPosition: _player.position,
+        playbackSpeed: _player.speed,
+        isPlaying: _player.playing,
+        lastPlayedAt: DateTime.now(),
+        sleepTimerActive: _sleepTimerActive,
+        sleepTimerDuration: _sleepTimerDuration,
+      );
+
+      await _playbackDatasource.savePlaybackSession(session);
+      print(
+        '[AudioServiceHandler] Saved playback session: ${_currentAudiobook!.id} at position ${_player.position.inSeconds}s',
+      );
+    } catch (e) {
+      print('[AudioServiceHandler] Error saving playback session: $e');
+      // Don't rethrow - we want auto-save to be silent on failure
+    }
+  }
+
+  /// Standard dispose that includes canceling auto-save timer
+  @override
   Future<void> dispose() async {
     print('[AudioServiceHandler] dispose() called');
+    _stopAutoSaveTimer();
+    // Save final position before disposing
+    await _savePlaybackSession();
     _sleepTimer?.cancel();
+    _sleepTimerCountdown?.cancel();
     await _player.dispose();
     await _playbackStateStream.close();
   }

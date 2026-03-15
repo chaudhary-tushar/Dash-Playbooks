@@ -34,14 +34,14 @@ class LibraryRepositoryImpl implements LibraryRepository {
   }
 
   /// Checks if the repository is initialized and ready for use
-  bool get isInitialized => _localDatasource != null;
+  bool get isInitialized => true;
 
   /// Checks if the repository is in error state
-  bool get isInErrorState => !isInitialized;
+  bool get isInErrorState => false;
 
   /// Provides graceful degradation when datasource is not available
   /// Returns null or empty results instead of throwing exceptions
-  bool get _shouldDegradeGracefully => _localDatasource == null;
+  bool get _shouldDegradeGracefully => false;
 
   /// Fallback method for when datasource is not initialized
   /// Returns an empty library instead of throwing an exception
@@ -309,8 +309,7 @@ class LibraryRepositoryImpl implements LibraryRepository {
       if (author != null && author.isNotEmpty) {
         result = result
             .where(
-              (book) =>
-                  book.author.toLowerCase().contains(author.toLowerCase()),
+              (book) => book.author.toLowerCase().contains(author.toLowerCase()),
             )
             .toList();
       }
@@ -324,14 +323,10 @@ class LibraryRepositoryImpl implements LibraryRepository {
       if (inProgress != null) {
         if (inProgress) {
           // In progress means not completed but has been played
-          result = result
-              .where((book) => !book.completed && book.lastPlayedAt != null)
-              .toList();
+          result = result.where((book) => !book.completed && book.lastPlayedAt != null).toList();
         } else {
           // Not in progress means either completed or never played
-          result = result
-              .where((book) => book.completed || book.lastPlayedAt == null)
-              .toList();
+          result = result.where((book) => book.completed || book.lastPlayedAt == null).toList();
         }
       }
 
@@ -340,13 +335,9 @@ class LibraryRepositoryImpl implements LibraryRepository {
         result.sort((a, b) {
           switch (sortBy) {
             case 'title':
-              return sortAscending
-                  ? a.title.compareTo(b.title)
-                  : b.title.compareTo(a.title);
+              return sortAscending ? a.title.compareTo(b.title) : b.title.compareTo(a.title);
             case 'author':
-              return sortAscending
-                  ? a.author.compareTo(b.author)
-                  : b.author.compareTo(a.author);
+              return sortAscending ? a.author.compareTo(b.author) : b.author.compareTo(a.author);
             case 'lastPlayed':
               // Handle null lastPlayedAt by sorting them to the end
               if (a.lastPlayedAt == null && b.lastPlayedAt == null) return 0;
@@ -359,6 +350,13 @@ class LibraryRepositoryImpl implements LibraryRepository {
               return sortAscending
                   ? a.createdAt.compareTo(b.createdAt)
                   : b.createdAt.compareTo(a.createdAt);
+            case 'length':
+              // Sort by duration (audiobook length)
+              final durationA = a.duration.inMilliseconds;
+              final durationB = b.duration.inMilliseconds;
+              return sortAscending
+                  ? durationA.compareTo(durationB)
+                  : durationB.compareTo(durationA);
             case 'progress':
               // Calculate progress as percentage
               final progressA = _calculateProgress(a);
@@ -368,9 +366,7 @@ class LibraryRepositoryImpl implements LibraryRepository {
                   : progressB.compareTo(progressA);
             default:
               // Default to title sorting
-              return sortAscending
-                  ? a.title.compareTo(b.title)
-                  : b.title.compareTo(a.title);
+              return sortAscending ? a.title.compareTo(b.title) : b.title.compareTo(a.title);
           }
         });
       }
@@ -392,20 +388,12 @@ class LibraryRepositoryImpl implements LibraryRepository {
     if (audiobook.completed) return 100;
     if (audiobook.lastPlayedAt == null) return 0;
 
-    // For simplicity, we'll calculate based on last played position
-    // In a real implementation, this would come from playback tracking
-    // For now, we'll use a simple heuristic based on lastPlayedAt
+    // Calculate progress based on current position and total duration
     final durationMs = audiobook.duration.inMilliseconds;
     if (durationMs <= 0) return 0;
 
-    // Calculate time since last played as a proxy for progress
-    final timeSinceLastPlayed = DateTime.now().difference(
-      audiobook.lastPlayedAt!,
-    );
-    final hoursSinceLastPlayed = timeSinceLastPlayed.inHours;
-
-    // Simple heuristic: assume 1 hour of listening = 10% progress, capped at 99%
-    final progress = (hoursSinceLastPlayed * 10).toDouble().clamp(0.0, 99.0);
+    final currentPositionMs = audiobook.currentPosition.inMilliseconds;
+    final progress = (currentPositionMs / durationMs * 100).clamp(0.0, 100.0);
     return progress;
   }
 
@@ -413,5 +401,25 @@ class LibraryRepositoryImpl implements LibraryRepository {
   Future<List<Audiobook>> searchInLibrary(String query) {
     // TODO: implement searchInLibrary
     throw UnimplementedError();
+  }
+
+  @override
+  Future<void> updatePreferredSpeed(String audiobookId, double speed) async {
+    try {
+      _validateDependencies();
+      await _localDatasource.updatePreferredSpeed(audiobookId, speed);
+    } catch (e) {
+      throw StorageException(ErrorHandler.handleException(e));
+    }
+  }
+
+  @override
+  Future<double> getPreferredSpeed(String audiobookId) async {
+    try {
+      _validateDependencies();
+      return await _localDatasource.getPreferredSpeed(audiobookId);
+    } catch (e) {
+      throw StorageException(ErrorHandler.handleException(e));
+    }
   }
 }

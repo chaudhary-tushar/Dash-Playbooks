@@ -42,8 +42,7 @@ class PlaybackRepositoryImpl implements PlaybackRepository {
 
   /// Provides graceful degradation when datasource is not available
   /// Returns null or empty results instead of throwing exceptions
-  bool get _shouldDegradeGracefully =>
-      _localDatasource == null || !_localDatasource.isInitialized;
+  bool get _shouldDegradeGracefully => _localDatasource == null || !_localDatasource.isInitialized;
 
   /// Checks if all dependencies are properly initialized
   bool get _areDependenciesInitialized {
@@ -147,8 +146,7 @@ class PlaybackRepositoryImpl implements PlaybackRepository {
           'available': false,
           'message': 'Playback database not initialized',
           'reason': 'local_datasource_null',
-          'suggestion':
-              'Please close and reopen the app to initialize the database',
+          'suggestion': 'Please close and reopen the app to initialize the database',
         };
       } else if (!(status['localDatasourceInitialized'] as bool)) {
         return {
@@ -285,9 +283,43 @@ class PlaybackRepositoryImpl implements PlaybackRepository {
       }
 
       await _localDatasource!.savePlaybackSession(session);
+
+      // Also sync to remote if available
+      if (_isRemoteAvailable) {
+        try {
+          await _remoteDatasource!.uploadPlaybackSession(session);
+        } catch (e) {
+          print('Warning: Could not sync playback session to remote: $e');
+          // Continue anyway - local storage is primary
+        }
+      }
     } catch (e) {
       print('Error saving playback session: $e');
       // Graceful degradation - don't throw, just log
+    }
+  }
+
+  /// Marks an audiobook as being read (in-progress) by updating its lastPlayedAt
+  /// This is called when playback starts to make the book appear in the "Reading" list
+  Future<void> markAudiobookAsInProgress(String audiobookId) async {
+    try {
+      if (_shouldDegradeGracefully) {
+        print('Warning: Playback datasource not initialized');
+        return;
+      }
+
+      // Get the current playback session
+      final session = await _localDatasource!.getPlaybackSession(audiobookId);
+
+      if (session != null) {
+        // Update the session's lastPlayedAt to now
+        final updatedSession = session.copyWith(lastPlayedAt: DateTime.now());
+        await _localDatasource!.savePlaybackSession(updatedSession);
+        print('[PlaybackRepository] Marked audiobook $audiobookId as in-progress');
+      }
+    } catch (e) {
+      print('[PlaybackRepository] Error marking audiobook as in-progress: $e');
+      // Don't throw - this is a side effect
     }
   }
 
@@ -317,8 +349,7 @@ class PlaybackRepositoryImpl implements PlaybackRepository {
       if (session != null) {
         final updatedSession = session.copyWith(
           currentPosition: Duration(
-            milliseconds:
-                session.currentPosition.inMilliseconds, // Keep current position
+            milliseconds: session.currentPosition.inMilliseconds, // Keep current position
           ),
         );
 

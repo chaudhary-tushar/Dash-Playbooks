@@ -43,10 +43,12 @@ class AudiobookGroupingService {
     // Convert the map to a list of AudiobookGroup objects
     return groupMap.entries.map((entry) {
       final firstBook = entry.value.first;
+      // Sort audiobooks within each group by track number or filename
+      final sortedAudiobooks = _sortAudiobooksByTrack(entry.value);
       return AudiobookGroup(
         groupKey: entry.key,
         groupName: _createGroupDisplayName(firstBook),
-        audiobooks: entry.value,
+        audiobooks: sortedAudiobooks,
       );
     }).toList();
   }
@@ -72,13 +74,105 @@ class AudiobookGroupingService {
     // Convert the map to a list of AudiobookGroup objects
     return groupMap.entries.map((entry) {
       final directoryName = entry.key.replaceFirst('dir_', '');
+      // Sort audiobooks within each group by track number or filename
+      final sortedAudiobooks = _sortAudiobooksByTrack(entry.value);
       return AudiobookGroup(
         groupKey: entry.key,
         groupName: directoryName,
-        audiobooks: entry.value,
+        audiobooks: sortedAudiobooks,
         groupType: 'directory',
       );
     }).toList();
+  }
+
+  /// Sorts audiobooks by track number, disc number, or filename
+  List<Audiobook> _sortAudiobooksByTrack(List<Audiobook> audiobooks) {
+    if (audiobooks.length <= 1) {
+      return audiobooks;
+    }
+
+    return List<Audiobook>.from(audiobooks)..sort((a, b) {
+      // First, try to extract and compare track numbers
+      final trackA = _extractTrackNumber(a.title, a.filePath);
+      final trackB = _extractTrackNumber(b.title, b.filePath);
+
+      if (trackA != null && trackB != null) {
+        // Compare by disc number first, then track number
+        final discA = _extractDiscNumber(a.title, a.filePath);
+        final discB = _extractDiscNumber(b.title, b.filePath);
+
+        if (discA != discB) {
+          return (discA ?? 0).compareTo(discB ?? 0);
+        }
+
+        final trackCompare = trackA.compareTo(trackB);
+        if (trackCompare != 0) {
+          return trackCompare;
+        }
+      }
+
+      // If no track numbers found, sort by filename
+      final filenameA = path.basename(a.filePath).toLowerCase();
+      final filenameB = path.basename(b.filePath).toLowerCase();
+      return filenameA.compareTo(filenameB);
+    });
+  }
+
+  /// Extracts track number from title or filename
+  int? _extractTrackNumber(String title, String filePath) {
+    // Try to extract from title first
+    // Pattern: "Track 01", "01 - Title", "001 - Title", etc.
+    final trackPatterns = [
+      RegExp(r'\btrack\s*(\d+)\b', caseSensitive: false),
+      RegExp(r'^(\d+)[-_\s]+'),
+      RegExp(r'^(\d+)\.'),
+      RegExp(r'\b(\d+)\b[-_\s]+track\b', caseSensitive: false),
+    ];
+
+    for (final pattern in trackPatterns) {
+      final match = pattern.firstMatch(title);
+      if (match != null && match.groupCount >= 1) {
+        return int.tryParse(match.group(1)!);
+      }
+    }
+
+    // Try filename if title didn't work
+    final filename = path.basename(filePath);
+    for (final pattern in trackPatterns) {
+      final match = pattern.firstMatch(filename);
+      if (match != null && match.groupCount >= 1) {
+        return int.tryParse(match.group(1)!);
+      }
+    }
+
+    return null;
+  }
+
+  /// Extracts disc number from title or filename
+  int? _extractDiscNumber(String title, String filePath) {
+    // Pattern: "Disc 1", "CD 01", "Disk 1", etc.
+    final discPatterns = [
+      RegExp(r'\b(?:disc|cd|disk)\s*(\d+)\b', caseSensitive: false),
+      RegExp(r'\b(\d+)\s*(?:disc|cd|disk)\b', caseSensitive: false),
+    ];
+
+    for (final pattern in discPatterns) {
+      final match = pattern.firstMatch(title);
+      if (match != null && match.groupCount >= 1) {
+        return int.tryParse(match.group(1)!);
+      }
+    }
+
+    // Try filename if title didn't work
+    final filename = path.basename(filePath);
+    for (final pattern in discPatterns) {
+      final match = pattern.firstMatch(filename);
+      if (match != null && match.groupCount >= 1) {
+        return int.tryParse(match.group(1)!);
+      }
+    }
+
+    return null;
   }
 
   /// Creates a group key based on audiobook metadata

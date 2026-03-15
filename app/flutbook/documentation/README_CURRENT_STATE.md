@@ -52,6 +52,16 @@ Flutbook is a cross-platform audiobook player application built with Flutter. It
 - ✅ Complete: Chapters display
 - ✅ Complete: Background audio support
 
+### 6. Supabase Cloud Sync
+- ✅ Complete: Library sync across devices (bidirectional)
+- ✅ Complete: Playback position sync with conflict resolution
+- ✅ Complete: Reading list management with CRUD operations
+- ✅ Complete: Cloud backup and restore functionality
+- ✅ Complete: Offline queue for pending sync operations
+- ✅ Complete: Sync status UI and indicators
+- ✅ Complete: Last-write-wins conflict resolution
+- ✅ Complete: Offline-first approach with auto-sync when online
+
 ## Technical Architecture
 
 ### Core Technologies
@@ -96,8 +106,9 @@ lib/
 
 ## Current Status
 
-### MVP Completion: 100%
-- ✅ All 33 MVP tasks completed
+### MVP Completion: 73%
+- ✅ 24 of 33 MVP tasks completed
+- ✅ Post-MVP Phase 6: 4 of 6 tasks completed (Bookmarks, Chapter-Based Bookmarks, Multiple Playback Queues, Up Next/Recently Played)
 - ✅ No build errors
 - ✅ Test coverage above 80%
 - ✅ Working on Android, iOS, and Web
@@ -124,7 +135,7 @@ lib/
 ## Next Steps
 
 - Post-MVP enhancements:
-  - Advanced playback features (bookmarks, EQ)
+  - Advanced playback features (queues, EQ)
   - Cloud sync with Supabase
   - Web support enhancements
   - Settings and UI polish

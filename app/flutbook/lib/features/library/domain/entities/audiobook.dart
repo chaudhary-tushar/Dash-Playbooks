@@ -16,6 +16,8 @@ class Audiobook {
     required this.totalSize,
     this.coverArtPath,
     this.lastPlayedAt,
+    this.preferredSpeed = 1.0,
+    this.currentPosition = Duration.zero,
   });
 
   // Empty audiobook for search delegate
@@ -35,6 +37,12 @@ class Audiobook {
   }
 
   factory Audiobook.fromMap(Map<String, dynamic> map) {
+    final chapters = List<Chapter>.from(
+      (map['chapters'] as List<dynamic>).map<Chapter>(
+        (x) => Chapter.fromMap(x as Map<String, dynamic>),
+      ),
+    )..sort((a, b) => a.startTime.compareTo(b.startTime)); // Sort chapters by start time
+
     return Audiobook(
       id: map['id'] as String? ?? '',
       title: map['title'] as String? ?? '',
@@ -45,11 +53,7 @@ class Audiobook {
         milliseconds: (map['duration'] as num?)?.toInt() ?? 0,
       ),
       filePath: map['filePath'] as String? ?? '',
-      chapters: List<Chapter>.from(
-        (map['chapters'] as List<dynamic>).map<Chapter>(
-          (x) => Chapter.fromMap(x as Map<String, dynamic>),
-        ),
-      ),
+      chapters: chapters,
       createdAt: DateTime.fromMillisecondsSinceEpoch(
         (map['createdAt'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
       ),
@@ -60,6 +64,10 @@ class Audiobook {
           : null,
       completed: map['completed'] as bool? ?? false,
       totalSize: (map['totalSize'] as num?)?.toInt() ?? 0,
+      preferredSpeed: (map['preferredSpeed'] as num?)?.toDouble() ?? 1.0,
+      currentPosition: Duration(
+        milliseconds: (map['currentPosition'] as num?)?.toInt() ?? 0,
+      ),
     );
   }
 
@@ -77,6 +85,8 @@ class Audiobook {
   final DateTime? lastPlayedAt;
   final bool completed;
   final int totalSize;
+  final double preferredSpeed;
+  final Duration currentPosition;
 
   Audiobook copyWith({
     String? id,
@@ -91,6 +101,8 @@ class Audiobook {
     DateTime? lastPlayedAt,
     bool? completed,
     int? totalSize,
+    double? preferredSpeed,
+    Duration? currentPosition,
   }) {
     return Audiobook(
       id: id ?? this.id,
@@ -105,6 +117,8 @@ class Audiobook {
       lastPlayedAt: lastPlayedAt ?? this.lastPlayedAt,
       completed: completed ?? this.completed,
       totalSize: totalSize ?? this.totalSize,
+      preferredSpeed: preferredSpeed ?? this.preferredSpeed,
+      currentPosition: currentPosition ?? this.currentPosition,
     );
   }
 
@@ -122,6 +136,8 @@ class Audiobook {
       'lastPlayedAt': lastPlayedAt?.millisecondsSinceEpoch,
       'completed': completed,
       'totalSize': totalSize,
+      'preferredSpeed': preferredSpeed,
+      'currentPosition': currentPosition.inMilliseconds,
     };
   }
 

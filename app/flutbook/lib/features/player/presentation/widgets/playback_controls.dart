@@ -12,6 +12,8 @@ class PlaybackControls extends StatefulWidget {
     required this.onSleepTimerToggle,
     required this.onSkipForward,
     required this.onSkipBackward,
+    this.perBookSpeedEnabled = false,
+    this.onPerBookSpeedToggle,
     super.key,
   });
   final bool isPlaying;
@@ -23,6 +25,8 @@ class PlaybackControls extends StatefulWidget {
   final void Function({required bool value}) onSleepTimerToggle;
   final void Function(Duration) onSkipForward;
   final void Function(Duration) onSkipBackward;
+  final bool perBookSpeedEnabled;
+  final void Function(bool)? onPerBookSpeedToggle;
 
   @override
   PlaybackControlsState createState() => PlaybackControlsState();
@@ -47,8 +51,6 @@ class PlaybackControlsState extends State<PlaybackControls> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -80,9 +82,7 @@ class PlaybackControlsState extends State<PlaybackControls> {
                 IconButton(
                   iconSize: 72,
                   icon: Icon(
-                    widget.isPlaying
-                        ? Icons.pause_rounded
-                        : Icons.play_arrow_rounded,
+                    widget.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
                     color: Theme.of(context).colorScheme.primary,
                   ),
                   onPressed: widget.onPlayPause,
@@ -153,6 +153,32 @@ class PlaybackControlsState extends State<PlaybackControls> {
 
                 const SizedBox(width: 16),
 
+                // Per-book speed toggle
+                if (widget.onPerBookSpeedToggle != null)
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        widget.onPerBookSpeedToggle!(!widget.perBookSpeedEnabled);
+                      },
+                      icon: Icon(
+                        widget.perBookSpeedEnabled ? Icons.bookmark : Icons.bookmark_border,
+                        color: widget.perBookSpeedEnabled
+                            ? Theme.of(context).colorScheme.primary
+                            : null,
+                      ),
+                      label: Text(
+                        'Per Book',
+                        style: TextStyle(
+                          color: widget.perBookSpeedEnabled
+                              ? Theme.of(context).colorScheme.primary
+                              : null,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                const SizedBox(width: 16),
+
                 // Sleep timer toggle
                 Expanded(
                   child: OutlinedButton.icon(
@@ -160,12 +186,8 @@ class PlaybackControlsState extends State<PlaybackControls> {
                       widget.onSleepTimerToggle(value: !widget.sleepTimerActive);
                     },
                     icon: Icon(
-                      widget.sleepTimerActive
-                          ? Icons.bedtime_rounded
-                          : Icons.bedtime_outlined,
-                      color: widget.sleepTimerActive
-                          ? Theme.of(context).colorScheme.primary
-                          : null,
+                      widget.sleepTimerActive ? Icons.bedtime_rounded : Icons.bedtime_outlined,
+                      color: widget.sleepTimerActive ? Theme.of(context).colorScheme.primary : null,
                     ),
                     label: Text(
                       'Sleep',
@@ -229,8 +251,6 @@ class PlaybackControlsState extends State<PlaybackControls> {
     final twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
     final twoDigitHours = twoDigits(duration.inHours);
 
-    return duration.inHours > 0
-        ? '$twoDigitHours:$twoDigitMinutes'
-        : twoDigitMinutes;
+    return duration.inHours > 0 ? '$twoDigitHours:$twoDigitMinutes' : twoDigitMinutes;
   }
 }

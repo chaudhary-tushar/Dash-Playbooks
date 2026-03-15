@@ -25,12 +25,10 @@ class DirectorySelectionScreen extends ConsumerStatefulWidget {
   final String? initialDirectory;
 
   @override
-  ConsumerState<DirectorySelectionScreen> createState() =>
-      _DirectorySelectionScreenState();
+  ConsumerState<DirectorySelectionScreen> createState() => _DirectorySelectionScreenState();
 }
 
-class _DirectorySelectionScreenState
-    extends ConsumerState<DirectorySelectionScreen> {
+class _DirectorySelectionScreenState extends ConsumerState<DirectorySelectionScreen> {
   late String? _selectedDirectory;
 
   @override
@@ -107,58 +105,67 @@ class _DirectorySelectionScreenState
       // Get the use case from Riverpod
       final scanUseCase = await ref.read(scanLibraryUseCaseProvider.future);
 
-      // Show loading indicator
       if (!contextRef.mounted) return;
+
+      // Navigate to Library screen immediately without waiting for scan to complete
+      // The scan will continue in the background
+      print('INFO - Navigating to library immediately, starting background scan');
+      Navigator.of(contextRef).pushReplacementNamed('/library');
+
+      // Show toast notification that scanning has started
       ScaffoldMessenger.of(contextRef).showSnackBar(
         SnackBar(
-          content: Text('Scanning directory... $path'),
-          duration: const Duration(milliseconds: 5000),
+          content: Text('Scanning directory $path for audiobooks...'),
+          duration: const Duration(seconds: 3),
         ),
       );
 
-      // Execute the scan
-      print('DEBUG - Starting scan for $path');
-      final result = await scanUseCase.execute(path);
-      print('DEBUG - Scan finished');
-      print('Scanned files: ${result.scannedFiles}');
-      print('Errors: ${result.errors}');
-      print('Elapsed: ${result.elapsedTime}');
-      print('Total size: ${result.totalSize}');
+      // Execute the scan in the background (don't await)
+      // This allows the UI to respond immediately while scanning continues
+      Future<void>.microtask(() async {
+        try {
+          print('DEBUG - Starting background scan for $path');
+          final result = await scanUseCase.execute(path);
+          print('DEBUG - Background scan finished');
+          print('Scanned files: ${result.scannedFiles}');
+          print('Errors: ${result.errors}');
+          print('Elapsed: ${result.elapsedTime}');
+          print('Total size: ${result.totalSize}');
 
-      if (!contextRef.mounted) return;
-
-      // Hide the loading snackbar
-      ScaffoldMessenger.of(contextRef).hideCurrentSnackBar();
-
-      // Show result
-      String message;
-      if (result.success) {
-        message =
-            'Scanned ${result.scannedFiles} files in ${result.elapsedTime.inSeconds}s';
-      } else {
-        message =
-            'Scan completed with ${result.errors.length} errors. Check logs for details.';
-      }
-
-      ScaffoldMessenger.of(contextRef).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
-
-      // Navigate to Library screen after successful scan
-      // Even if no new files were added, the scan may have updated existing records or removed deleted files
-      if (result.success) {
-        Navigator.of(contextRef).pushReplacementNamed('/library');
-      }
+          // Optionally, show a notification when scan completes
+          if (contextRef.mounted) {
+            String message;
+            if (result.success) {
+              message = 'Scan complete: ${result.scannedFiles} files found';
+            } else {
+              message = 'Scan complete with ${result.errors.length} errors';
+            }
+            ScaffoldMessenger.of(contextRef).showSnackBar(
+              SnackBar(
+                content: Text(message),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+        } catch (e) {
+          print('Error during background scan: $e');
+          if (contextRef.mounted) {
+            ScaffoldMessenger.of(contextRef).showSnackBar(
+              SnackBar(
+                content: Text('Background scan error: $e'),
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          }
+        }
+      });
     } catch (e) {
-      print('Error during scan: $e');
+      print('Error getting scan use case: $e');
       if (!contextRef.mounted) return;
-
-      // Hide the loading snackbar
-      ScaffoldMessenger.of(contextRef).hideCurrentSnackBar();
 
       // Show error
       ScaffoldMessenger.of(contextRef).showSnackBar(
-        SnackBar(content: Text('Error scanning directory: $e')),
+        SnackBar(content: Text('Error starting scan: $e')),
       );
     }
   }
@@ -245,9 +252,7 @@ class _DirectorySelectionScreenState
                         color: Theme.of(context).cardTheme.color,
                       ),
                       child: Text(
-                        _selectedDirectory != null
-                            ? _selectedDirectory!
-                            : 'No directory selected',
+                        _selectedDirectory != null ? _selectedDirectory! : 'No directory selected',
                         style: TextStyle(
                           fontSize: 16,
                           color: _selectedDirectory != null

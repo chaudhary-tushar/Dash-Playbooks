@@ -33,14 +33,30 @@ import 'package:flutbook/features/library/data/datasources/remote/supabase_libra
 import 'package:flutbook/features/library/data/repositories/library_repository_impl.dart';
 import 'package:flutbook/features/library/domain/repositories/library_repository.dart';
 import 'package:flutbook/features/library/domain/services/audiobook_grouping_service.dart';
+import 'package:flutbook/features/player/data/datasources/audio_effects_ds.dart';
 import 'package:flutbook/features/player/data/datasources/bookmark_local_ds.dart';
 import 'package:flutbook/features/player/data/datasources/playback_local_ds.dart';
+import 'package:flutbook/features/player/data/datasources/queue_local_ds.dart';
 import 'package:flutbook/features/player/data/datasources/remote/supabase_playback_sync.dart';
+import 'package:flutbook/features/player/data/repositories/audio_effects_repository_impl.dart';
 import 'package:flutbook/features/player/data/repositories/bookmark_repository_impl.dart';
 import 'package:flutbook/features/player/data/repositories/playback_repository_impl.dart';
+import 'package:flutbook/features/player/data/repositories/queue_repository_impl.dart';
+import 'package:flutbook/features/player/domain/usecases/audio_effects_usecase.dart';
 import 'package:flutbook/features/player/domain/usecases/create_bookmark_usecase.dart';
 import 'package:flutbook/features/player/domain/usecases/get_bookmarks_usecase.dart';
+import 'package:flutbook/features/player/domain/usecases/manage_queue_usecase.dart';
 import 'package:flutbook/features/settings/data/datasources/preferences_datasource.dart';
+import 'package:flutbook/features/sync/data/datasources/offline_queue_local_ds.dart';
+import 'package:flutbook/features/sync/data/datasources/supabase_backup_datasource.dart';
+import 'package:flutbook/features/sync/data/datasources/supabase_reading_list_datasource.dart';
+import 'package:flutbook/features/sync/data/repositories/backup_repository_impl.dart';
+import 'package:flutbook/features/sync/data/repositories/library_sync_repository_impl.dart';
+import 'package:flutbook/features/sync/data/repositories/offline_queue_repository_impl.dart';
+import 'package:flutbook/features/sync/data/repositories/playback_sync_repository_impl.dart';
+import 'package:flutbook/features/sync/data/repositories/reading_list_sync_repository_impl.dart';
+import 'package:flutbook/features/sync/domain/usecases/sync_library_usecase.dart';
+import 'package:flutbook/features/sync/domain/usecases/sync_playback_position_usecase.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -93,13 +109,14 @@ final audioInitializationServiceProvider = FutureProvider<void>((ref) async {
 /// Provides the UserProfileDatasource for ISAR database operations.
 /// This datasource handles all UserProfileModel operations with the ISAR database.
 /// This must be initialized after the DatabaseService is available.
-final FutureProvider<UserProfileDatasource> userProfileDatasourceProvider =
-    FutureProvider((ref) async {
-      // Wait for database service to be initialized
-      final databaseService = await ref.watch(databaseServiceProvider.future);
+final FutureProvider<UserProfileDatasource> userProfileDatasourceProvider = FutureProvider((
+  ref,
+) async {
+  // Wait for database service to be initialized
+  final databaseService = await ref.watch(databaseServiceProvider.future);
 
-      return UserProfileDatasource(databaseService: databaseService);
-    });
+  return UserProfileDatasource(databaseService: databaseService);
+});
 
 // =============================================================================
 // JSON STORAGE PROVIDER
@@ -120,10 +137,9 @@ final jsonStorageProvider = Provider<JsonStorage>((ref) {
 /// - Scans directories for audio files
 /// - Extracts metadata from individual files
 /// - Does NOT depend on the database
-final metadataExtractionDatasourceProvider =
-    Provider<MetadataExtractionDatasource>((ref) {
-      return MetadataExtractionDatasource();
-    });
+final metadataExtractionDatasourceProvider = Provider<MetadataExtractionDatasource>((ref) {
+  return MetadataExtractionDatasource();
+});
 
 // =============================================================================
 // AUDIOBOOK LOCAL DATASOURCE PROVIDER
@@ -137,17 +153,16 @@ final metadataExtractionDatasourceProvider =
 /// - Does NOT depend on metadata extraction
 ///
 /// **Important**: The DatabaseService must be initialized before this datasource is used.
-final audiobookLocalDatasourceProvider =
-    FutureProvider<AudiobookLocalDatasource>((ref) async {
-      // Wait for database service to be initialized
-      final databaseService = await ref.watch(databaseServiceProvider.future);
-      final jsonStorage = ref.watch(jsonStorageProvider);
+final audiobookLocalDatasourceProvider = FutureProvider<AudiobookLocalDatasource>((ref) async {
+  // Wait for database service to be initialized
+  final databaseService = await ref.watch(databaseServiceProvider.future);
+  final jsonStorage = ref.watch(jsonStorageProvider);
 
-      return AudiobookLocalDatasource(
-        databaseService.isar,
-        jsonStorage: jsonStorage,
-      );
-    });
+  return AudiobookLocalDatasource(
+    databaseService.isar,
+    jsonStorage: jsonStorage,
+  );
+});
 
 // =============================================================================
 // PLAYBACK LOCAL DATASOURCE PROVIDER
@@ -204,6 +219,35 @@ final bookmarkLocalDatasourceProvider = FutureProvider<BookmarkLocalDatasource>(
     }
 
     return BookmarkLocalDatasource(databaseService.isar);
+  },
+);
+
+// =============================================================================
+// QUEUE LOCAL DATASOURCE PROVIDER
+// =============================================================================
+
+/// Provides QueueLocalDatasource for database operations.
+///
+/// This datasource:
+/// - Stores and retrieves queues from Isar
+/// - Queries the database for queue-related data
+///
+/// **Important**: The DatabaseService must be initialized before this datasource is used.
+/// This provider explicitly depends on databaseServiceProvider to ensure proper initialization order.
+final queueLocalDatasourceProvider = FutureProvider<QueueLocalDatasource>(
+  (ref) async {
+    // Explicitly wait for database service to be initialized
+    // This ensures the database is ready before creating the datasource
+    final databaseService = await ref.watch(databaseServiceProvider.future);
+
+    // Validate that the database is properly initialized
+    if (!databaseService.isar.isOpen) {
+      throw UninitializedDatasourceException(
+        'Database is not open for queue operations',
+      );
+    }
+
+    return QueueLocalDatasource(databaseService.isar);
   },
 );
 
@@ -357,6 +401,76 @@ final bookmarkRepositoryProvider = FutureProvider<BookmarkRepositoryImpl>((
   // This line should never be reached due to the retry logic above
   throw UninitializedDatasourceException(
     'BookmarkRepository initialization failed',
+  );
+});
+
+// =============================================================================
+// QUEUE REPOSITORY PROVIDER
+// =============================================================================
+
+/// Provides QueueRepositoryImpl for queue operations.
+///
+/// This repository:
+/// - Manages queue creation, retrieval, and deletion
+/// - Handles local storage of queues
+/// - Provides graceful degradation when datasources are not available
+/// - Implements retry mechanisms for failed initializations
+///
+/// **Initialization Order**:
+/// 1. DatabaseService (must be initialized first)
+/// 2. QueueLocalDatasource (depends on DatabaseService)
+/// 3. QueueRepositoryImpl (depends on all above)
+final queueRepositoryProvider = FutureProvider<QueueRepositoryImpl>((
+  ref,
+) async {
+  const maxRetries = 3;
+  int retryCount = 0;
+
+  while (retryCount < maxRetries) {
+    try {
+      // Step 1: Ensure database service is initialized first
+      // This is the most critical dependency for all queue operations
+      final databaseService = await ref.watch(databaseServiceProvider.future);
+
+      // Validate database is properly initialized
+      if (!databaseService.isar.isOpen) {
+        throw UninitializedDatasourceException(
+          'Database is not ready for queue repository',
+        );
+      }
+
+      // Step 2: Wait for the local datasource to be initialized
+      // This depends on the database service being ready
+      final localDatasource = await ref.watch(
+        queueLocalDatasourceProvider.future,
+      );
+
+      // Validate that local datasource is properly initialized
+      if (!localDatasource.isInitialized) {
+        throw UninitializedDatasourceException(
+          'Queue local datasource is not initialized',
+        );
+      }
+
+      return QueueRepositoryImpl(
+        localDatasource: localDatasource,
+      );
+    } catch (e) {
+      retryCount++;
+      if (retryCount >= maxRetries) {
+        throw UninitializedDatasourceException(
+          'Failed to initialize QueueRepository after $maxRetries attempts: ${ErrorHandler.handleException(e)}',
+        );
+      }
+
+      // Wait before retrying
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+    }
+  }
+
+  // This line should never be reached due to the retry logic above
+  throw UninitializedDatasourceException(
+    'QueueRepository initialization failed',
   );
 });
 
@@ -539,7 +653,7 @@ final userRepositoryProvider = FutureProvider<UserRepository>((ref) async {
 final loginUsecaseProvider = FutureProvider<LoginUsecase>((ref) async {
   // Wait for the user repository to be ready
   final userRepository = await ref.watch(userRepositoryProvider.future);
-  
+
   return LoginUsecase(userRepository);
 });
 
@@ -548,7 +662,7 @@ final loginUsecaseProvider = FutureProvider<LoginUsecase>((ref) async {
 final anonymousLoginUsecaseProvider = FutureProvider<AnonymousLoginUsecase>((ref) async {
   // Wait for the user repository to be ready
   final userRepository = await ref.watch(userRepositoryProvider.future);
-  
+
   return AnonymousLoginUsecase(userRepository);
 });
 
@@ -557,7 +671,7 @@ final anonymousLoginUsecaseProvider = FutureProvider<AnonymousLoginUsecase>((ref
 final googleSigninUsecaseProvider = FutureProvider<GoogleSigninUsecase>((ref) async {
   // Wait for the user repository to be ready
   final userRepository = await ref.watch(userRepositoryProvider.future);
-  
+
   return GoogleSigninUsecase(userRepository);
 });
 
@@ -566,7 +680,7 @@ final googleSigninUsecaseProvider = FutureProvider<GoogleSigninUsecase>((ref) as
 final logoutUsecaseProvider = FutureProvider<LogoutUsecase>((ref) async {
   // Wait for the user repository to be ready
   final userRepository = await ref.watch(userRepositoryProvider.future);
-  
+
   return LogoutUsecase(userRepository);
 });
 
@@ -575,7 +689,7 @@ final logoutUsecaseProvider = FutureProvider<LogoutUsecase>((ref) async {
 final getCurrentUserUsecaseProvider = FutureProvider<GetCurrentUserUsecase>((ref) async {
   // Wait for the user repository to be initialized
   final userRepository = await ref.watch(userRepositoryProvider.future);
-  
+
   return GetCurrentUserUsecase(userRepository);
 });
 
@@ -584,7 +698,7 @@ final getCurrentUserUsecaseProvider = FutureProvider<GetCurrentUserUsecase>((ref
 final signupUsecaseProvider = FutureProvider<SignupUsecase>((ref) async {
   // Wait for the user repository to be ready
   final userRepository = await ref.watch(userRepositoryProvider.future);
-  
+
   return SignupUsecase(userRepository);
 });
 
@@ -593,7 +707,7 @@ final signupUsecaseProvider = FutureProvider<SignupUsecase>((ref) async {
 final authenticateUsecaseProvider = FutureProvider<AuthenticateUsecase>((ref) async {
   // Wait for the user repository to be ready
   final userRepository = await ref.watch(userRepositoryProvider.future);
-  
+
   return AuthenticateUsecase(userRepository);
 });
 
@@ -764,3 +878,345 @@ final getBookmarksUsecaseProvider = Provider<GetBookmarksUsecase>((ref) {
 
   return GetBookmarksUsecase(bookmarkRepository);
 });
+
+// =============================================================================
+// QUEUE USE CASE PROVIDERS
+// =============================================================================
+
+/// Provides ManageQueueUsecase for queue operations.
+/// This depends on the queue repository.
+final manageQueueUsecaseProvider = Provider<ManageQueueUsecase>((ref) {
+  // Handle the async queue repository properly
+  final queueRepoAsync = ref.watch(queueRepositoryProvider);
+  final queueRepository = queueRepoAsync.whenOrNull(
+    data: (repo) => repo,
+    loading: () => null,
+    error: (error, stack) => null,
+  );
+
+  if (queueRepository == null) {
+    throw UninitializedDatasourceException(
+      'Queue repository not initialized',
+    );
+  }
+
+  return ManageQueueUsecase(queueRepository);
+});
+
+// =============================================================================
+// AUDIO EFFECTS DATASOURCE PROVIDER
+// =============================================================================
+
+/// Provides AudioEffectsDatasource for database operations.
+///
+/// This datasource:
+/// - Stores and retrieves audio effects from Isar
+/// - Queries the database for audio effects data
+///
+/// **Important**: The DatabaseService must be initialized before this datasource is used.
+/// This provider explicitly depends on databaseServiceProvider to ensure proper initialization order.
+final audioEffectsDatasourceProvider = FutureProvider<AudioEffectsDatasource>(
+  (ref) async {
+    // Explicitly wait for database service to be initialized
+    // This ensures the database is ready before creating the datasource
+    final databaseService = await ref.watch(databaseServiceProvider.future);
+
+    // Validate that the database is properly initialized
+    if (!databaseService.isar.isOpen) {
+      throw UninitializedDatasourceException(
+        'Database is not open for audio effects operations',
+      );
+    }
+
+    return AudioEffectsDatasource(databaseService.isar);
+  },
+);
+
+// =============================================================================
+// AUDIO EFFECTS REPOSITORY PROVIDER
+// =============================================================================
+
+/// Provides AudioEffectsRepositoryImpl for audio effects operations.
+///
+/// This repository:
+/// - Manages audio effect creation, retrieval, and deletion
+/// - Handles local storage of audio effects
+/// - Provides graceful degradation when datasources are not available
+/// - Implements retry mechanisms for failed initializations
+///
+/// **Initialization Order**:
+/// 1. DatabaseService (must be initialized first)
+/// 2. AudioEffectsDatasource (depends on DatabaseService)
+/// 3. AudioEffectsRepositoryImpl (depends on all above)
+final audioEffectsRepositoryProvider = FutureProvider<AudioEffectsRepositoryImpl>((
+  ref,
+) async {
+  const maxRetries = 3;
+  int retryCount = 0;
+
+  while (retryCount < maxRetries) {
+    try {
+      // Step 1: Ensure database service is initialized first
+      // This is the most critical dependency for all audio effects operations
+      final databaseService = await ref.watch(databaseServiceProvider.future);
+
+      // Validate database is properly initialized
+      if (!databaseService.isar.isOpen) {
+        throw UninitializedDatasourceException(
+          'Database is not ready for audio effects repository',
+        );
+      }
+
+      // Step 2: Wait for the local datasource to be initialized
+      // This depends on the database service being ready
+      final localDatasource = await ref.watch(
+        audioEffectsDatasourceProvider.future,
+      );
+
+      // Validate that local datasource is properly initialized
+      if (!localDatasource.isInitialized) {
+        throw UninitializedDatasourceException(
+          'Audio effects local datasource is not initialized',
+        );
+      }
+
+      return AudioEffectsRepositoryImpl(
+        localDatasource: localDatasource,
+      );
+    } catch (e) {
+      retryCount++;
+      if (retryCount >= maxRetries) {
+        throw UninitializedDatasourceException(
+          'Failed to initialize AudioEffectsRepository after $maxRetries attempts: ${ErrorHandler.handleException(e)}',
+        );
+      }
+
+      // Wait before retrying
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+    }
+  }
+
+  // This line should never be reached due to the retry logic above
+  throw UninitializedDatasourceException(
+    'AudioEffectsRepository initialization failed',
+  );
+});
+
+// =============================================================================
+// AUDIO EFFECTS USE CASE PROVIDERS
+// =============================================================================
+
+/// Provides AudioEffectsUsecase for audio effects operations.
+/// This depends on the audio effects repository.
+final audioEffectsUsecaseProvider = Provider<AudioEffectsUsecase>((ref) {
+  // Handle the async audio effects repository properly
+  final audioEffectsRepoAsync = ref.watch(audioEffectsRepositoryProvider);
+  final audioEffectsRepository = audioEffectsRepoAsync.whenOrNull(
+    data: (repo) => repo,
+    loading: () => null,
+    error: (error, stack) => null,
+  );
+
+  if (audioEffectsRepository == null) {
+    throw UninitializedDatasourceException(
+      'Audio effects repository not initialized',
+    );
+  }
+
+  return AudioEffectsUsecase(audioEffectsRepository);
+});
+
+// =============================================================================
+// LIBRARY SYNC PROVIDERS (PHASE 7)
+// =============================================================================
+
+/// Provides the LibrarySyncRepositoryImpl for library synchronization.
+///
+/// This repository handles bidirectional sync between local Isar database
+/// and remote Supabase database with conflict resolution.
+final librarySyncRepositoryProvider = FutureProvider<LibrarySyncRepositoryImpl>(
+  (ref) async {
+    final localDatasource = await ref.watch(
+      audiobookLocalDatasourceProvider.future,
+    );
+    final remoteDatasource = ref.watch(libraryRemoteDatasourceProvider);
+
+    return LibrarySyncRepositoryImpl(
+      localDatasource: localDatasource,
+      remoteDatasource: remoteDatasource,
+    );
+  },
+);
+
+/// Provides the SyncLibraryUseCase for library synchronization.
+///
+/// This use case orchestrates the library sync process and returns
+/// sync results with statistics.
+final syncLibraryUseCaseProvider = Provider<SyncLibraryUseCase>((ref) {
+  final syncRepoAsync = ref.watch(librarySyncRepositoryProvider);
+  final syncRepository = syncRepoAsync.whenOrNull(
+    data: (repo) => repo,
+    loading: () => null,
+    error: (error, stack) => null,
+  );
+
+  if (syncRepository == null) {
+    throw UninitializedDatasourceException(
+      'Library sync repository not initialized',
+    );
+  }
+
+  return SyncLibraryUseCase(repository: syncRepository);
+});
+
+// =============================================================================
+// PLAYBACK POSITION SYNC PROVIDERS (PHASE 7, TASK 7.2)
+// =============================================================================
+
+/// Provides the SupabasePlaybackDatasource for remote playback sync.
+///
+/// This datasource handles all remote synchronization operations
+/// with Supabase for playback position data.
+final perBookSpeedEnabledProvider = NotifierProvider<PerBookSpeedNotifier, bool>(
+  PerBookSpeedNotifier.new,
+);
+
+class PerBookSpeedNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void toggle() => state = !state;
+  void setEnabled(bool enabled) => state = enabled;
+}
+
+/// Provides the PlaybackSyncRepositoryImpl for playback position synchronization.
+///
+/// This repository handles bidirectional sync between local Isar database
+/// and remote Supabase database with conflict resolution.
+final playbackSyncRepositoryProvider = FutureProvider<PlaybackSyncRepositoryImpl>(
+  (ref) async {
+    final localDatasource = await ref.watch(
+      playbackLocalDatasourceProvider.future,
+    );
+    final remoteDatasource = ref.watch(playbackRemoteDatasourceProvider);
+
+    return PlaybackSyncRepositoryImpl(
+      localDatasource: localDatasource,
+      remoteDatasource: remoteDatasource,
+    );
+  },
+);
+
+/// Provides the SyncPlaybackPositionUseCase for playback position synchronization.
+///
+/// This use case orchestrates the playback position sync process and returns
+/// sync results with statistics.
+final syncPlaybackPositionUseCaseProvider = Provider<SyncPlaybackPositionUseCase>((ref) {
+  final syncRepoAsync = ref.watch(playbackSyncRepositoryProvider);
+  final syncRepository = syncRepoAsync.whenOrNull(
+    data: (repo) => repo,
+    loading: () => null,
+    error: (error, stack) => null,
+  );
+
+  if (syncRepository == null) {
+    throw UninitializedDatasourceException(
+      'Playback sync repository not initialized',
+    );
+  }
+
+  return SyncPlaybackPositionUseCase(repository: syncRepository);
+});
+
+// =============================================================================
+// READING LIST SYNC PROVIDERS (PHASE 7, TASK 7.3)
+// =============================================================================
+
+/// Provides the SupabaseReadingListDatasource for reading list sync.
+///
+/// This datasource handles all remote operations for reading lists.
+final supabaseReadingListDatasourceProvider = Provider<SupabaseReadingListDatasource>((
+  ref,
+) {
+  final supabase = Supabase.instance.client;
+  final configProvider = ref.watch(appConfigProvider);
+
+  return SupabaseReadingListDatasource(
+    supabase: supabase,
+    configProvider: configProvider,
+  );
+});
+
+/// Provides the ReadingListSyncRepositoryImpl for reading list management.
+///
+/// This repository handles reading list CRUD operations with sync.
+final readingListSyncRepositoryProvider = FutureProvider<ReadingListSyncRepositoryImpl>(
+  (ref) async {
+    final remoteDatasource = ref.watch(supabaseReadingListDatasourceProvider);
+
+    return ReadingListSyncRepositoryImpl(
+      remoteDatasource: remoteDatasource,
+    );
+  },
+);
+
+// =============================================================================
+// BACKUP PROVIDERS (PHASE 7, TASK 7.4)
+// =============================================================================
+
+/// Provides the SupabaseBackupDatasource for backup operations.
+final supabaseBackupDatasourceProvider = Provider<SupabaseBackupDatasource>((
+  ref,
+) {
+  final supabase = Supabase.instance.client;
+  final ConfigProvider configProvider = ref.watch(appConfigProvider);
+
+  return SupabaseBackupDatasource(
+    supabase: supabase,
+    configProvider: configProvider,
+  );
+});
+
+/// Provides the BackupRepositoryImpl for backup operations.
+final backupRepositoryProvider = FutureProvider<BackupRepositoryImpl>((ref) async {
+  final backupDatasource = ref.watch(supabaseBackupDatasourceProvider);
+  // Note: In a real implementation, these would be fetched from the database
+  return BackupRepositoryImpl(
+    backupDatasource: backupDatasource,
+    audiobooks: [],
+    playbackSessions: [],
+    readingLists: [],
+  );
+});
+
+// =============================================================================
+// OFFLINE QUEUE PROVIDERS (PHASE 7, TASK 7.5)
+// =============================================================================
+
+/// Provides the OfflineQueueLocalDatasource for queue storage.
+final offlineQueueLocalDatasourceProvider = FutureProvider<OfflineQueueLocalDatasource>(
+  (ref) async {
+    // Get the database service which provides the Isar instance
+    final databaseService = await ref.watch(databaseServiceProvider.future);
+
+    // Validate database is open
+    if (!databaseService.isar.isOpen) {
+      throw UninitializedDatasourceException(
+        'Database is not open for offline queue operations',
+      );
+    }
+
+    return OfflineQueueLocalDatasource();
+  },
+);
+
+/// Provides the OfflineQueueRepositoryImpl for queue management.
+final offlineQueueRepositoryProvider = FutureProvider<OfflineQueueRepositoryImpl>(
+  (ref) async {
+    final localDatasource = await ref.watch(offlineQueueLocalDatasourceProvider.future);
+
+    return OfflineQueueRepositoryImpl(
+      localDatasource: localDatasource,
+    );
+  },
+);

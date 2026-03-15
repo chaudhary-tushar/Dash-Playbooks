@@ -18,7 +18,7 @@ class AudiobookDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final playbackState = ref.watch(playbackProvider);
+    ref.watch(playbackProvider);
 
     return Scaffold(
       appBar: AppBar(

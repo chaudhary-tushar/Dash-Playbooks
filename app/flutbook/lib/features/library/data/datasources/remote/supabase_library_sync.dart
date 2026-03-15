@@ -209,4 +209,14 @@ class SupabaseLibraryDatasource {
       throw DatabaseException('Failed to mark audiobook as completed: $e');
     }
   }
+
+  /// Check if user is authenticated
+  Future<bool> isAuthenticated() async {
+    try {
+      final user = _supabase.auth.currentUser;
+      return user != null;
+    } catch (e) {
+      return false;
+    }
+  }
 }

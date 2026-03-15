@@ -38,4 +38,8 @@ abstract class PlaybackRepository {
 
   /// Gets total playback time for an audiobook
   Future<Duration> getTotalPlaybackTime(String audiobookId);
+
+  /// Marks an audiobook as being read (in-progress)
+  /// This updates the audiobook to appear in the "Reading" list
+  Future<void> markAudiobookAsInProgress(String audiobookId);
 }

@@ -16,7 +16,6 @@ class SplashScreen extends ConsumerStatefulWidget {
 }
 
 class SplashScreenState extends ConsumerState<SplashScreen> {
-  bool _isLoading = true;
   String? _errorMessage;
 
   @override
@@ -29,15 +28,17 @@ class SplashScreenState extends ConsumerState<SplashScreen> {
     try {
       // Initialize audio services early to ensure they're ready when needed
       await _initializeAudioServices();
-      
-      // Initialize app services
+
+      // Skip pre-initialization of auth and playback providers to avoid provider deadlocks
+      // These providers will be initialized naturally when needed by their respective screens
+
+      // Initialize app services and navigate based on auth state
       await _checkAuthAndNavigate();
     } catch (e) {
       // Log the error for debugging
       debugPrint('Splash screen initialization error: $e');
 
       setState(() {
-        _isLoading = false;
         _errorMessage = 'Initialization failed: $e';
       });
     }
@@ -55,62 +56,153 @@ class SplashScreenState extends ConsumerState<SplashScreen> {
     }
   }
 
-  Future<void> _checkAuthAndNavigate() async {
-    // Ensure only one user profile exists in the database
-    final userProfileService = await ref.read(
-      userProfileServiceProvider.future,
-    );
-    await userProfileService.ensureSingleUserProfile();
+  /// Pre-initialize auth providers to prevent delays when user tries to login
+  /// This ensures all auth-related providers are ready before showing login page
+  Future<void> _initializeAuthProviders() async {
+    try {
+      print('Pre-initializing auth providers...');
 
-    // Check if there's a user in ISAR
-    final databaseService = await ref.read(databaseServiceProvider.future);
-    final userProfile = await databaseService.isar.userProfileModels
-        .where()
-        .findFirst();
+      // Initialize user repository (depends on database and user profile service)
+      await ref.read(userRepositoryProvider.future);
+      print('User repository initialized');
 
-    if (userProfile != null) {
-      // User exists in ISAR, verify with Supabase
+      // Initialize auth use cases (depend on user repository)
+      await ref.read(loginUsecaseProvider.future);
+      print('Login use case initialized');
+
+      await ref.read(anonymousLoginUsecaseProvider.future);
+      print('Anonymous login use case initialized');
+
+      await ref.read(authenticateUsecaseProvider.future);
+      print('Authenticate use case initialized');
+
+      await ref.read(getCurrentUserUsecaseProvider.future);
+      print('Get current user use case initialized');
+
+      await ref.read(logoutUsecaseProvider.future);
+      print('Logout use case initialized');
+
+      // Initialize Google sign-in use case (optional, may fail if not configured)
       try {
-        final supabaseAuthDatasource = ref.read(supabaseAuthDatasourceProvider);
-        final supabaseUser = await supabaseAuthDatasource.getCurrentUser();
+        await ref.read(googleSigninUsecaseProvider.future);
+        print('Google sign-in use case initialized');
+      } catch (e) {
+        print('Google sign-in use case initialization skipped: $e');
+      }
 
-        // Check if the user still exists in Supabase
-        if (supabaseUser != null && supabaseUser.id == userProfile.internalId) {
-          // User is verified in both ISAR and Supabase
+      print('All auth providers pre-initialized successfully');
+    } catch (e) {
+      print('Error pre-initializing auth providers: $e');
+      // Continue even if auth providers fail to initialize
+      // The login page will handle the error gracefully
+    }
+  }
 
-          // Check if audiobooks exist
-          final audiobookCount = await databaseService.isar.audiobookModels
-              .count();
-          if (audiobookCount > 0) {
-            // Both user and audiobooks exist, go to library
-            if (mounted) {
-              unawaited(Navigator.of(context).pushReplacementNamed('/library'));
+  /// Pre-initialize playback providers to prevent delays when user starts playback
+  /// This ensures all playback-related providers are ready before user navigates to playback
+  Future<void> _initializePlaybackProviders() async {
+    try {
+      print('Pre-initializing playback providers...');
+
+      // Initialize playback local datasource (depends on database)
+      await ref.read(playbackLocalDatasourceProvider.future);
+      print('Playback local datasource initialized');
+
+      // Initialize playback repository (depends on datasource)
+      await ref.read(playbackRepositoryProvider.future);
+      print('Playback repository initialized');
+
+      // Initialize bookmark local datasource (depends on database)
+      await ref.read(bookmarkLocalDatasourceProvider.future);
+      print('Bookmark local datasource initialized');
+
+      // Initialize bookmark repository (depends on datasource)
+      await ref.read(bookmarkRepositoryProvider.future);
+      print('Bookmark repository initialized');
+
+      print('All playback providers pre-initialized successfully');
+    } catch (e) {
+      print('Error pre-initializing playback providers: $e');
+      // Continue even if playback providers fail to initialize
+      // The playback page will handle the error gracefully
+    }
+  }
+
+  Future<void> _checkAuthAndNavigate() async {
+    try {
+      // Ensure Supabase client is initialized before accessing it
+      await ref.read(supabaseClientProvider.future);
+      print('Supabase client ready');
+
+      // Ensure database service is initialized
+      final databaseService = await ref.read(databaseServiceProvider.future);
+      print('Database service ready');
+
+      // Ensure only one user profile exists in the database
+      final userProfileService = await ref.read(
+        userProfileServiceProvider.future,
+      );
+      await userProfileService.ensureSingleUserProfile();
+      print('User profile service ready');
+
+      // Check if there's a user in ISAR
+      final userProfile = await databaseService.isar.userProfileModels.where().findFirst();
+
+      if (userProfile != null) {
+        print('User found in ISAR, verifying with Supabase');
+        // User exists in ISAR, verify with Supabase
+        try {
+          final supabaseAuthDatasource = ref.read(supabaseAuthDatasourceProvider);
+          final supabaseUser = await supabaseAuthDatasource.getCurrentUser();
+
+          // Check if the user still exists in Supabase
+          if (supabaseUser != null && supabaseUser.id == userProfile.internalId) {
+            // User is verified in both ISAR and Supabase
+
+            // Check if audiobooks exist
+            final audiobookCount = await databaseService.isar.audiobookModels.count();
+            if (audiobookCount > 0) {
+              // Both user and audiobooks exist, go to library
+              print('User and audiobooks exist, navigating to library');
+              if (mounted) {
+                unawaited(Navigator.of(context).pushReplacementNamed('/library'));
+              }
+            } else {
+              // User exists but no audiobooks, go to directory selection
+              print('User exists but no audiobooks, navigating to directory selection');
+              if (mounted) {
+                unawaited(
+                  Navigator.of(context).pushReplacementNamed('/directory'),
+                );
+              }
             }
           } else {
-            // User exists but no audiobooks, go to directory selection
+            // User doesn't exist in Supabase anymore, redirect to login
+            print('User not found in Supabase, navigating to login');
             if (mounted) {
-              unawaited(
-                Navigator.of(context).pushReplacementNamed('/directory'),
-              );
+              unawaited(Navigator.of(context).pushReplacementNamed('/auth'));
             }
           }
-        } else {
-          // User doesn't exist in Supabase anymore, redirect to login
+        } catch (e) {
+          // Log the error for debugging
+          debugPrint('Error during user verification with Supabase: $e');
+
+          // Error occurred during verification, redirect to login
           if (mounted) {
             unawaited(Navigator.of(context).pushReplacementNamed('/auth'));
           }
         }
-      } catch (e) {
-        // Log the error for debugging
-        debugPrint('Error during user verification: $e');
-
-        // Error occurred during verification, redirect to login
+      } else {
+        // No user in ISAR, redirect to login
+        print('No user in ISAR, navigating to login');
         if (mounted) {
           unawaited(Navigator.of(context).pushReplacementNamed('/auth'));
         }
       }
-    } else {
-      // No user in ISAR, redirect to login
+    } catch (e) {
+      debugPrint('Error during auth check and navigation: $e');
+
+      // If initialization fails, show login page as fallback
       if (mounted) {
         unawaited(Navigator.of(context).pushReplacementNamed('/auth'));
       }
@@ -119,7 +211,6 @@ class SplashScreenState extends ConsumerState<SplashScreen> {
 
   void _retryInitialization() {
     setState(() {
-      _isLoading = true;
       _errorMessage = null;
     });
 

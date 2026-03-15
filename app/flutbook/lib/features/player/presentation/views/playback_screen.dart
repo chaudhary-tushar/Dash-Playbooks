@@ -1,8 +1,13 @@
 // lib/features/player/presentation/views/playback_screen.dart
+import 'package:flutbook/core/provider/providers.dart';
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
+import 'package:flutbook/features/player/presentation/providers/bookmark_provider.dart';
 import 'package:flutbook/features/player/presentation/providers/playback_provider.dart';
+import 'package:flutbook/features/player/presentation/widgets/audio_effects_panel.dart';
+import 'package:flutbook/features/player/presentation/widgets/bookmark_widget.dart';
 import 'package:flutbook/features/player/presentation/widgets/chapters_list.dart';
 import 'package:flutbook/features/player/presentation/widgets/progress_bar.dart';
+import 'package:flutbook/features/player/presentation/widgets/queue_manager_widget.dart';
 import 'package:flutbook/features/player/presentation/widgets/sleep_timer_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,60 +26,62 @@ class PlaybackScreen extends ConsumerStatefulWidget {
 
 class _PlaybackScreenState extends ConsumerState<PlaybackScreen> {
   bool _initialized = false;
+  bool _isInitializing = false;
 
   @override
   void initState() {
     super.initState();
+    // Start initialization immediately
+    _startInitialization();
+  }
+
+  Future<void> _startInitialization() async {
+    if (_initialized || _isInitializing) return;
+    _isInitializing = true;
+
+    // Wait for provider to be ready
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Listen for playback state changes to trigger initialization when ready
-      ref.listen<PlaybackState>(
-        playbackProvider,
-        (previous, next) {
-          if (!_initialized && !next.isLoading && next.errorMessage == null) {
-            _initializePlayback();
-          }
-        },
-      );
-      // Also check immediately in case already ready
-      final currentState = ref.read(playbackProvider);
-      if (!_initialized && !currentState.isLoading && currentState.errorMessage == null) {
-        _initializePlayback();
-      }
+      _initializePlayback();
     });
   }
 
   Future<void> _initializePlayback() async {
     if (_initialized) return;
-    _initialized = true;
 
     final playbackNotifier = ref.read(playbackProvider.notifier);
-    final playbackState = ref.read(playbackProvider);
 
-    print(
-      '[PlaybackScreen] _initializePlayback() called. isLoading: ${playbackState.isLoading}, error: ${playbackState.errorMessage}',
-    );
+    print('[PlaybackScreen] _initializePlayback() called');
 
-    if (playbackState.errorMessage != null) {
-      if (mounted) {
-        _showErrorDialogWithRetry(
-          context,
-          playbackState.errorMessage!,
-          () {
-            playbackNotifier.retryOperation(
-              () => playbackNotifier.setCurrentAudiobook(widget.audiobook),
-            );
-          },
-        );
-      }
-    } else if (!playbackState.isLoading) {
+    try {
       print('[PlaybackScreen] Calling setCurrentAudiobook');
       final success = await playbackNotifier.setCurrentAudiobook(widget.audiobook);
       print('[PlaybackScreen] setCurrentAudiobook result: $success');
-      if (!success && mounted) {
+
+      if (!success) {
         final currentState = ref.read(playbackProvider);
+        if (mounted) {
+          _showErrorDialogWithRetry(
+            context,
+            currentState.errorMessage ?? 'Failed to initialize playback',
+            () {
+              playbackNotifier.retryOperation(
+                () => playbackNotifier.setCurrentAudiobook(widget.audiobook),
+              );
+            },
+          );
+        }
+      } else {
+        _initialized = true;
+        print('[PlaybackScreen] Initialization complete');
+      }
+    } catch (e) {
+      print('[PlaybackScreen] Initialization error: $e');
+      if (mounted) {
         _showErrorDialogWithRetry(
           context,
-          currentState.errorMessage ?? 'Failed to initialize playback',
+          'Failed to initialize playback: $e',
           () {
             playbackNotifier.retryOperation(
               () => playbackNotifier.setCurrentAudiobook(widget.audiobook),
@@ -82,6 +89,8 @@ class _PlaybackScreenState extends ConsumerState<PlaybackScreen> {
           },
         );
       }
+    } finally {
+      _isInitializing = false;
     }
   }
 
@@ -116,7 +125,7 @@ class _PlaybackScreenState extends ConsumerState<PlaybackScreen> {
     // This handles cases where the provider might be in a bad state
     try {
       // Verify that the audio service is ready
-      final playbackNotifier = ref.read(playbackProvider.notifier);
+      ref.read(playbackProvider.notifier);
 
       // If we reach here, show normal playback UI
       return LayoutBuilder(
@@ -294,9 +303,12 @@ class _PlaybackScreenState extends ConsumerState<PlaybackScreen> {
                       // Main play/pause FAB
                       Center(
                         child: FloatingActionButton(
-                          onPressed: playbackState.errorMessage != null
+                          onPressed: playbackState.errorMessage != null || !_initialized
                               ? null
                               : () async {
+                                  print(
+                                    '[PlaybackScreen] Play button pressed. _initialized: $_initialized, isPlaying: ${playbackState.isPlaying}',
+                                  );
                                   final notifier = ref.read(
                                     playbackProvider.notifier,
                                   );
@@ -306,16 +318,25 @@ class _PlaybackScreenState extends ConsumerState<PlaybackScreen> {
                                     await notifier.play();
                                   }
                                 },
-                          backgroundColor: Theme.of(
-                            context,
-                          ).colorScheme.primary,
+                          backgroundColor: !_initialized
+                              ? Theme.of(context).colorScheme.surfaceContainerHighest
+                              : Theme.of(context).colorScheme.primary,
                           foregroundColor: Colors.white,
-                          child: Icon(
-                            playbackState.isPlaying
-                                ? Icons.pause_rounded
-                                : Icons.play_arrow_rounded,
-                            size: isMobile ? 36 : 42,
-                          ),
+                          child: !_initialized
+                              ? const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Icon(
+                                  playbackState.isPlaying
+                                      ? Icons.pause_rounded
+                                      : Icons.play_arrow_rounded,
+                                  size: isMobile ? 36 : 42,
+                                ),
                         ),
                       ),
 
@@ -367,27 +388,101 @@ class _PlaybackScreenState extends ConsumerState<PlaybackScreen> {
 
                           const SizedBox(width: 16),
 
+                          // Per-book speed toggle
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: playbackState.errorMessage != null
+                                  ? null
+                                  : () {
+                                      final currentEnabled = ref.read(perBookSpeedEnabledProvider);
+                                      ref.read(perBookSpeedEnabledProvider.notifier).state =
+                                          !currentEnabled;
+                                    },
+                              icon: Icon(
+                                ref.watch(perBookSpeedEnabledProvider)
+                                    ? Icons.bookmark
+                                    : Icons.bookmark_border,
+                                color: ref.watch(perBookSpeedEnabledProvider)
+                                    ? Theme.of(context).colorScheme.primary
+                                    : null,
+                              ),
+                              label: Text(
+                                'Per Book',
+                                style: TextStyle(
+                                  color: ref.watch(perBookSpeedEnabledProvider)
+                                      ? Theme.of(context).colorScheme.primary
+                                      : null,
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(width: 16),
+
                           // Bookmark button
                           Expanded(
                             child: IconButton(
                               onPressed: playbackState.errorMessage != null
                                   ? null
                                   : () async {
-                                      // Add bookmark at current position
-                                      // This would use the bookmark provider
-                                      // For now, we'll show a placeholder action
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Bookmark added at current position',
-                                          ),
-                                        ),
-                                      );
+                                      // Add bookmark at current position using bookmark provider
+                                      try {
+                                        final bookmarkNotifier = ref.read(
+                                          bookmarkProvider.notifier,
+                                        );
+                                        await bookmarkNotifier.createBookmark(
+                                          audiobookId: widget.audiobook.id,
+                                          timestamp: playbackState.currentPosition,
+                                          note:
+                                              'Bookmarked at ${_formatDuration(playbackState.currentPosition)}',
+                                        );
+
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text('Bookmark added at current position'),
+                                              duration: Duration(seconds: 2),
+                                            ),
+                                          );
+                                        }
+                                      } catch (e) {
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text('Failed to add bookmark: $e'),
+                                              backgroundColor: Theme.of(context).colorScheme.error,
+                                            ),
+                                          );
+                                        }
+                                      }
                                     },
                               icon: const Icon(Icons.bookmark_add_outlined),
                               tooltip: 'Add bookmark',
+                              style: IconButton.styleFrom(
+                                foregroundColor: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface,
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(width: 8),
+
+                          // Audio effects button
+                          Expanded(
+                            child: IconButton(
+                              onPressed: playbackState.errorMessage != null
+                                  ? null
+                                  : () async {
+                                      // Show audio effects panel
+                                      await showModalBottomSheet<void>(
+                                        context: context,
+                                        isScrollControlled: true,
+                                        builder: (context) => const AudioEffectsPanel(),
+                                      );
+                                    },
+                              icon: const Icon(Icons.equalizer),
+                              tooltip: 'Audio Effects',
                               style: IconButton.styleFrom(
                                 foregroundColor: Theme.of(
                                   context,
@@ -509,19 +604,30 @@ class _PlaybackScreenState extends ConsumerState<PlaybackScreen> {
                   ),
                 ),
 
-                // Bookmarks section (commented out due to build system issues)
-                // This would be enabled once the build system recognizes the new providers
-                // Container(
-                //   constraints: BoxConstraints(
-                //     maxHeight:
-                //         constraints.maxHeight *
-                //         0.2, // Use 20% of available height for bookmarks
-                //   ),
-                //   child: BookmarkWidget(
-                //     audiobookId: widget.audiobook.id,
-                //     currentPosition: playbackState.currentPosition,
-                //   ),
-                // ),
+                // Bookmarks section
+                Container(
+                  constraints: BoxConstraints(
+                    maxHeight:
+                        constraints.maxHeight * 0.2, // Use 20% of available height for bookmarks
+                  ),
+                  child: BookmarkWidget(
+                    audiobookId: widget.audiobook.id,
+                    currentPosition: playbackState.currentPosition,
+                    chapters: widget.audiobook.chapters,
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Queue manager section
+                Container(
+                  constraints: BoxConstraints(
+                    maxHeight: constraints.maxHeight * 0.2, // Use 20% of available height for queue
+                  ),
+                  child: QueueManagerWidget(
+                    currentAudiobook: widget.audiobook,
+                  ),
+                ),
               ],
             ),
           );

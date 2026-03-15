@@ -38,9 +38,7 @@ class AudiobookLocalDatasource {
   /// Throws specific exceptions for corrupted files or insufficient storage
   Future<void> saveAudiobooks(List<Audiobook> audiobooks) async {
     try {
-      final audiobookModels = audiobooks
-          .map(AudiobookModel.fromDomain)
-          .toList();
+      final audiobookModels = audiobooks.map(AudiobookModel.fromDomain).toList();
 
       await _isar.writeTxn(() async {
         await _isar.audiobookModels.putAll(audiobookModels);
@@ -134,10 +132,7 @@ class AudiobookLocalDatasource {
   Future<void> _removeAudiobookFromDb(String internalId) async {
     try {
       await _isar.writeTxn(() async {
-        await _isar.audiobookModels
-            .filter()
-            .internalIdEqualTo(internalId)
-            .deleteFirst();
+        await _isar.audiobookModels.filter().internalIdEqualTo(internalId).deleteFirst();
       });
     } catch (e) {
       debugPrint('Warning: Could not remove audiobook from database: $e');
@@ -273,5 +268,40 @@ class AudiobookLocalDatasource {
   /// Closes the Isar database connection
   Future<void> close() async {
     await _isar.close();
+  }
+
+  /// Updates the preferred playback speed for an audiobook
+  Future<void> updatePreferredSpeed(String audiobookId, double speed) async {
+    try {
+      await _isar.writeTxn(() async {
+        final audiobookModel = await _isar.audiobookModels
+            .where()
+            .filter()
+            .internalIdEqualTo(audiobookId)
+            .findFirst();
+
+        if (audiobookModel != null) {
+          audiobookModel.preferredSpeed = speed;
+          await _isar.audiobookModels.put(audiobookModel);
+        }
+      });
+    } catch (e) {
+      throw DatabaseException('Failed to update preferred speed: $e');
+    }
+  }
+
+  /// Gets the preferred playback speed for an audiobook
+  Future<double> getPreferredSpeed(String audiobookId) async {
+    try {
+      final audiobookModel = await _isar.audiobookModels
+          .where()
+          .filter()
+          .internalIdEqualTo(audiobookId)
+          .findFirst();
+
+      return audiobookModel?.preferredSpeed ?? 1.0;
+    } catch (e) {
+      throw DatabaseException('Failed to get preferred speed: $e');
+    }
   }
 }

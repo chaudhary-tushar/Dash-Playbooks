@@ -70,6 +70,13 @@ class _LoginFormState extends ConsumerState<LoginForm> {
             onPressed: authState.isLoading
                 ? null // Disable button when loading
                 : () async {
+                    // Check if auth is already loading to prevent multiple clicks
+                    final currentAuthState = ref.read(authProvider);
+                    if (currentAuthState.isLoading) {
+                      print('Authentication already in progress, ignoring click');
+                      return;
+                    }
+
                     // Perform validation
                     final email = emailController.text.trim();
                     final password = passwordController.text.trim();
@@ -93,8 +100,8 @@ class _LoginFormState extends ConsumerState<LoginForm> {
                     await authNotifier.authenticate(email, password);
 
                     // After successful authentication, navigate to library
-                    final authState = ref.read(authProvider);
-                    if (authState.isAuthenticated) {
+                    final updatedAuthState = ref.read(authProvider);
+                    if (updatedAuthState.isAuthenticated) {
                       await NavigationService.navigateToLibrary();
                     }
                   },
@@ -116,11 +123,18 @@ class _LoginFormState extends ConsumerState<LoginForm> {
             onPressed: authState.isLoading
                 ? null // Disable button when loading
                 : () async {
+                    // Check if auth is already loading to prevent multiple clicks
+                    final currentAuthState = ref.read(authProvider);
+                    if (currentAuthState.isLoading) {
+                      print('Anonymous login already in progress, ignoring click');
+                      return;
+                    }
+
                     // Call auth provider to login anonymously
                     await ref.read(authProvider.notifier).loginAnonymously();
                     // After successful anonymous login, navigate to library
-                    final authState = ref.read(authProvider);
-                    if (authState.isAuthenticated) {
+                    final updatedAuthState = ref.read(authProvider);
+                    if (updatedAuthState.isAuthenticated) {
                       await NavigationService.navigateToLibrary();
                     }
                   },

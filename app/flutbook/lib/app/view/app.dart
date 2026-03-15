@@ -52,7 +52,12 @@ class App extends ConsumerWidget {
           if (authState.isLoading) {
             return MaterialPageRoute(builder: (_) => const SplashScreen());
           } else {
-            return MaterialPageRoute(builder: (_) => const SplashScreen());
+            // Navigate based on auth state when not loading
+            if (authState.isAuthenticated) {
+              return MaterialPageRoute(builder: (_) => const LibraryScreen());
+            } else {
+              return MaterialPageRoute(builder: (_) => const LoginPage());
+            }
           }
         case '/auth':
           return MaterialPageRoute(builder: (_) => const LoginPage());
@@ -69,13 +74,13 @@ class App extends ConsumerWidget {
         case '/playback':
           // Handle both direct Audiobook object and Map<String, AudiobookModel> format
           if (settings.arguments != null && settings.arguments is Audiobook) {
-            final audiobook = settings.arguments as Audiobook;
+            final audiobook = settings.arguments! as Audiobook;
             return MaterialPageRoute(
               builder: (_) => PlaybackScreen(audiobook: audiobook),
             );
           } else if (settings.arguments != null &&
               settings.arguments is Map<String, AudiobookModel>) {
-            final args = settings.arguments as Map<String, AudiobookModel>;
+            final args = settings.arguments! as Map<String, AudiobookModel>;
             final audiobookData = args['audiobook'];
             if (audiobookData != null) {
               return MaterialPageRoute(

@@ -69,6 +69,11 @@ class PlaybackLocalDatasource {
     }
   }
 
+  /// Gets all playback sessions (alias for getAllPlaybackSessions).
+  ///
+  /// Provided for compatibility with sync repository interface.
+  Future<List<PlaybackSession>> getPlaybackSessions() => getAllPlaybackSessions();
+
   /// Saves playback history entry to Isar database
   Future<void> savePlaybackHistory(PlaybackHistory history) async {
     try {
@@ -169,9 +174,7 @@ class PlaybackLocalDatasource {
           .sortByPlayedAtDesc()
           .findFirst();
 
-      return lastSession != null
-          ? Duration(milliseconds: lastSession.positionInMs)
-          : null;
+      return lastSession != null ? Duration(milliseconds: lastSession.positionInMs) : null;
     } on UninitializedDatasourceException {
       rethrow; // Re-throw initialization exceptions as-is
     } catch (e) {

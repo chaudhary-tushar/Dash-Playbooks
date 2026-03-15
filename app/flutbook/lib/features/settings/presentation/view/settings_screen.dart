@@ -1,5 +1,6 @@
 // lib/presentation/screens/settings_screen.dart
 import 'package:file_picker/file_picker.dart';
+import 'package:flutbook/features/player/presentation/widgets/audio_effects_panel.dart';
 import 'package:flutter/material.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -18,6 +19,7 @@ class SettingsScreenState extends State<SettingsScreen> {
   String _libraryPath = '/storage/emulated/0/Audiobooks';
   bool _autoDownload = false;
   bool _reduceAnimations = false;
+  bool _audioEffectsEnabled = false;
 
   @override
   Widget build(BuildContext context) {
@@ -121,6 +123,28 @@ class SettingsScreenState extends State<SettingsScreen> {
                   trailing: const Icon(Icons.chevron_right),
                   onTap: _showClearHistoryDialog,
                 ),
+
+                // Audio Effects
+                SwitchListTile(
+                  title: const Text('Audio Effects'),
+                  subtitle: const Text('Equalizer, bass boost, treble'),
+                  value: _audioEffectsEnabled,
+                  onChanged: (bool value) {
+                    setState(() {
+                      _audioEffectsEnabled = value;
+                    });
+                  },
+                  secondary: const Icon(Icons.equalizer),
+                ),
+
+                // Audio Effects Settings (only shown when enabled)
+                if (_audioEffectsEnabled)
+                  ListTile(
+                    title: const Text('Audio Effects Settings'),
+                    leading: const Icon(Icons.tune),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: _showAudioEffectsPanel,
+                  ),
               ],
             ),
           ),
@@ -459,5 +483,13 @@ class SettingsScreenState extends State<SettingsScreen> {
         }
       }
     });
+  }
+
+  Future<void> _showAudioEffectsPanel() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => const AudioEffectsPanel(),
+    );
   }
 }

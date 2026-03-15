@@ -159,22 +159,24 @@ class LibraryNotifier extends Notifier<LibraryState> {
   }
 
   // Update sorting and refresh audiobooks
-  Future<void> updateSorting(String sortBy, {bool sortAscending = true}) async {
+  Future<void> updateSorting(String sortBy, {bool ascending = true}) async {
     if (!ref.mounted) return;
 
-    // Map new sort values to existing ones for compatibility
+    // Map UI sort values to repository values
     var mappedSortBy = sortBy;
     if (sortBy == 'name') {
       mappedSortBy = 'title';
     } else if (sortBy == 'date') {
-      mappedSortBy = 'recent';
+      mappedSortBy = 'dateAdded';
     } else if (sortBy == 'progress') {
       mappedSortBy = 'progress';
+    } else if (sortBy == 'length') {
+      mappedSortBy = 'length';
     }
 
     state = state.copyWith(
       sortBy: mappedSortBy,
-      sortAscending: sortAscending,
+      sortAscending: ascending,
       isLoading: true,
     );
 

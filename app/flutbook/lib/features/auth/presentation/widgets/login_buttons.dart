@@ -125,18 +125,39 @@ class LoginButtons extends ConsumerWidget {
               // Capture context reference immediately to avoid BuildContext sync issues
               final contextRef = context;
 
+              // Check if auth state is already loading to prevent multiple clicks
+              final authState = ref.read(authProvider);
+              if (authState.isLoading) {
+                print('Anonymous login already in progress, ignoring click');
+                return;
+              }
+
               // Check if user repository is ready before proceeding
               final userRepositoryAsync = ref.read(userRepositoryProvider);
-              if (userRepositoryAsync.isLoading || userRepositoryAsync.hasError) {
+              if (userRepositoryAsync.isLoading) {
                 if (contextRef.mounted) {
                   final messenger = ScaffoldMessenger.of(contextRef);
                   messenger.showSnackBar(
                     const SnackBar(
                       content: Text('Please wait, initializing services...'),
+                      duration: Duration(seconds: 2),
                     ),
                   );
                 }
                 return; // Exit early if user repository is not ready
+              }
+
+              if (userRepositoryAsync.hasError) {
+                if (contextRef.mounted) {
+                  final messenger = ScaffoldMessenger.of(contextRef);
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('Service initialization failed. Please restart the app.'),
+                      duration: Duration(seconds: 3),
+                    ),
+                  );
+                }
+                return; // Exit early if user repository has error
               }
 
               // Show loading indicator
@@ -151,13 +172,22 @@ class LoginButtons extends ConsumerWidget {
               await ref.read(authProvider.notifier).loginAnonymously();
 
               // Check if login was successful
-              final authState = ref.read(authProvider);
-              if (authState.isAuthenticated && contextRef.mounted) {
+              final updatedAuthState = ref.read(authProvider);
+              if (updatedAuthState.isAuthenticated && contextRef.mounted) {
                 // Hide loading indicator
                 messenger.hideCurrentSnackBar();
 
                 // Navigate to directory selection screen after successful anonymous login
                 Navigator.pushNamed(contextRef, '/directory');
+              } else if (updatedAuthState.errorMessage != null && contextRef.mounted) {
+                // Show error message
+                messenger.hideCurrentSnackBar();
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(updatedAuthState.errorMessage!),
+                    duration: const Duration(seconds: 3),
+                  ),
+                );
               }
             } catch (e) {
               if (context.mounted) {
@@ -166,6 +196,7 @@ class LoginButtons extends ConsumerWidget {
                 messenger.showSnackBar(
                   SnackBar(
                     content: Text('Anonymous login failed: $e'),
+                    duration: const Duration(seconds: 3),
                   ),
                 );
               }

@@ -8,7 +8,7 @@
 
 ## 📖 Quick Overview
 
-You now have **9 documentation files** that work together as a complete task management system. This guide shows you exactly how to use them to direct agent work.
+You now have **10 documentation files** that work together as a complete task management system. This guide shows you exactly how to use them to direct agent work.
 
 ### Files You Have:
 
@@ -19,15 +19,14 @@ You now have **9 documentation files** that work together as a complete task man
 
 **Status & Progress (Daily use):**
 - `CURRENT_PROGRESS.txt` - Quick metrics dashboard
-- `MVP_STATUS.md` - Detailed task tracking
 - `WORK_COMPLETED.md` - Yesterday's achievements
 
 **Agent Instructions (For assigning work):**
 - `AGENT_INSTRUCTIONS.md` - Complete workflow guide for agents
 - `TASK_CARDS.md` - Printable task cards for assignment
 
-**Original Specs (For reference):**
-- `plan-flutbookMVP.prompt.md` - Full MVP specification (45 KB!)
+**Architecture & Implementation:**
+- `ARCHITECTURE_FIX_COMPLETE.md` - Detailed architecture documentation
 
 ---
 
@@ -37,12 +36,12 @@ You now have **9 documentation files** that work together as a complete task man
 
 ```
 STEP 1: Pick the task
-  → Open: MVP_STATUS.md
+  → Open: CURRENT_PROGRESS.txt
   → Find: Your phase (1-5)
   → Choose: A task marked [ ] Pending
 
 STEP 2: Understand the task
-  → Open: plan-flutbookMVP.prompt.md
+  → Open: TASK_CARDS.md
   → Search: "Task X.Y"
   → Copy: The full task description
 
@@ -56,10 +55,10 @@ STEP 4: Give to agent
     1. TASK_CARDS.md (their task)
     2. AGENT_INSTRUCTIONS.md (how to work)
     3. START_HERE.md (quick overview)
-    4. IMPLEMENTATION_SUMMARY.md (patterns)
+    4. ARCHITECTURE_FIX_COMPLETE.md (patterns)
 
 STEP 5: Track progress
-  → Agent updates: MVP_STATUS.md
+  → Agent updates: CURRENT_PROGRESS.txt
   → You monitor: CURRENT_PROGRESS.txt
   → Mark complete: When all criteria met
 
@@ -70,7 +69,7 @@ RESULT: Agent knows exactly what to do! ✅
 
 ```
 STEP 1: Understand the phase
-  → Open: MVP_STATUS.md
+  → Open: CURRENT_PROGRESS.txt
   → Find: Your phase section
   → Note: All tasks and dependencies
 
@@ -87,7 +86,7 @@ STEP 3: Plan sequence
 
 STEP 4: Assign to agents
   → Agent 1 gets: Tasks 1-4 cards + AGENT_INSTRUCTIONS.md
-  → Agent 2 gets: Tasks 5-7 cards + plan-flutbookMVP.prompt.md
+  → Agent 2 gets: Tasks 5-7 cards + TASK_CARDS.md
   → Agent 3 gets: Task 8 card + test examples
 
 STEP 5: Manage dependencies
@@ -96,7 +95,7 @@ STEP 5: Manage dependencies
   → Agent 3 starts after Tasks 1-7 done (need code to test)
 
 STEP 6: Monitor daily
-  → Check: MVP_STATUS.md (updated by agents)
+  → Check: CURRENT_PROGRESS.txt (updated by agents)
   → Track: CURRENT_PROGRESS.txt (metrics)
   → Identify: Any blockers immediately
 
@@ -116,12 +115,12 @@ What you see:
   Days to MVP: X
 
 If you want more detail (5 min):
-  Open: MVP_STATUS.md
+  Open: CURRENT_PROGRESS.txt
   Check: Phase-by-phase breakdown
   Review: Any blockers listed
 
 If something needs fixing (15 min):
-  Open: MVP_STATUS.md
+  Open: CURRENT_PROGRESS.txt
   Find: Build Issues section
   Share: With appropriate agent
 
@@ -142,7 +141,7 @@ STEP 2: Next 10 minutes
   → Agent: Understands architecture
 
 STEP 3: Next 30 minutes
-  → Give: plan-flutbookMVP.prompt.md (Phase 2 only)
+  → Give: TASK_CARDS.md (Phase 2 only)
   → Agent: Reads full task specification
   → Agent: Understands acceptance criteria
 
@@ -153,7 +152,7 @@ STEP 4: Assign first task (5 min)
 
 STEP 5: Provide references
   → Give: AGENT_INSTRUCTIONS.md
-  → Give: IMPLEMENTATION_SUMMARY.md
+  → Give: ARCHITECTURE_FIX_COMPLETE.md
   → Agent: Can look up patterns anytime
 
 STEP 6: First checkpoint (2 hours in)
@@ -207,7 +206,7 @@ Output: Agent understands overall context
 
 ---
 
-### 3. plan-flutbookMVP.prompt.md
+### 3. TASK_CARDS.md
 **When to use:** Before assigning any task
 **What it does:** Complete task specification with examples
 **Agent reads:** 15-30 min per phase
@@ -270,7 +269,7 @@ Output: Agent has structured checklist
 
 ---
 
-### 6. MVP_STATUS.md
+### 6. CURRENT_PROGRESS.txt
 **When to use:** Daily progress tracking & detailed reference
 **What it does:** Detailed task breakdown, time estimates, build issues
 **Agent reads:** At start of work day
@@ -357,7 +356,7 @@ Output: Never get stuck looking for docs
 
 ---
 
-### 10. IMPLEMENTATION_SUMMARY.md
+### 10. ARCHITECTURE_FIX_COMPLETE.md
 **When to use:** Agent needs to understand architecture
 **What it does:** Patterns, decisions, code organization
 **Share with agent:** YES (before coding)
@@ -365,7 +364,7 @@ Output: Never get stuck looking for docs
 ```
 Usage:
 1. Agent needs to know: "How do I structure code?"
-2. You point to: IMPLEMENTATION_SUMMARY.md
+2. You point to: ARCHITECTURE_FIX_COMPLETE.md
 3. Agent reads: "Use Case Pattern" section
 4. Agent sees: Example code structure
 5. Agent codes following pattern
@@ -398,14 +397,14 @@ Output: Consistent architecture
 ```
 1. Agent reports blocker
 2. You check: AGENT_INSTRUCTIONS.md (have they tried solution X?)
-3. You check: MVP_STATUS.md (is dependency blocked?)
+3. You check: CURRENT_PROGRESS.txt (is dependency blocked?)
 4. You respond: Here's the fix / Here's the doc / Here's next task
 ```
 
 ### End of Day (10 minutes)
 
 ```
-1. Review: MVP_STATUS.md (what got done?)
+1. Review: CURRENT_PROGRESS.txt (what got done?)
 2. Update: Agent progress notes
 3. Check: Any new blockers?
 4. Plan: Tomorrow's priorities
@@ -414,7 +413,7 @@ Output: Consistent architecture
 ### Weekly (30 minutes)
 
 ```
-1. Review: MVP_STATUS.md (weekly progress)
+1. Review: CURRENT_PROGRESS.txt (weekly progress)
 2. Check: Test coverage (80%+ target)
 3. Check: Build health (0 errors target)
 4. Update: CURRENT_PROGRESS.txt
@@ -432,7 +431,7 @@ Output: Consistent architecture
 ```
 Time: 5 minutes
 
-1. Open: MVP_STATUS.md
+1. Open: CURRENT_PROGRESS.txt
    Find: "Phase 2: Authentication"
    See: Task 2.1 marked "[ ] Pending"
 
@@ -443,7 +442,7 @@ Time: 5 minutes
 3. Open: AGENT_INSTRUCTIONS.md
    Copy: "Complete Task Workflow" section
 
-4. Open: plan-flutbookMVP.prompt.md
+4. Open: TASK_CARDS.md
    Find: "Task 2.1: Create Login Use Case"
    Copy: Full description (for reference)
 ```
@@ -478,8 +477,8 @@ Here's what you need to know:
 - Tests with 80%+ coverage
 
 🔗 REFERENCE:
-- See IMPLEMENTATION_SUMMARY.md for Use Case Pattern
-- See plan-flutbookMVP.prompt.md section 2.1 for details
+- See ARCHITECTURE_FIX_COMPLETE.md for Use Case Pattern
+- See TASK_CARDS.md section 2.1 for details
 
 ⏱️ TIMELINE:
 - Start: Immediately (no dependencies)
@@ -499,7 +498,7 @@ Good luck! Let me know when done. 🚀
 ```
 Agent starts working...
 
-(Agent updates MVP_STATUS.md as they work)
+(Agent updates CURRENT_PROGRESS.txt as they work)
 (You check CURRENT_PROGRESS.txt periodically)
 
 When agent says "Task 2.1 complete!":
@@ -507,7 +506,7 @@ When agent says "Task 2.1 complete!":
 2. Check: flutter test test/features/auth/ (all pass?)
 3. Check: flutter analyze (0 new errors?)
 4. Verify: Acceptance criteria all met
-5. Update: MVP_STATUS.md (mark [x] complete)
+5. Update: CURRENT_PROGRESS.txt (mark [x] complete)
 6. Update: CURRENT_PROGRESS.txt (update count)
 7. Celebrate: 🎉 One task done!
 ```
@@ -522,7 +521,7 @@ When agent says "Task 2.1 complete!":
 TIME: 15 minutes (initial assignment)
 
 1. Understand Phase 2:
-   Open: MVP_STATUS.md
+   Open: CURRENT_PROGRESS.txt
    Read: "Phase 2: Authentication (2/8 tasks)"
    See: Tasks 2.1-2.8 need doing
 
@@ -540,18 +539,18 @@ TIME: 15 minutes (initial assignment)
    - All 8 TASK_CARDS.md cards
    - AGENT_INSTRUCTIONS.md (complete)
    - START_HERE.md (quick start)
-   - IMPLEMENTATION_SUMMARY.md (patterns)
-   - Phase 2 section from plan-flutbookMVP.prompt.md
+   - ARCHITECTURE_FIX_COMPLETE.md (patterns)
+   - Phase 2 section from TASK_CARDS.md
 
 4. Set expectations:
    - Total time: ~18 hours
    - Can be done in: 2-3 days (with breaks)
    - Deadline: [specific date]
    - Daily checkin: Yes/No?
-   - Daily updates: MVP_STATUS.md for your phase
+   - Daily updates: CURRENT_PROGRESS.txt for your phase
 
 5. Monitor progress:
-   - Daily: Quick check of your phase in MVP_STATUS.md
+   - Daily: Quick check of your phase in CURRENT_PROGRESS.txt
    - Ask: How many tasks done today?
    - Help: Identify any blockers
    - Celebrate: Each task completion
@@ -589,23 +588,23 @@ Agent-facing docs:
 - START_HERE.md (give first)
 - AGENT_INSTRUCTIONS.md (reference)
 - TASK_CARDS.md (assignment)
-- plan-flutbookMVP.prompt.md (spec)
+- TASK_CARDS.md (spec)
 
 Lead-facing docs:
-- MVP_STATUS.md (daily tracking)
+- CURRENT_PROGRESS.txt (daily tracking)
 - CURRENT_PROGRESS.txt (quick status)
 - WORK_COMPLETED.md (reflection)
 
 Both need:
-- IMPLEMENTATION_SUMMARY.md (patterns)
+- ARCHITECTURE_FIX_COMPLETE.md (patterns)
 - DOCUMENTATION_INDEX.md (find anything)
 ```
 
 ### Tip 2: Use File Updates as Status Tracking
 ```
 Every time agent completes task:
-1. They update: MVP_STATUS.md
-2. You check: Changes in MVP_STATUS.md
+1. They update: CURRENT_PROGRESS.txt
+2. You check: Changes in CURRENT_PROGRESS.txt
 3. You verify: Acceptance criteria met
 4. You update: CURRENT_PROGRESS.txt
 5. You commit: git commit with message
@@ -623,8 +622,8 @@ Agent 1 (Phase 2, Task 1-4):
   ✓ START_HERE.md
   ✓ AGENT_INSTRUCTIONS.md
   ✓ Task 2.1 card from TASK_CARDS.md
-  ✓ Task 2.1 from plan-flutbookMVP.prompt.md
-  ✓ IMPLEMENTATION_SUMMARY.md
+  ✓ Task 2.1 from TASK_CARDS.md
+  ✓ ARCHITECTURE_FIX_COMPLETE.md
   ✗ Task 4 cards (not needed yet)
   ✗ Phase 5 docs (not needed yet)
 
@@ -638,16 +637,16 @@ Start of day (5 min):
   "Good morning! Here's today's focus:
    - Complete Task 2.3 (Firebase)
    - If stuck, check: AGENT_INSTRUCTIONS.md section X
-   - Update MVP_STATUS.md at end of day
+   - Update CURRENT_PROGRESS.txt at end of day
    - Let me know if blocked!"
 
 End of day (2 min):
-  Check MVP_STATUS.md in your phase
+  Check CURRENT_PROGRESS.txt in your phase
   See: How many tasks done?
   Celebrate: Quick win or ask about blockers?
 
 Weekly (30 min):
-  Review: Full MVP_STATUS.md
+  Review: Full CURRENT_PROGRESS.txt
   Update: CURRENT_PROGRESS.txt
   Plan: Next week's priorities
 ```
@@ -659,15 +658,15 @@ Weekly (30 min):
 | Agent Question | Answer In | Quick Link |
 |-----------------|-----------|-----------|
 | "What is this project?" | START_HERE.md | 5 min read |
-| "What should I build?" | TASK_CARDS.md or plan-flutbookMVP.prompt.md | 10 min |
-| "How do I code this?" | IMPLEMENTATION_SUMMARY.md | 15 min |
+| "What should I build?" | TASK_CARDS.md | 10 min |
+| "How do I code this?" | ARCHITECTURE_FIX_COMPLETE.md | 15 min |
 | "What's the workflow?" | AGENT_INSTRUCTIONS.md | 20 min |
-| "What architecture pattern?" | IMPLEMENTATION_SUMMARY.md | 10 min |
+| "What architecture pattern?" | ARCHITECTURE_FIX_COMPLETE.md | 10 min |
 | "How do I test?" | AGENT_INSTRUCTIONS.md (Testing section) | 5 min |
 | "What's our status?" | CURRENT_PROGRESS.txt | 2 min |
-| "What acceptance criteria?" | TASK_CARDS.md or plan-flutbookMVP.prompt.md | 5 min |
+| "What acceptance criteria?" | TASK_CARDS.md | 5 min |
 | "What docs exist?" | DOCUMENTATION_INDEX.md | 10 min |
-| "How long to MVP?" | CURRENT_PROGRESS.txt or MVP_STATUS.md | 2 min |
+| "How long to MVP?" | CURRENT_PROGRESS.txt | 2 min |
 
 ---
 
@@ -705,7 +704,7 @@ If agents have questions:
 ---
 
 **Status:** Ready to Deploy
-**Files:** 11 documentation files created
+**Files:** 10 documentation files created
 **Team Size:** Supports 1-10 agents
 **Timeline:** 5-6 day MVP achievable with this system
 

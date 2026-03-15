@@ -43,6 +43,12 @@ abstract class LibraryRepository {
 
   /// Checks if library path is accessible
   Future<bool> isLibraryPathAccessible();
+
+  /// Updates the preferred playback speed for an audiobook
+  Future<void> updatePreferredSpeed(String audiobookId, double speed);
+
+  /// Gets the preferred playback speed for an audiobook
+  Future<double> getPreferredSpeed(String audiobookId);
 }
 
 class LibraryStats {

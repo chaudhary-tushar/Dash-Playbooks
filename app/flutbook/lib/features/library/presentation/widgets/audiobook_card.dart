@@ -2,10 +2,10 @@
 import 'dart:io';
 
 import 'package:flutbook/core/error/exceptions.dart';
-import 'package:flutbook/core/provider/providers.dart'
-    show playbackRepositoryProvider;
+import 'package:flutbook/core/provider/providers.dart' show playbackRepositoryProvider;
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
 import 'package:flutbook/features/player/presentation/providers/playback_provider.dart';
+import 'package:flutbook/features/player/presentation/providers/queue_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -43,11 +43,10 @@ class AudiobookCard extends ConsumerWidget {
       final playbackNotifier = ref.read(playbackProvider.notifier);
       final featureStatus = playbackNotifier.getPlaybackFeatureStatus();
 
-      final featuresAvailable =
-          await ErrorHandler.checkPlaybackFeaturesAndNotify(
-            context,
-            featureStatus,
-          );
+      final featuresAvailable = await ErrorHandler.checkPlaybackFeaturesAndNotify(
+        context,
+        featureStatus,
+      );
 
       if (!featuresAvailable) {
         return false;
@@ -67,8 +66,7 @@ class AudiobookCard extends ConsumerWidget {
       }
 
       // Check if the audiobook has a valid file path
-      if (audiobook.filePath.isEmpty ||
-          !await File(audiobook.filePath).exists()) {
+      if (audiobook.filePath.isEmpty || !await File(audiobook.filePath).exists()) {
         return false;
       }
 
@@ -151,9 +149,7 @@ class AudiobookCard extends ConsumerWidget {
                             color: isDark ? Colors.grey[800] : Colors.grey[300],
                             child: Icon(
                               Icons.album_outlined,
-                              color: isDark
-                                  ? Colors.grey[600]
-                                  : Colors.grey[400],
+                              color: isDark ? Colors.grey[600] : Colors.grey[400],
                               size: 40,
                             ),
                           );
@@ -180,10 +176,9 @@ class AudiobookCard extends ConsumerWidget {
                       // Title
                       Text(
                         title,
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -205,9 +200,7 @@ class AudiobookCard extends ConsumerWidget {
                             LinearProgressIndicator(
                               value: progress,
                               minHeight: 4,
-                              backgroundColor: isDark
-                                  ? Colors.grey[700]
-                                  : Colors.grey[300],
+                              backgroundColor: isDark ? Colors.grey[700] : Colors.grey[300],
                               valueColor: AlwaysStoppedAnimation<Color>(
                                 Theme.of(context).colorScheme.primary,
                               ),
@@ -217,22 +210,20 @@ class AudiobookCard extends ConsumerWidget {
                               children: [
                                 Text(
                                   '${(progress! * 100).round()}%',
-                                  style: Theme.of(context).textTheme.labelSmall
-                                      ?.copyWith(
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.onSurfaceVariant,
-                                      ),
+                                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                  ),
                                 ),
                                 const Spacer(),
                                 Text(
                                   _formatDuration(duration),
-                                  style: Theme.of(context).textTheme.labelSmall
-                                      ?.copyWith(
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.onSurfaceVariant,
-                                      ),
+                                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                  ),
                                 ),
                               ],
                             ),
@@ -251,12 +242,11 @@ class AudiobookCard extends ConsumerWidget {
                             const SizedBox(width: 4),
                             Text(
                               'Completed',
-                              style: Theme.of(context).textTheme.labelSmall
-                                  ?.copyWith(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.primary,
-                                  ),
+                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.primary,
+                              ),
                             ),
                           ],
                         ),
@@ -276,6 +266,41 @@ class AudiobookCard extends ConsumerWidget {
                     onTap,
                   ),
                   tooltip: hasPlaybackError ? 'Playback unavailable' : 'Play',
+                ),
+
+              // Queue options menu
+              if (showPlayButton && audiobook != null)
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert, size: 20),
+                  onSelected: (value) {
+                    if (value == 'add_to_queue') {
+                      _handleAddToQueue(context, ref, audiobook!);
+                    } else if (value == 'play_next') {
+                      _handlePlayNext(context, ref, audiobook!);
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'add_to_queue',
+                      child: Row(
+                        children: [
+                          Icon(Icons.queue_music, size: 18),
+                          SizedBox(width: 8),
+                          Text('Add to Queue'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'play_next',
+                      child: Row(
+                        children: [
+                          Icon(Icons.playlist_play, size: 18),
+                          SizedBox(width: 8),
+                          Text('Play Next'),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
             ],
           ),
@@ -332,6 +357,110 @@ class AudiobookCard extends ConsumerWidget {
         context,
         'Retry failed. Please try again later.',
       );
+    }
+  }
+
+  /// Handle adding audiobook to queue
+  Future<void> _handleAddToQueue(
+    BuildContext context,
+    WidgetRef ref,
+    Audiobook audiobook,
+  ) async {
+    try {
+      final queueNotifier = ref.read(queueProvider.notifier);
+      final queueState = ref.read(queueProvider);
+
+      // Get or create a default queue
+      int queueId;
+      if (queueState.currentQueue != null) {
+        queueId = queueState.currentQueue!.id;
+      } else if (queueState.queues.isNotEmpty) {
+        queueId = queueState.queues.first.id;
+      } else {
+        // Create a default queue
+        await queueNotifier.createQueue(name: 'My Queue');
+        final updatedState = ref.read(queueProvider);
+        if (updatedState.currentQueue != null) {
+          queueId = updatedState.currentQueue!.id;
+        } else {
+          throw Exception('Failed to create queue');
+        }
+      }
+
+      await queueNotifier.addAudiobookToQueue(
+        queueId: queueId,
+        audiobookId: audiobook.id,
+      );
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Added "${audiobook.title}" to queue'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to add to queue: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Handle playing audiobook next in queue
+  Future<void> _handlePlayNext(
+    BuildContext context,
+    WidgetRef ref,
+    Audiobook audiobook,
+  ) async {
+    try {
+      final queueNotifier = ref.read(queueProvider.notifier);
+      final queueState = ref.read(queueProvider);
+
+      // Get or create a default queue
+      int queueId;
+      if (queueState.currentQueue != null) {
+        queueId = queueState.currentQueue!.id;
+      } else if (queueState.queues.isNotEmpty) {
+        queueId = queueState.queues.first.id;
+      } else {
+        // Create a default queue
+        await queueNotifier.createQueue(name: 'My Queue');
+        final updatedState = ref.read(queueProvider);
+        if (updatedState.currentQueue != null) {
+          queueId = updatedState.currentQueue!.id;
+        } else {
+          throw Exception('Failed to create queue');
+        }
+      }
+
+      await queueNotifier.addAudiobookToQueue(
+        queueId: queueId,
+        audiobookId: audiobook.id,
+      );
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Added "${audiobook.title}" to play next'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to add to queue: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
     }
   }
 }

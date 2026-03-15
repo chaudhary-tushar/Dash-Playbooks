@@ -43,8 +43,7 @@ class MetadataExtractionDatasource {
       try {
         // For desktop platforms (Linux, Windows, macOS), we'll extract duration using file system approach
         // just_audio doesn't have proper desktop implementation, so we'll fall back to file-based estimation
-        if (kIsWeb ||
-            (!Platform.isLinux && !Platform.isWindows && !Platform.isMacOS)) {
+        if (kIsWeb || (!Platform.isLinux && !Platform.isWindows && !Platform.isMacOS)) {
           try {
             // Use just_audio for mobile and web platforms where it's properly implemented
             final audioPlayer = AudioPlayer();
@@ -52,9 +51,7 @@ class MetadataExtractionDatasource {
             duration = audioPlayer.duration ?? Duration.zero;
 
             // Extract ID3 tags or other metadata if available
-            if (fileExtension == '.mp3' ||
-                fileExtension == '.m4a' ||
-                fileExtension == '.m4b') {
+            if (fileExtension == '.mp3' || fileExtension == '.m4a' || fileExtension == '.m4b') {
               // For MP3 and M4A/M4B files, we'll use basic file parsing
               // In a real implementation, we might use dart:mirrors or a metadata library
               // For now, we'll derive basic info from filename and file properties
@@ -89,12 +86,9 @@ class MetadataExtractionDatasource {
               // 128 kbps (16000 bytes/second) is a common MP3 bitrate
               // 256 kbps (32000 bytes/second) for higher quality
               // Use conservative 128kbps estimation to avoid overestimation
-              final estimatedDurationSeconds = (fileSizeInBytes / 16000)
-                  .round();
+              final estimatedDurationSeconds = (fileSizeInBytes / 16000).round();
               duration = Duration(
-                seconds: estimatedDurationSeconds > 0
-                    ? estimatedDurationSeconds
-                    : 1,
+                seconds: estimatedDurationSeconds > 0 ? estimatedDurationSeconds : 1,
               ); // Ensure at least 1 second
 
               // Try to extract title/author from filename anyway
@@ -133,9 +127,7 @@ class MetadataExtractionDatasource {
             // Use conservative 128kbps estimation to avoid overestimation
             final estimatedDurationSeconds = (fileSizeInBytes / 16000).round();
             duration = Duration(
-              seconds: estimatedDurationSeconds > 0
-                  ? estimatedDurationSeconds
-                  : 1,
+              seconds: estimatedDurationSeconds > 0 ? estimatedDurationSeconds : 1,
             ); // Ensure at least 1 second
 
             // Try to extract title/author from filename format like "Author - Title.mp3"
@@ -224,9 +216,7 @@ class MetadataExtractionDatasource {
     final nameWithoutExt = fileName.substring(0, fileName.lastIndexOf('.'));
 
     // Remove common prefixes like track numbers (01-, 001-, etc.)
-    final cleaned = nameWithoutExt
-        .replaceAll(RegExp(r'^\d+[-_]\s*'), '')
-        .trim();
+    final cleaned = nameWithoutExt.replaceAll(RegExp(r'^\d+[-_]\s*'), '').trim();
 
     return cleaned;
   }
@@ -272,31 +262,39 @@ class MetadataExtractionDatasource {
   }
 
   /// Extracts cover art from audio file if available
-  /// Returns path to temporary file with cover art, or null if none found
+  /// Returns path/identifier for cover art display, or null if none found
+  ///
+  /// Note: This is a placeholder implementation. A full implementation would require
+  /// platform-specific code and libraries for ID3 tag extraction (e.g., audio_metadata).
+  /// For now, returns null to use default placeholders in the UI.
+  ///
+  /// Future enhancements:
+  /// 1. Add audio_metadata package for proper ID3 extraction on mobile
+  /// 2. Implement fallback library for desktop platforms
+  /// 3. Allow users to manually upload cover art in settings
   Future<String?> _extractCoverArt(String filePath) async {
     try {
-      // For web, we might not be able to extract cover art from files
-      // This is an inherent limitation of web platform for security reasons
+      // For web, we cannot extract cover art due to browser security restrictions
       if (kIsWeb) {
-        // On web, we skip cover art extraction
+        print('[MetadataExtractionDatasource] Web platform: cover art extraction not supported');
         return null;
       }
 
-      // For MP3 files, we can use the just_audio library to extract ID3 artwork
-      // Note: just_audio doesn't expose cover art directly, so we'll need to use an alternative approach
-      // For now, we'll return null and suggest using a metadata library like audio_session
-      if (path.extension(filePath).toLowerCase() == '.mp3') {
-        // Using just_audio alone doesn't provide direct access to cover art
-        // A proper implementation would require using a dedicated metadata library
-        // that can extract ID3 tags from audio files
+      final fileName = path.basename(filePath);
+      final fileExtension = path.extension(filePath).toLowerCase();
+
+      // Log supported file types for future implementation
+      if (fileExtension == '.mp3' || fileExtension == '.m4a' || fileExtension == '.m4b') {
+        print('[MetadataExtractionDatasource] File type supports cover art: $fileExtension');
+        // TODO: Implement ID3 tag extraction when audio_metadata package is added
+        // For now, return null to use placeholder in UI
       }
 
-      // For other file types, we could implement additional extraction methods
-      // For example, using a dedicated metadata library like audio_tags
-      // For now, we'll return null for all files
+      // Return null - UI will use placeholder icon based on audiobook data
+      // This allows for graceful enhancement in the future
       return null;
     } catch (e) {
-      print('Error extracting cover art from $filePath: $e');
+      print('[MetadataExtractionDatasource] Error extracting cover art from $filePath: $e');
       return null;
     }
   }

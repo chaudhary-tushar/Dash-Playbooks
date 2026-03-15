@@ -1,6 +1,5 @@
 import 'package:flutbook/core/provider/providers.dart';
 import 'package:flutbook/features/auth/domain/entities/user_profile.dart';
-import 'package:flutbook/features/auth/domain/usecases/login_usecase.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Login Notifier class that manages authentication state
@@ -19,7 +18,7 @@ class LoginNotifier extends Notifier<AsyncValue<UserProfile>> {
     try {
       // Get the usecase which waits for the user repository to be ready
       final usecase = await ref.read(loginUsecaseProvider.future);
-      
+
       // Use AsyncValue.guard to handle the login operation
       final authResult = await AsyncValue.guard(
         () => usecase.call(email: email, password: password),
@@ -69,7 +68,6 @@ class LoginNotifier extends Notifier<AsyncValue<UserProfile>> {
       return null;
     }
   }
-
 }
 
 /// Provider for LoginNotifier

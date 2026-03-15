@@ -25,22 +25,22 @@
 ```
 STEP 1: Get Context (5 min)
   → Read: START_HERE.md (quick overview)
-  → Read: MVP_STATUS.md (find your phase)
-  → Read: plan-flutbookMVP.prompt.md (full task spec)
+  → Read: CURRENT_PROGRESS.txt (find your phase)
+  → Read: TASK_CARDS.md (full task spec)
 
 STEP 2: Find Your Task (2 min)
-  → Search MVP_STATUS.md for your phase
+  → Search CURRENT_PROGRESS.txt for your phase
   → Locate task number (e.g., "Phase 2, Task 2.1")
-  → Read full acceptance criteria in prompt file
+  → Read full acceptance criteria in TASK_CARDS.md
 
 STEP 3: Understand Architecture (10 min)
-  → Review: IMPLEMENTATION_SUMMARY.md (patterns)
-  → Review: ARCHITECTURE_DIAGRAMS.md (structure)
+  → Review: ARCHITECTURE_FIX_COMPLETE.md (patterns)
+  → Review: README_CURRENT_STATE.md (structure)
   → Check: Existing similar code in lib/features/
 
 STEP 4: Implement Task (Varies)
   → Create files as specified
-  → Follow code patterns from IMPLEMENTATION_SUMMARY.md
+  → Follow code patterns from ARCHITECTURE_FIX_COMPLETE.md
   → Write tests BEFORE implementation
   → Follow style guide in analysis_options.yaml
 
@@ -51,7 +51,7 @@ STEP 5: Verify Work (10 min)
   → Verify: All acceptance criteria met
 
 STEP 6: Report Status (5 min)
-  → Update: MVP_STATUS.md (mark task complete)
+  → Update: CURRENT_PROGRESS.txt (mark task complete)
   → Update: CURRENT_PROGRESS.txt (update metrics)
   → Commit: With clear message referencing task
 ```
@@ -61,13 +61,13 @@ STEP 6: Report Status (5 min)
 ```
 STEP 1: Identify Issue
   → Run: flutter analyze
-  → Find error in CURRENT_PROGRESS.txt or MVP_STATUS.md
+  → Find error in CURRENT_PROGRESS.txt
   → Locate file and line number
 
 STEP 2: Understand Context
   → Review file in question
   → Check error message and type
-  → See if documented in MVP_STATUS.md
+  → See if documented in CURRENT_PROGRESS.txt
 
 STEP 3: Fix Issue
   → Follow Dart/Flutter best practices
@@ -80,7 +80,7 @@ STEP 4: Verify Fix
   → Run app manually (no crashes)
 
 STEP 5: Update Status
-  → Update: MVP_STATUS.md (mark issue fixed)
+  → Update: CURRENT_PROGRESS.txt (mark issue fixed)
   → Update: CURRENT_PROGRESS.txt (error count)
 ```
 
@@ -89,7 +89,7 @@ STEP 5: Update Status
 ```
 STEP 1: Understand What's Done
   → Read: CURRENT_PROGRESS.txt ("What's Working")
-  → Read: MVP_STATUS.md (Completed Features section)
+  → Read: CURRENT_PROGRESS.txt (Completed Features section)
 
 STEP 2: Test Feature
   → Run feature on device/emulator
@@ -98,7 +98,7 @@ STEP 2: Test Feature
   → Report any crashes or unexpected behavior
 
 STEP 3: Document Results
-  → Update MVP_STATUS.md with test results
+  → Update CURRENT_PROGRESS.txt with test results
   → Log any issues found
   → Suggest fixes if applicable
 ```
@@ -113,17 +113,17 @@ STEP 3: Document Results
 |----------|------------------|------|---------|
 | **START_HERE.md** | All agents | First (5 min) | Quick onboarding |
 | **CURRENT_PROGRESS.txt** | All agents | Before work (2 min) | Status snapshot |
-| **plan-flutbookMVP.prompt.md** | Feature agents | Before implementing | Full task spec |
+| **TASK_CARDS.md** | Feature agents | Before implementing | Full task spec |
 
 ### Secondary Documents (Deep Dive)
 
 | Document | Agent Should Read | When | Purpose |
 |----------|------------------|------|---------|
-| **MVP_STATUS.md** | All agents | Throughout (10 min/day) | Track progress |
+| **CURRENT_PROGRESS.txt** | All agents | Throughout (10 min/day) | Track progress |
 | **README_CURRENT_STATE.md** | All agents | When confused | Project overview |
-| **IMPLEMENTATION_SUMMARY.md** | Feature agents | Before coding (15 min) | Architecture patterns |
-| **ARCHITECTURE_DIAGRAMS.md** | Feature agents | Understanding flow (10 min) | Visual architecture |
-| **SCANNING_FLOW_GUIDE.md** | Phase 3+ agents | For reference | Example workflow |
+| **ARCHITECTURE_FIX_COMPLETE.md** | Feature agents | Before coding (15 min) | Architecture patterns |
+| **README_CURRENT_STATE.md** | Feature agents | Understanding flow (10 min) | Visual architecture |
+| **WORK_COMPLETED.md** | Phase 3+ agents | For reference | Example workflow |
 
 ### Reference Documents (As Needed)
 
@@ -149,7 +149,7 @@ flutter pub get
 dart run build_runner build --delete-conflicting-outputs
 
 # 2. Read task specification
-cat plan-flutbookMVP.prompt.md | grep -A 50 "Task X.Y"
+cat TASK_CARDS.md | grep -A 50 "Task X.Y"
 
 # 3. Review acceptance criteria
 # List all checkboxes that must be [x] checked
@@ -165,7 +165,7 @@ cat plan-flutbookMVP.prompt.md | grep -A 50 "Task X.Y"
 find lib/features -type f -name "*.dart" | xargs grep "your_pattern"
 
 # 2. Check architecture patterns
-cat IMPLEMENTATION_SUMMARY.md | grep -A 20 "use case"
+cat ARCHITECTURE_FIX_COMPLETE.md | grep -A 20 "use case"
 
 # 3. Review test examples
 cat test/features/[feature]/*
@@ -198,7 +198,7 @@ flutter test test/features/[feature]/
 # Layer: domain/usecases, domain/repositories, data/datasources,
 #        data/repositories, presentation/providers, presentation/views
 
-# 2. Follow architecture from IMPLEMENTATION_SUMMARY.md
+# 2. Follow architecture from ARCHITECTURE_FIX_COMPLETE.md
 # Datasource → Repository → Use Case → Provider → Screen
 
 # 3. Use code examples from task description
@@ -233,7 +233,7 @@ flutter run --flavor development
 #### Phase: Documentation (10 min)
 
 ```bash
-# 1. Update MVP_STATUS.md
+# 1. Update CURRENT_PROGRESS.txt
 # Mark task as [x] complete
 # Update time estimate if different
 
@@ -250,7 +250,7 @@ git commit -m "Complete Phase X, Task X.Y: [Task Name]
 - Acceptance criteria met
 - Build: 0 new errors"
 
-# 4. Mark task complete in MVP_STATUS.md
+# 4. Mark task complete in CURRENT_PROGRESS.txt
 # Change [ ] to [x] for the task
 ```
 
@@ -290,7 +290,7 @@ lib/app/
 7. **Task 2.7** - Router integration
 8. **Task 2.8** - Tests
 
-**Key Pattern:** See IMPLEMENTATION_SUMMARY.md, "Use Case Pattern" section
+**Key Pattern:** See ARCHITECTURE_FIX_COMPLETE.md, "Use Case Pattern" section
 
 **Tests Location:** `test/features/auth/domain/usecases/`
 
@@ -328,7 +328,7 @@ lib/features/library/
 - Task 4.4 (Search) → Can be parallel
 - Task 4.5 (Filter) → Can be parallel
 
-**Key Pattern:** Similar to SCANNING_FLOW_GUIDE.md
+**Key Pattern:** Similar to WORK_COMPLETED.md
 
 **Time Estimate:** 14 hours total (2-3 hours each task)
 
@@ -362,7 +362,7 @@ lib/features/player/
 
 **Critical First Step:**
 - Task 5.1 requires fixing AudioServiceHandler
-- See MVP_STATUS.md "Build Issues" section
+- See CURRENT_PROGRESS.txt "Build Issues" section
 - Error: AudioHandler doesn't have constructor
 
 **Task Order:**
@@ -546,16 +546,16 @@ flutter test --watch
 
 ### Before Committing Code
 
-- [ ] Read task acceptance criteria in plan-flutbookMVP.prompt.md
+- [ ] Read task acceptance criteria in TASK_CARDS.md
 - [ ] All acceptance criteria marked [x] in task description
 - [ ] New tests written and all passing
-- [ ] Code follows patterns in IMPLEMENTATION_SUMMARY.md
+- [ ] Code follows patterns in ARCHITECTURE_FIX_COMPLETE.md
 - [ ] No new build errors: `flutter analyze` shows 0 new errors
 - [ ] No breaking changes to existing code
 - [ ] Code formatted properly
 - [ ] Inline comments explain complex logic
 - [ ] No dead code or TODO comments left
-- [ ] MVP_STATUS.md updated with completion
+- [ ] CURRENT_PROGRESS.txt updated with completion
 
 ### Before Marking Task Complete
 
@@ -567,7 +567,7 @@ flutter test --watch
 - [ ] No console errors or warnings
 - [ ] Performance acceptable (no obvious lags)
 - [ ] Documentation updated
-- [ ] Task marked [x] in MVP_STATUS.md
+- [ ] Task marked [x] in CURRENT_PROGRESS.txt
 
 ### Daily Verification
 
@@ -598,11 +598,11 @@ flutter test
 
 ```
 Workflow:
-1. Read: plan-flutbookMVP.prompt.md (Phase 2)
+1. Read: TASK_CARDS.md (Phase 2)
 2. Tasks 2.1-2.4: Domain + State Management
 3. Tasks 2.5-2.7: UI + Routing
 4. Task 2.8: Tests
-5. Update: MVP_STATUS.md
+5. Update: CURRENT_PROGRESS.txt
 6. Commit: "Complete Phase 2: Authentication"
 ```
 
@@ -615,11 +615,11 @@ Workflow:
 
 ```
 Workflow:
-1. Read: plan-flutbookMVP.prompt.md (Phase 4)
+1. Read: TASK_CARDS.md (Phase 4)
 2. Tasks 4.1-4.3: Repository + Screen + Card
 3. Tasks 4.4-4.5: Search + Filters (parallel)
 4. Task 4.6: Tests
-5. Update: MVP_STATUS.md
+5. Update: CURRENT_PROGRESS.txt
 6. Commit: "Complete Phase 4: Library"
 ```
 
@@ -632,13 +632,13 @@ Workflow:
 
 ```
 Workflow:
-1. Read: plan-flutbookMVP.prompt.md (Phase 5)
+1. Read: TASK_CARDS.md (Phase 5)
 2. Task 5.1: FIX AudioServiceHandler (critical)
 3. Task 5.2: Playback provider (60% done)
 4. Tasks 5.3-5.7: UI + Controls
 5. Tasks 5.8-5.9: Advanced features
 6. Task 5.10: Tests
-7. Update: MVP_STATUS.md
+7. Update: CURRENT_PROGRESS.txt
 8. Commit: "Complete Phase 5: Playback"
 ```
 
@@ -660,7 +660,7 @@ Workflow:
 3. Read error type
 4. Fix: Add proper type casting
 5. Verify: flutter analyze (error gone)
-6. Update: MVP_STATUS.md
+6. Update: CURRENT_PROGRESS.txt
 7. Commit: "Fix build error: [error type]"
 ```
 
@@ -678,7 +678,7 @@ Agent → System:
 - Dependencies: [what must be done first]
 - Status: In Progress"
 
-System → Updates MVP_STATUS.md
+System → Updates CURRENT_PROGRESS.txt
 ```
 
 ### When Blocking
@@ -714,7 +714,7 @@ System → Marks task complete, updates metrics
 
 ### Task: Create Login Use Case
 
-**From plan-flutbookMVP.prompt.md:**
+**From TASK_CARDS.md:**
 ```
 Task 2.1: Create Login Use Case
 Status: [ ] Pending
@@ -765,7 +765,7 @@ flutter test --coverage
 
 **Step 4: Update Documentation** (10 min)
 ```
-MVP_STATUS.md:
+CURRENT_PROGRESS.txt:
 Change: "[ ] 2.1 - Login Use Case"
 To:     "[x] 2.1 - Login Use Case"
 
@@ -791,7 +791,7 @@ git commit -m "Implement Phase 2, Task 2.1: Login Use Case
 
 ### Daily Updates
 
-Agents should update `MVP_STATUS.md`:
+Agents should update `CURRENT_PROGRESS.txt`:
 ```
 ### Phase X: Feature Name (X/Y tasks)
 
@@ -890,23 +890,23 @@ START_HERE
 └─→ CURRENT_PROGRESS.txt (2 min)
     └─→ Status snapshot
 
-└─→ plan-flutbookMVP.prompt.md (30 min)
+└─→ TASK_CARDS.md (30 min)
     ├─ Your phase specification
     ├─ Acceptance criteria
     ├─ Code examples
     └─ Time estimates
 
-└─→ MVP_STATUS.md (15 min)
+└─→ CURRENT_PROGRESS.txt (15 min)
     ├─ Task tracking
     ├─ Build issues
     └─ Troubleshooting
 
-└─→ IMPLEMENTATION_SUMMARY.md (15 min)
+└─→ ARCHITECTURE_FIX_COMPLETE.md (15 min)
     ├─ Architecture patterns
     ├─ Use case pattern
     └─ Code organization
 
-└─→ ARCHITECTURE_DIAGRAMS.md (10 min)
+└─→ README_CURRENT_STATE.md (10 min)
     └─ Visual architecture
 
 └─→ DOCUMENTATION_INDEX.md
@@ -917,10 +917,10 @@ START_HERE
 
 ## ✨ Final Notes for Agents
 
-1. **Read the spec first** - All answers in plan-flutbookMVP.prompt.md
+1. **Read the spec first** - All answers in TASK_CARDS.md
 2. **Test-driven development** - Write tests before code
-3. **Follow patterns** - Use IMPLEMENTATION_SUMMARY.md as reference
-4. **Update docs** - Keep MVP_STATUS.md current
+3. **Follow patterns** - Use ARCHITECTURE_FIX_COMPLETE.md as reference
+4. **Update docs** - Keep CURRENT_PROGRESS.txt current
 5. **No surprises** - Everything is documented
 6. **Help each other** - Phases are dependent, communicate blockers
 7. **Ship with confidence** - Acceptance criteria = Definition of done

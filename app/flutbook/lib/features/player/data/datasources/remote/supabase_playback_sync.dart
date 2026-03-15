@@ -255,4 +255,14 @@ class SupabasePlaybackDatasource {
       throw DatabaseException('Failed to update sleep timer: $e');
     }
   }
+
+  /// Check if user is authenticated
+  Future<bool> isAuthenticated() async {
+    try {
+      final user = _supabase.auth.currentUser;
+      return user != null;
+    } catch (e) {
+      return false;
+    }
+  }
 }

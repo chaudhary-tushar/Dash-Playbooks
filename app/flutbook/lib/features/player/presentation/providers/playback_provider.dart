@@ -1,12 +1,13 @@
 // lib/presentation/providers/playback_provider.dart
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutbook/core/error/exceptions.dart';
 import 'package:flutbook/core/provider/providers.dart'
-    show databaseServiceProvider, playbackRemoteDatasourceProvider, playbackRepositoryProvider;
+    show libraryRepositoryProvider, playbackRepositoryProvider, playbackLocalDatasourceProvider;
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
+import 'package:flutbook/features/library/domain/repositories/library_repository.dart';
 import 'package:flutbook/features/player/data/datasources/audio_service_handler.dart';
+import 'package:flutbook/features/player/data/datasources/playback_local_ds.dart';
 import 'package:flutbook/features/player/data/repositories/playback_repository_impl.dart';
 import 'package:flutbook/features/player/domain/entities/playback_session.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -95,12 +96,17 @@ final playbackProvider = NotifierProvider<PlaybackNotifier, PlaybackState>(
 class PlaybackNotifier extends Notifier<PlaybackState> {
   late final AudioServiceHandler _audioService;
   late final PlaybackRepositoryImpl _playbackRepo;
+  late final LibraryRepository _libraryRepo;
   late final StreamSubscription<dynamic> _playbackStreamSubscription;
   bool _audioServiceInitialized = false;
 
   // Retry mechanism state
   int _retryCount = 0;
   static const int _maxRetries = 3;
+
+  // Periodic position saving timer
+  Timer? _positionSaveTimer;
+  static const Duration _positionSaveInterval = Duration(seconds: 10);
 
   @override
   PlaybackState build() {
@@ -143,8 +149,28 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
           print('[PlaybackNotifier] Repository data received, initializing audio service');
           _playbackRepo = playbackRepo;
 
+          // Initialize library repository for preferred speed storage
+          final libraryRepoAsync = ref.watch(libraryRepositoryProvider);
+          _libraryRepo = libraryRepoAsync.when(
+            loading: () => throw UninitializedDatasourceException('Library repository loading'),
+            error: (error, stackTrace) =>
+                throw UninitializedDatasourceException('Library repository error: $error'),
+            data: (repo) => repo,
+          );
+
+          // Get playback datasource synchronously with future access
+          final playbackDatasourceAsync = ref.watch(playbackLocalDatasourceProvider);
+          final playbackDatasource = playbackDatasourceAsync.when(
+            loading: () => throw UninitializedDatasourceException('Playback datasource loading'),
+            error: (error, stackTrace) =>
+                throw UninitializedDatasourceException('Playback datasource error: $error'),
+            data: (datasource) => datasource,
+          );
+
           // Initialize audio service after repository is ready to avoid circular dependency
-          _audioService = AudioServiceHandler();
+          _audioService = AudioServiceHandler(
+            playbackDatasource: playbackDatasource,
+          );
 
           // Listen to playback state changes from audio service
           _playbackStreamSubscription = _audioService.getPlaybackStateStream().listen(
@@ -172,6 +198,7 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
 
           ref.onDispose(() {
             print('[PlaybackNotifier] Disposing resources');
+            _positionSaveTimer?.cancel();
             _playbackStreamSubscription.cancel();
             _audioService.dispose();
           });
@@ -215,15 +242,30 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
         final savedSession = await _playbackRepo.getPlaybackSession(
           audiobook.id,
         );
+
+        // Load preferred speed for this audiobook
+        double preferredSpeed = 1;
+        try {
+          preferredSpeed = await _libraryRepo.getPreferredSpeed(audiobook.id);
+          print(
+            '[PlaybackNotifier] Loaded preferred speed: $preferredSpeed for audiobook: ${audiobook.id}',
+          );
+        } catch (e) {
+          print('[PlaybackNotifier] Could not load preferred speed, using default: $e');
+        }
+
         if (savedSession != null) {
           print(
             '[PlaybackNotifier] Found saved session, seeking to ${savedSession.currentPosition}',
           );
           await _audioService.seekTo(savedSession.currentPosition);
+          // Use preferred speed if available, otherwise use saved session speed
+          final speedToUse = preferredSpeed != 1.0 ? preferredSpeed : savedSession.playbackSpeed;
+          await _audioService.setSpeed(speedToUse);
           state = state.copyWith(
             currentPosition: savedSession.currentPosition,
             duration: audiobook.duration,
-            playbackSpeed: savedSession.playbackSpeed,
+            playbackSpeed: speedToUse,
             sleepTimerActive: savedSession.sleepTimerActive,
             sleepTimerDuration: savedSession.sleepTimerDuration,
           );
@@ -234,7 +276,14 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
           }
         } else {
           print('[PlaybackNotifier] No saved session, using default duration');
-          state = state.copyWith(duration: audiobook.duration);
+          // Use preferred speed if available
+          if (preferredSpeed != 1.0) {
+            await _audioService.setSpeed(preferredSpeed);
+          }
+          state = state.copyWith(
+            duration: audiobook.duration,
+            playbackSpeed: preferredSpeed,
+          );
         }
       } catch (e) {
         // Graceful degradation - continue with default values
@@ -272,6 +321,25 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
       state = state.copyWith(
         isPlaying: true,
       );
+
+      // Start periodic position saving
+      _startPeriodicPositionSave();
+
+      // Mark the audiobook as in-progress so it appears in the "Reading" list
+      // This is done in the background to avoid blocking playback
+      Future.microtask(() async {
+        try {
+          final currentAudiobook = ref.read(currentAudiobookProvider);
+          if (currentAudiobook != null) {
+            print('[PlaybackNotifier] Marking audiobook as in-progress: ${currentAudiobook.title}');
+            await _playbackRepo.markAudiobookAsInProgress(currentAudiobook.id);
+          }
+        } catch (e) {
+          print('[PlaybackNotifier] Error marking audiobook as in-progress: $e');
+          // Silently fail - don't disrupt playback
+        }
+      });
+
       return true;
     } catch (e) {
       print('[PlaybackNotifier] play() failed: $e');
@@ -291,6 +359,11 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
       state = state.copyWith(
         isPlaying: false,
       );
+
+      // Stop periodic position saving and save current position
+      _stopPeriodicPositionSave();
+      await _saveCurrentPosition();
+
       return true;
     } catch (e) {
       state = state.copyWith(
@@ -307,6 +380,10 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
     try {
       await _audioService.stop();
       state = state.copyWith(isPlaying: false);
+
+      // Stop periodic position saving and save current position
+      _stopPeriodicPositionSave();
+      await _saveCurrentPosition();
     } catch (e) {
       state = state.copyWith(errorMessage: e.toString());
       rethrow;
@@ -330,16 +407,6 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
       if (state.currentPosition.inMilliseconds > 0) {
         final currentAudiobook = ref.read(currentAudiobookProvider);
         if (currentAudiobook != null) {
-          final playbackSession = PlaybackSession(
-            audiobookId: currentAudiobook.id,
-            currentPosition: position,
-            playbackSpeed: state.playbackSpeed,
-            isPlaying: state.isPlaying,
-            lastPlayedAt: DateTime.now(),
-            sleepTimerActive: state.sleepTimerActive,
-            sleepTimerDuration: state.sleepTimerDuration,
-          );
-
           await _playbackRepo.updatePlaybackPosition(
             currentAudiobook.id,
             position,
@@ -358,6 +425,7 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
   /// 1. Sets the playback speed using the audio service
   /// 2. Updates the playback state with the new speed
   /// 3. Persists the playback speed to the repository
+  /// 4. Saves the preferred speed for this audiobook
   ///
   /// Throws: Exception if there's an error setting the speed or updating the session
   Future<void> setSpeed(double speed) async {
@@ -369,6 +437,15 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
       final currentAudiobook = ref.read(currentAudiobookProvider);
       if (currentAudiobook != null) {
         await _playbackRepo.updatePlaybackSpeed(currentAudiobook.id, speed);
+        // Save preferred speed for this audiobook
+        try {
+          await _libraryRepo.updatePreferredSpeed(currentAudiobook.id, speed);
+          print(
+            '[PlaybackNotifier] Saved preferred speed: $speed for audiobook: ${currentAudiobook.id}',
+          );
+        } catch (e) {
+          print('[PlaybackNotifier] Could not save preferred speed: $e');
+        }
       }
     } catch (e) {
       state = state.copyWith(errorMessage: e.toString());
@@ -445,6 +522,39 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
   /// Clears any error message from the playback state.
   void clearError() {
     state = state.copyWith();
+  }
+
+  /// Starts periodic position saving during playback
+  void _startPeriodicPositionSave() {
+    _positionSaveTimer?.cancel();
+    _positionSaveTimer = Timer.periodic(_positionSaveInterval, (_) async {
+      await _saveCurrentPosition();
+    });
+  }
+
+  /// Stops periodic position saving
+  void _stopPeriodicPositionSave() {
+    _positionSaveTimer?.cancel();
+    _positionSaveTimer = null;
+  }
+
+  /// Saves the current playback position to the repository
+  Future<void> _saveCurrentPosition() async {
+    try {
+      final currentAudiobook = ref.read(currentAudiobookProvider);
+      if (currentAudiobook != null && state.currentPosition.inMilliseconds > 0) {
+        print(
+          '[PlaybackNotifier] Saving position: ${state.currentPosition} for audiobook: ${currentAudiobook.id}',
+        );
+        await _playbackRepo.updatePlaybackPosition(
+          currentAudiobook.id,
+          state.currentPosition,
+        );
+      }
+    } catch (e) {
+      print('[PlaybackNotifier] Error saving position: $e');
+      // Silently fail - don't disrupt playback
+    }
   }
 
   /// Retry mechanism for failed operations
@@ -550,7 +660,17 @@ final playbackHistoryProvider = FutureProvider<List<PlaybackSession>>((
 
 /// Providers for dependencies
 final audioServiceProvider = Provider<AudioServiceHandler>((ref) {
-  return AudioServiceHandler();
+  final playbackDatasourceAsync = ref.watch(playbackLocalDatasourceProvider);
+  final playbackDatasource = playbackDatasourceAsync.when(
+    loading: () => throw UninitializedDatasourceException('Playback datasource loading'),
+    error: (error, stackTrace) =>
+        throw UninitializedDatasourceException('Playback datasource error: $error'),
+    data: (datasource) => datasource,
+  );
+
+  return AudioServiceHandler(
+    playbackDatasource: playbackDatasource,
+  );
 });
 
 final currentAudiobookProvider = Provider<Audiobook?>((ref) => null);

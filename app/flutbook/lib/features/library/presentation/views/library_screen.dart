@@ -47,8 +47,8 @@ class LibraryScreen extends ConsumerWidget {
     final currentSearchQuery = ref.watch(searchQueryProvider);
 
     // Get current filter status
-    final currentStatusFilter = currentFilter.statusFilter ?? 'all';
-    final currentViewType = libraryState.viewType ?? 'list';
+    final currentStatusFilter = currentFilter.statusFilter;
+    final currentViewType = libraryState.viewType;
 
     return Scaffold(
       appBar: AppBar(
@@ -68,16 +68,12 @@ class LibraryScreen extends ConsumerWidget {
           ),
           IconButton(
             icon: Icon(
-              libraryState.groupingEnabled
-                  ? Icons.folder_special
-                  : Icons.folder,
+              libraryState.groupingEnabled ? Icons.folder_special : Icons.folder,
             ),
             onPressed: () async {
               await libraryNotifier.toggleGrouping();
             },
-            tooltip: libraryState.groupingEnabled
-                ? 'Disable Grouping'
-                : 'Enable Grouping',
+            tooltip: libraryState.groupingEnabled ? 'Disable Grouping' : 'Enable Grouping',
           ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.filter_list),
@@ -247,6 +243,10 @@ class LibraryScreen extends ConsumerWidget {
                               value: 'progress',
                               child: Text('Progress'),
                             ),
+                            DropdownMenuItem(
+                              value: 'length',
+                              child: Text('Duration'),
+                            ),
                           ],
                           onChanged: (value) {
                             if (value != null) {
@@ -256,7 +256,29 @@ class LibraryScreen extends ConsumerWidget {
                         ),
                       ),
 
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 8),
+
+                      // Sort order toggle (ascending/descending)
+                      Tooltip(
+                        message: libraryState.sortAscending ? 'Ascending' : 'Descending',
+                        child: OutlinedButton(
+                          onPressed: () {
+                            libraryNotifier.updateSorting(
+                              currentSortBy,
+                              ascending: !libraryState.sortAscending,
+                            );
+                          },
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                          ),
+                          child: Icon(
+                            libraryState.sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(width: 8),
 
                       // View toggle: Grid/List
                       SegmentedButton<String>(
@@ -385,8 +407,7 @@ class LibraryScreen extends ConsumerWidget {
               ),
             ),
           )
-        else if (libraryState.groupingEnabled &&
-            libraryState.audiobookGroups.isNotEmpty)
+        else if (libraryState.groupingEnabled && libraryState.audiobookGroups.isNotEmpty)
           // Grouped audiobook display
           SliverList(
             delegate: SliverChildBuilderDelegate(
@@ -414,8 +435,7 @@ class LibraryScreen extends ConsumerWidget {
                           );
                         }
                       },
-                      onExpand: () =>
-                          GroupExpansionManager.toggle(group.groupKey),
+                      onExpand: () => GroupExpansionManager.toggle(group.groupKey),
                     );
                   },
                 );
@@ -434,14 +454,11 @@ class LibraryScreen extends ConsumerWidget {
                   coverArtPath: audiobook.coverArtPath,
                   duration: audiobook.duration,
                   isCompleted: audiobook.completed,
-                  progress:
-                      audiobook.lastPlayedAt != null &&
-                          audiobook.duration.inSeconds > 0
-                      ? (DateTime.now()
-                                    .difference(audiobook.lastPlayedAt!)
-                                    .inSeconds /
-                                audiobook.duration.inSeconds)
-                            .clamp(0.0, 1.0)
+                  progress: audiobook.lastPlayedAt != null && audiobook.duration.inSeconds > 0
+                      ? (audiobook.currentPosition.inSeconds / audiobook.duration.inSeconds).clamp(
+                          0.0,
+                          1.0,
+                        )
                       : null,
                   onTap: () {
                     // Navigate to playback screen
@@ -477,14 +494,11 @@ class LibraryScreen extends ConsumerWidget {
                   coverArtPath: audiobook.coverArtPath,
                   duration: audiobook.duration,
                   isCompleted: audiobook.completed,
-                  progress:
-                      audiobook.lastPlayedAt != null &&
-                          audiobook.duration.inSeconds > 0
-                      ? (DateTime.now()
-                                    .difference(audiobook.lastPlayedAt!)
-                                    .inSeconds /
-                                audiobook.duration.inSeconds)
-                            .clamp(0.0, 1.0)
+                  progress: audiobook.lastPlayedAt != null && audiobook.duration.inSeconds > 0
+                      ? (audiobook.currentPosition.inSeconds / audiobook.duration.inSeconds).clamp(
+                          0.0,
+                          1.0,
+                        )
                       : null,
                   onTap: () {
                     // Navigate to playback screen
@@ -514,10 +528,13 @@ class LibraryScreen extends ConsumerWidget {
     switch (sortValue) {
       case 'title':
         return 'name';
+      case 'dateAdded':
       case 'recent':
         return 'date';
       case 'progress':
         return 'progress';
+      case 'length':
+        return 'length';
       default:
         return sortValue; // Return as-is if already a UI value
     }
