@@ -8,7 +8,9 @@
 /// - Clear sync data
 library;
 
+import 'package:flutbook/features/sync/presentation/providers/conflict_resolver_provider.dart';
 import 'package:flutbook/features/sync/presentation/providers/sync_provider.dart';
+import 'package:flutbook/features/sync/presentation/views/conflict_resolution_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -50,6 +52,11 @@ class _SyncSettingsViewState extends ConsumerState<SyncSettingsView> {
 
         // Manual Sync Button
         _buildManualSyncButton(syncState),
+
+        const SizedBox(height: 24),
+
+        // Conflict Resolution
+        _buildConflictSection(),
 
         const SizedBox(height: 24),
 
@@ -236,6 +243,52 @@ class _SyncSettingsViewState extends ConsumerState<SyncSettingsView> {
               )
             : const Icon(Icons.sync),
         label: Text(syncState.isSyncing ? 'Syncing...' : 'Sync Now'),
+      ),
+    );
+  }
+
+  Widget _buildConflictSection() {
+    final conflictState = ref.watch(conflictResolverProvider);
+    final pendingCount = conflictState.pendingCount;
+
+    return Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text(
+              'Conflict Resolution',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: Icon(
+              pendingCount > 0 ? Icons.warning_amber : Icons.check_circle,
+              color: pendingCount > 0 ? Colors.orange : Colors.green,
+            ),
+            title: Text(
+              pendingCount > 0
+                  ? '$pendingCount conflict${pendingCount == 1 ? '' : 's'} need attention'
+                  : 'No pending conflicts',
+            ),
+            subtitle: Text(
+              'Resolved: ${conflictState.resolvedCount + conflictState.autoResolvedCount}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            trailing: pendingCount > 0
+                ? FilledButton(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const ConflictResolutionView(),
+                      ),
+                    ),
+                    child: const Text('Review'),
+                  )
+                : null,
+          ),
+        ],
       ),
     );
   }

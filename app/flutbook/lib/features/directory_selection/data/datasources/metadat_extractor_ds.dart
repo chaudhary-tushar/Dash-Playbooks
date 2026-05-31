@@ -8,19 +8,22 @@ import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path/path.dart' as path;
 
-/// Extracts metadata from audio files using various approaches depending on file format.
+/// Extracts metadata from audio files and directories.
 ///
-/// This datasource is responsible ONLY for:
+/// Responsibilities:
 /// - Scanning directories for audio files
 /// - Extracting metadata from individual files
+/// - Creating Audiobook objects from directories (multi-file audiobooks)
 /// - Validating file access
-///
-/// It does NOT handle database operations or depend on AudiobookLocalDatasource.
 class MetadataExtractionDatasource {
   MetadataExtractionDatasource();
 
-  /// Extracts metadata from an audio file at the given path
-  /// TODO: Integrate audio_tags package for full ID3v2, MP4 tags, cover art extraction, advanced chapter parsing
+  static const _supportedExtensions = ['.mp3', '.m4a', '.m4b', '.wav', '.flac', '.ogg', '.aac'];
+
+  // Common bitrates (bytes/second) used for duration estimation when audio parsing is unavailable
+  static const _estimatedBytesPerSecond = 16000; // ~128 kbps MP3
+
+  /// Extracts metadata from an audio file at the given path.
   Future<Audiobook?> extractMetadata(String filePath) async {
     try {
       final file = File(filePath);
@@ -32,141 +35,53 @@ class MetadataExtractionDatasource {
       final fileName = path.basename(filePath);
       final fileExtension = path.extension(filePath).toLowerCase();
 
-      // Default values
       var title = _sanitizeFilename(fileName);
       var author = '';
-      const album = '';
       String? coverArtPath;
-      var duration = Duration.zero; // Initialize with zero as default
+      var duration = Duration.zero;
       var chapters = <Chapter>[];
 
-      try {
-        // For desktop platforms (Linux, Windows, macOS), we'll extract duration using file system approach
-        // just_audio doesn't have proper desktop implementation, so we'll fall back to file-based estimation
-        if (kIsWeb || (!Platform.isLinux && !Platform.isWindows && !Platform.isMacOS)) {
+      // Try to extract accurate duration; fall back to size-based estimate.
+      if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+        // Use just_audio only on mobile where it's properly supported.
+        try {
+          final player = AudioPlayer();
           try {
-            // Use just_audio for mobile and web platforms where it's properly implemented
-            final audioPlayer = AudioPlayer();
-            await audioPlayer.setFilePath(filePath);
-            duration = audioPlayer.duration ?? Duration.zero;
-
-            // Extract ID3 tags or other metadata if available
-            if (fileExtension == '.mp3' || fileExtension == '.m4a' || fileExtension == '.m4b') {
-              // For MP3 and M4A/M4B files, we'll use basic file parsing
-              // In a real implementation, we might use dart:mirrors or a metadata library
-              // For now, we'll derive basic info from filename and file properties
-
-              // Try to extract title/author from filename format like "Author - Title.mp3"
-              final extractedInfo = _extractInfoFromFilename(fileName);
-              if (extractedInfo.title.isNotEmpty) title = extractedInfo.title;
-              if (extractedInfo.author.isNotEmpty) {
-                author = extractedInfo.author;
-              }
-            }
-
-            // Additional processing for m4b files with chapter support
-            if (fileExtension == '.m4b') {
-              chapters = await _extractChaptersFromM4b(filePath, duration);
-            }
-
-            // Close the audio player
-            await audioPlayer.dispose();
-          } catch (e) {
-            // If just_audio fails (e.g., MissingPluginException), fall back to file-based estimation
-            print(
-              'Warning: just_audio failed, falling back to file-based estimation: $e',
-            );
-
-            // Fall back to file-based estimation for all platforms when just_audio fails
-            try {
-              final fileData = await file.readAsBytes();
-              final fileSizeInBytes = fileData.lengthInBytes;
-
-              // Calculate based on common audio bitrates (in bits per second)
-              // 128 kbps (16000 bytes/second) is a common MP3 bitrate
-              // 256 kbps (32000 bytes/second) for higher quality
-              // Use conservative 128kbps estimation to avoid overestimation
-              final estimatedDurationSeconds = (fileSizeInBytes / 16000).round();
-              duration = Duration(
-                seconds: estimatedDurationSeconds > 0 ? estimatedDurationSeconds : 1,
-              ); // Ensure at least 1 second
-
-              // Try to extract title/author from filename anyway
-              final extractedInfo = _extractInfoFromFilename(fileName);
-              if (extractedInfo.title.isNotEmpty) title = extractedInfo.title;
-              if (extractedInfo.author.isNotEmpty) {
-                author = extractedInfo.author;
-              }
-            } catch (fallbackError) {
-              // If file reading fails, use minimum duration
-              print(
-                'Warning: Failed to read file for duration estimation $filePath: $fallbackError',
-              );
-              duration = const Duration(
-                seconds: 1,
-              ); // Default to 1 second if we can't estimate
-
-              // Try to extract title/author from filename anyway
-              final extractedInfo = _extractInfoFromFilename(fileName);
-              if (extractedInfo.title.isNotEmpty) title = extractedInfo.title;
-              if (extractedInfo.author.isNotEmpty) {
-                author = extractedInfo.author;
-              }
-            }
+            await player.setFilePath(filePath);
+            duration = player.duration ?? Duration.zero;
+          } finally {
+            await player.dispose();
           }
-        } else {
-          // For desktop platforms, estimate duration based on file size and standard bitrates
-          // This is less accurate but prevents the MissingPluginException
-          try {
-            final fileData = await file.readAsBytes();
-            final fileSizeInBytes = fileData.lengthInBytes;
 
-            // Calculate based on common audio bitrates (in bits per second)
-            // 128 kbps (16000 bytes/second) is a common MP3 bitrate
-            // 256 kbps (32000 bytes/second) for higher quality
-            // Use conservative 128kbps estimation to avoid overestimation
-            final estimatedDurationSeconds = (fileSizeInBytes / 16000).round();
-            duration = Duration(
-              seconds: estimatedDurationSeconds > 0 ? estimatedDurationSeconds : 1,
-            ); // Ensure at least 1 second
+          final extracted = _extractInfoFromFilename(fileName);
+          if (extracted.title.isNotEmpty) title = extracted.title;
+          if (extracted.author.isNotEmpty) author = extracted.author;
 
-            // Try to extract title/author from filename format like "Author - Title.mp3"
-            final extractedInfo = _extractInfoFromFilename(fileName);
-            if (extractedInfo.title.isNotEmpty) title = extractedInfo.title;
-            if (extractedInfo.author.isNotEmpty) author = extractedInfo.author;
-          } catch (e) {
-            // If file reading fails, use minimum duration
-            print(
-              'Warning: Failed to read file for duration estimation $filePath: $e',
-            );
-            duration = const Duration(
-              seconds: 1,
-            ); // Default to 1 second if we can't estimate
-
-            // Try to extract title/author from filename anyway
-            final extractedInfo = _extractInfoFromFilename(fileName);
-            if (extractedInfo.title.isNotEmpty) title = extractedInfo.title;
-            if (extractedInfo.author.isNotEmpty) author = extractedInfo.author;
+          if (fileExtension == '.m4b') {
+            chapters = await _extractChaptersFromM4b(filePath, duration);
           }
+        } catch (_) {
+          duration = _estimateDurationFromSize(fileInfo.size);
+          final extracted = _extractInfoFromFilename(fileName);
+          if (extracted.title.isNotEmpty) title = extracted.title;
+          if (extracted.author.isNotEmpty) author = extracted.author;
         }
-
-        coverArtPath = await _extractCoverArt(filePath);
-      } catch (e) {
-        // If metadata extraction fails, fall back to minimum viable audiobook object
-        print('Warning: Failed to extract metadata for $filePath: $e');
-        // Set sensible defaults to ensure audiobook object is still valid
-        duration = const Duration(seconds: 1); // Default to 1 second
-
-        final extractedInfo = _extractInfoFromFilename(fileName);
-        if (extractedInfo.title.isNotEmpty) title = extractedInfo.title;
-        if (extractedInfo.author.isNotEmpty) author = extractedInfo.author;
+      } else {
+        // Desktop / web: estimate from file size without reading file content.
+        duration = _estimateDurationFromSize(fileInfo.size);
+        final extracted = _extractInfoFromFilename(fileName);
+        if (extracted.title.isNotEmpty) title = extracted.title;
+        if (extracted.author.isNotEmpty) author = extracted.author;
       }
 
+      // Look for cover art in the same directory as the file.
+      coverArtPath = await _findCoverArtInDirectory(path.dirname(filePath));
+
       return Audiobook(
-        id: _generateId(filePath),
+        id: generateFileId(filePath),
         title: title,
         author: author,
-        album: album,
+        album: '',
         coverArtPath: coverArtPath,
         duration: duration,
         filePath: filePath,
@@ -176,12 +91,82 @@ class MetadataExtractionDatasource {
         totalSize: fileInfo.size,
       );
     } catch (e) {
-      print('Error extracting metadata from $filePath: $e');
+      debugPrint('Error extracting metadata from $filePath: $e');
       return null;
     }
   }
 
-  /// Scans a directory recursively for supported audio files
+  /// Creates a single Audiobook representing an entire directory of audio files.
+  ///
+  /// Files are sorted naturally (01, 02, … or track01, track02, …) and each
+  /// becomes a chapter. The directory name is used as the title.
+  Future<Audiobook?> extractDirectoryMetadata(
+    String directoryPath,
+    List<String> filePaths,
+  ) async {
+    try {
+      if (filePaths.isEmpty) return null;
+
+      // Sort files in natural order so chapters play in sequence.
+      final sortedFiles = List<String>.from(filePaths)..sort(_naturalFileSort);
+
+      var totalDuration = Duration.zero;
+      var totalSize = 0;
+      final chapters = <Chapter>[];
+      var author = '';
+
+      for (final filePath in sortedFiles) {
+        final file = File(filePath);
+        if (!await file.exists()) continue;
+
+        final fileInfo = await file.stat();
+        final fileDuration = await _extractFileDuration(filePath, fileInfo.size);
+        final chapterTitle = _extractChapterTitle(filePath);
+
+        chapters.add(
+          Chapter(
+            id: generateFileId(filePath),
+            title: chapterTitle,
+            startTime: totalDuration,
+            endTime: totalDuration + fileDuration,
+            filePath: filePath,
+          ),
+        );
+
+        totalDuration += fileDuration;
+        totalSize += fileInfo.size;
+
+        // Use author info from the first file that has it.
+        if (author.isEmpty) {
+          final extracted = _extractInfoFromFilename(path.basename(filePath));
+          if (extracted.author.isNotEmpty) author = extracted.author;
+        }
+      }
+
+      final dirName = path.basename(directoryPath);
+      final title = _cleanDirectoryName(dirName);
+      final coverArtPath = await _findCoverArtInDirectory(directoryPath);
+
+      return Audiobook(
+        id: generateDirectoryId(directoryPath),
+        title: title,
+        author: author,
+        album: '',
+        coverArtPath: coverArtPath,
+        duration: totalDuration,
+        filePath: sortedFiles.first,
+        chapters: chapters,
+        createdAt: DateTime.now(),
+        completed: false,
+        totalSize: totalSize,
+      );
+    } catch (e) {
+      debugPrint('Error extracting directory metadata from $directoryPath: $e');
+      return null;
+    }
+  }
+
+  /// Scans a directory recursively for supported audio files.
   Future<List<String>> scanDirectoryForAudioFiles(String directoryPath) async {
     try {
       final directory = Directory(directoryPath);
@@ -190,14 +175,10 @@ class MetadataExtractionDatasource {
       }
 
       final audioFiles = <String>[];
-      final extensions = ['.mp3', '.m4a', '.m4b', '.wav', '.flac'];
-
-      await for (final FileSystemEntity entity in directory.list(
-        recursive: true,
-      )) {
+      await for (final entity in directory.list(recursive: true)) {
         if (entity is File) {
           final ext = path.extension(entity.path).toLowerCase();
-          if (extensions.contains(ext)) {
+          if (_supportedExtensions.contains(ext)) {
             audioFiles.add(entity.path);
           }
         }
@@ -205,113 +186,137 @@ class MetadataExtractionDatasource {
 
       return audioFiles;
     } catch (e) {
-      print('Error scanning directory $directoryPath: $e');
+      debugPrint('Error scanning directory $directoryPath: $e');
       rethrow;
     }
   }
 
-  /// Sanitizes a filename by removing extension and cleaning up special characters
-  String _sanitizeFilename(String fileName) {
-    // Remove extension
-    final nameWithoutExt = fileName.substring(0, fileName.lastIndexOf('.'));
-
-    // Remove common prefixes like track numbers (01-, 001-, etc.)
-    final cleaned = nameWithoutExt.replaceAll(RegExp(r'^\d+[-_]\s*'), '').trim();
-
-    return cleaned;
+  /// Checks whether a file is accessible and readable.
+  Future<bool> isFileAccessible(String filePath) async {
+    try {
+      final file = File(filePath);
+      if (!await file.exists()) return false;
+      final stat = await file.stat();
+      return stat.type == FileSystemEntityType.file;
+    } catch (e) {
+      debugPrint('File access check failed for $filePath: $e');
+      return false;
+    }
   }
 
-  /// Attempts to extract author and title from filename patterns like "Author - Title.mp3"
-  ({String title, String author}) _extractInfoFromFilename(String fileName) {
-    final nameWithoutExt = fileName.substring(0, fileName.lastIndexOf('.'));
-    final parts = nameWithoutExt.split(' - ');
+  /// Generates a stable ID for a single audio file.
+  String generateFileId(String filePath) => filePath.hashCode.abs().toString();
 
-    if (parts.length >= 2) {
-      return (
-        author: parts[0].trim(),
-        title: parts.sublist(1).join(' - ').trim(),
-      );
+  /// Generates a stable ID for a directory-level audiobook.
+  String generateDirectoryId(String directoryPath) =>
+      'dir_${directoryPath.hashCode.abs()}';
+
+  // ---------------------------------------------------------------------------
+  // Private helpers
+  // ---------------------------------------------------------------------------
+
+  /// Estimates duration from file size using a typical 128 kbps bitrate.
+  /// Never reads file content — uses the size from FileStat.
+  Duration _estimateDurationFromSize(int bytes) {
+    final seconds = bytes ~/ _estimatedBytesPerSecond;
+    return Duration(seconds: seconds.clamp(1, 1000000));
+  }
+
+  /// Extracts duration for a single file using just_audio on mobile,
+  /// or size-based estimation on desktop/web.
+  Future<Duration> _extractFileDuration(String filePath, int fileSize) async {
+    if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+      try {
+        final player = AudioPlayer();
+        try {
+          await player.setFilePath(filePath);
+          return player.duration ?? _estimateDurationFromSize(fileSize);
+        } finally {
+          await player.dispose();
+        }
+      } catch (_) {
+        return _estimateDurationFromSize(fileSize);
+      }
     }
+    return _estimateDurationFromSize(fileSize);
+  }
 
+  /// Searches the given directory for common cover art filenames.
+  Future<String?> _findCoverArtInDirectory(String directoryPath) async {
+    if (kIsWeb) return null;
+    final candidates = [
+      'cover.jpg', 'cover.jpeg', 'cover.png',
+      'folder.jpg', 'folder.jpeg', 'folder.png',
+      'album.jpg', 'album.jpeg', 'album.png',
+      'artwork.jpg', 'artwork.png',
+    ];
+    for (final name in candidates) {
+      final file = File(path.join(directoryPath, name));
+      if (await file.exists()) return file.path;
+    }
+    return null;
+  }
+
+  /// Strips extension, removes leading track numbers, and trims whitespace.
+  String _sanitizeFilename(String fileName) {
+    final nameWithoutExt = path.basenameWithoutExtension(fileName);
+    return nameWithoutExt.replaceAll(RegExp(r'^\d+[-_.\s]+'), '').trim();
+  }
+
+  /// Tries to parse "Author - Title.ext" filename patterns.
+  ({String title, String author}) _extractInfoFromFilename(String fileName) {
+    final nameWithoutExt = path.basenameWithoutExtension(fileName);
+    final parts = nameWithoutExt.split(' - ');
+    if (parts.length >= 2) {
+      return (author: parts[0].trim(), title: parts.sublist(1).join(' - ').trim());
+    }
     return (author: '', title: _sanitizeFilename(fileName));
   }
 
-  /// Generates a unique ID based on file path
-  String _generateId(String filePath) {
-    // Use a simple hash of the file path to generate a unique ID
-    // In production, this should use a proper hashing function
-    return filePath.hashCode.toString();
+  /// Derives a clean chapter title from a file path.
+  String _extractChapterTitle(String filePath) {
+    return _sanitizeFilename(path.basename(filePath));
   }
 
-  /// Extracts chapter information from m4b files
+  /// Cleans a directory name for use as an audiobook title.
+  String _cleanDirectoryName(String dirName) {
+    return dirName
+        .replaceAll(RegExp(r'[_\-]+'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
+  /// Natural sort comparator for filenames: "02 - Title" < "10 - Title".
+  int _naturalFileSort(String a, String b) {
+    final nameA = path.basename(a).toLowerCase();
+    final nameB = path.basename(b).toLowerCase();
+
+    // Extract leading number sequences for numeric comparison.
+    final numA = RegExp(r'^(\d+)').firstMatch(nameA)?.group(1);
+    final numB = RegExp(r'^(\d+)').firstMatch(nameB)?.group(1);
+
+    if (numA != null && numB != null) {
+      final diff = int.parse(numA) - int.parse(numB);
+      if (diff != 0) return diff;
+    }
+
+    return nameA.compareTo(nameB);
+  }
+
+  /// Placeholder for M4B chapter extraction (requires a dedicated library).
   Future<List<Chapter>> _extractChaptersFromM4b(
     String filePath,
     Duration duration,
   ) async {
-    // TODO: proper M4B chapter parsing using specialized library
-    // For now, dummy full book chapter
-    if (duration.inSeconds <= 0) return <Chapter>[];
+    if (duration.inSeconds <= 0) return [];
     return [
       Chapter(
-        id: '${_generateId(filePath)}_full',
+        id: '${generateFileId(filePath)}_full',
         title: path.basenameWithoutExtension(filePath),
         startTime: Duration.zero,
         endTime: duration,
+        filePath: filePath,
       ),
     ];
-  }
-
-  /// Extracts cover art from audio file if available
-  /// Returns path/identifier for cover art display, or null if none found
-  ///
-  /// Note: This is a placeholder implementation. A full implementation would require
-  /// platform-specific code and libraries for ID3 tag extraction (e.g., audio_metadata).
-  /// For now, returns null to use default placeholders in the UI.
-  ///
-  /// Future enhancements:
-  /// 1. Add audio_metadata package for proper ID3 extraction on mobile
-  /// 2. Implement fallback library for desktop platforms
-  /// 3. Allow users to manually upload cover art in settings
-  Future<String?> _extractCoverArt(String filePath) async {
-    try {
-      // For web, we cannot extract cover art due to browser security restrictions
-      if (kIsWeb) {
-        print('[MetadataExtractionDatasource] Web platform: cover art extraction not supported');
-        return null;
-      }
-
-      final fileName = path.basename(filePath);
-      final fileExtension = path.extension(filePath).toLowerCase();
-
-      // Log supported file types for future implementation
-      if (fileExtension == '.mp3' || fileExtension == '.m4a' || fileExtension == '.m4b') {
-        print('[MetadataExtractionDatasource] File type supports cover art: $fileExtension');
-        // TODO: Implement ID3 tag extraction when audio_metadata package is added
-        // For now, return null to use placeholder in UI
-      }
-
-      // Return null - UI will use placeholder icon based on audiobook data
-      // This allows for graceful enhancement in the future
-      return null;
-    } catch (e) {
-      print('[MetadataExtractionDatasource] Error extracting cover art from $filePath: $e');
-      return null;
-    }
-  }
-
-  /// Validates if a file is accessible and readable
-  Future<bool> isFileAccessible(String filePath) async {
-    try {
-      final file = File(filePath);
-      if (!await file.exists()) {
-        return false;
-      }
-
-      final fileStat = await file.stat();
-      return fileStat.type == FileSystemEntityType.file;
-    } catch (e) {
-      print('File access check failed for $filePath: $e');
-      return false;
-    }
   }
 }

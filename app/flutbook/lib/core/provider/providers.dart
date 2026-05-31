@@ -48,6 +48,8 @@ import 'package:flutbook/features/player/domain/usecases/get_bookmarks_usecase.d
 import 'package:flutbook/features/player/domain/usecases/manage_queue_usecase.dart';
 import 'package:flutbook/features/settings/data/datasources/preferences_datasource.dart';
 import 'package:flutbook/features/sync/data/datasources/offline_queue_local_ds.dart';
+import 'package:flutbook/features/sync/presentation/providers/conflict_resolver_provider.dart'
+    show conflictResolverDatasourceProvider;
 import 'package:flutbook/features/sync/data/datasources/supabase_backup_datasource.dart';
 import 'package:flutbook/features/sync/data/datasources/supabase_reading_list_datasource.dart';
 import 'package:flutbook/features/sync/data/repositories/backup_repository_impl.dart';
@@ -1040,10 +1042,12 @@ final librarySyncRepositoryProvider = FutureProvider<LibrarySyncRepositoryImpl>(
       audiobookLocalDatasourceProvider.future,
     );
     final remoteDatasource = ref.watch(libraryRemoteDatasourceProvider);
+    final conflictDatasource = ref.watch(conflictResolverDatasourceProvider);
 
     return LibrarySyncRepositoryImpl(
       localDatasource: localDatasource,
       remoteDatasource: remoteDatasource,
+      conflictDatasource: conflictDatasource,
     );
   },
 );
@@ -1099,10 +1103,12 @@ final playbackSyncRepositoryProvider = FutureProvider<PlaybackSyncRepositoryImpl
       playbackLocalDatasourceProvider.future,
     );
     final remoteDatasource = ref.watch(playbackRemoteDatasourceProvider);
+    final conflictDatasource = ref.watch(conflictResolverDatasourceProvider);
 
     return PlaybackSyncRepositoryImpl(
       localDatasource: localDatasource,
       remoteDatasource: remoteDatasource,
+      conflictDatasource: conflictDatasource,
     );
   },
 );

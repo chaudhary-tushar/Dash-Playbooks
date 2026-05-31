@@ -2206,13 +2206,18 @@ const ChapterModelSchema = Schema(
       name: r'endTimeInMs',
       type: IsarType.long,
     ),
-    r'id': PropertySchema(id: 1, name: r'id', type: IsarType.string),
+    r'filePath': PropertySchema(
+      id: 1,
+      name: r'filePath',
+      type: IsarType.string,
+    ),
+    r'id': PropertySchema(id: 2, name: r'id', type: IsarType.string),
     r'startTimeInMs': PropertySchema(
-      id: 2,
+      id: 3,
       name: r'startTimeInMs',
       type: IsarType.long,
     ),
-    r'title': PropertySchema(id: 3, name: r'title', type: IsarType.string),
+    r'title': PropertySchema(id: 4, name: r'title', type: IsarType.string),
   },
 
   estimateSize: _chapterModelEstimateSize,
@@ -2227,6 +2232,12 @@ int _chapterModelEstimateSize(
   Map<Type, List<int>> allOffsets,
 ) {
   var bytesCount = offsets.last;
+  {
+    final value = object.filePath;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
   bytesCount += 3 + object.id.length * 3;
   bytesCount += 3 + object.title.length * 3;
   return bytesCount;
@@ -2239,9 +2250,10 @@ void _chapterModelSerialize(
   Map<Type, List<int>> allOffsets,
 ) {
   writer.writeLong(offsets[0], object.endTimeInMs);
-  writer.writeString(offsets[1], object.id);
-  writer.writeLong(offsets[2], object.startTimeInMs);
-  writer.writeString(offsets[3], object.title);
+  writer.writeString(offsets[1], object.filePath);
+  writer.writeString(offsets[2], object.id);
+  writer.writeLong(offsets[3], object.startTimeInMs);
+  writer.writeString(offsets[4], object.title);
 }
 
 ChapterModel _chapterModelDeserialize(
@@ -2252,9 +2264,10 @@ ChapterModel _chapterModelDeserialize(
 ) {
   final object = ChapterModel(
     endTimeInMs: reader.readLongOrNull(offsets[0]) ?? 0,
-    id: reader.readStringOrNull(offsets[1]) ?? '',
-    startTimeInMs: reader.readLongOrNull(offsets[2]) ?? 0,
-    title: reader.readStringOrNull(offsets[3]) ?? '',
+    filePath: reader.readStringOrNull(offsets[1]),
+    id: reader.readStringOrNull(offsets[2]) ?? '',
+    startTimeInMs: reader.readLongOrNull(offsets[3]) ?? 0,
+    title: reader.readStringOrNull(offsets[4]) ?? '',
   );
   return object;
 }
@@ -2269,10 +2282,12 @@ P _chapterModelDeserializeProp<P>(
     case 0:
       return (reader.readLongOrNull(offset) ?? 0) as P;
     case 1:
-      return (reader.readStringOrNull(offset) ?? '') as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 2:
-      return (reader.readLongOrNull(offset) ?? 0) as P;
+      return (reader.readStringOrNull(offset) ?? '') as P;
     case 3:
+      return (reader.readLongOrNull(offset) ?? 0) as P;
+    case 4:
       return (reader.readStringOrNull(offset) ?? '') as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -2332,6 +2347,165 @@ extension ChapterModelQueryFilter
           upper: upper,
           includeUpper: includeUpper,
         ),
+      );
+    });
+  }
+
+  QueryBuilder<ChapterModel, ChapterModel, QAfterFilterCondition>
+  filePathIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNull(property: r'filePath'),
+      );
+    });
+  }
+
+  QueryBuilder<ChapterModel, ChapterModel, QAfterFilterCondition>
+  filePathIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNotNull(property: r'filePath'),
+      );
+    });
+  }
+
+  QueryBuilder<ChapterModel, ChapterModel, QAfterFilterCondition>
+  filePathEqualTo(String? value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'filePath',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<ChapterModel, ChapterModel, QAfterFilterCondition>
+  filePathGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'filePath',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<ChapterModel, ChapterModel, QAfterFilterCondition>
+  filePathLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'filePath',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<ChapterModel, ChapterModel, QAfterFilterCondition>
+  filePathBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'filePath',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<ChapterModel, ChapterModel, QAfterFilterCondition>
+  filePathStartsWith(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'filePath',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<ChapterModel, ChapterModel, QAfterFilterCondition>
+  filePathEndsWith(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'filePath',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<ChapterModel, ChapterModel, QAfterFilterCondition>
+  filePathContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'filePath',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<ChapterModel, ChapterModel, QAfterFilterCondition>
+  filePathMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'filePath',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<ChapterModel, ChapterModel, QAfterFilterCondition>
+  filePathIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'filePath', value: ''),
+      );
+    });
+  }
+
+  QueryBuilder<ChapterModel, ChapterModel, QAfterFilterCondition>
+  filePathIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'filePath', value: ''),
       );
     });
   }

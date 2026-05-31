@@ -301,6 +301,7 @@ class PlaybackRepositoryImpl implements PlaybackRepository {
 
   /// Marks an audiobook as being read (in-progress) by updating its lastPlayedAt
   /// This is called when playback starts to make the book appear in the "Reading" list
+  @override
   Future<void> markAudiobookAsInProgress(String audiobookId) async {
     try {
       if (_shouldDegradeGracefully) {
@@ -314,7 +315,7 @@ class PlaybackRepositoryImpl implements PlaybackRepository {
       if (session != null) {
         // Update the session's lastPlayedAt to now
         final updatedSession = session.copyWith(lastPlayedAt: DateTime.now());
-        await _localDatasource!.savePlaybackSession(updatedSession);
+        await _localDatasource.savePlaybackSession(updatedSession);
         print('[PlaybackRepository] Marked audiobook $audiobookId as in-progress');
       }
     } catch (e) {

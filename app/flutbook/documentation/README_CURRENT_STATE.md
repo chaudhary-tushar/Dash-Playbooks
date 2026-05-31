@@ -61,6 +61,14 @@ Flutbook is a cross-platform audiobook player application built with Flutter. It
 - ✅ Complete: Sync status UI and indicators
 - ✅ Complete: Last-write-wins conflict resolution
 - ✅ Complete: Offline-first approach with auto-sync when online
+- ✅ Complete: Conflict resolution system (Task 7.6)
+  - Conflict model with entity types, strategies, and status tracking
+  - Real-time conflict recording wired into library and playback sync repos
+  - Manual conflict resolution UI with side-by-side comparison
+  - Conflict history view (pending + resolved)
+  - Compact notification badge widget for AppBars
+  - Conflict section added to SyncSettingsView
+  - Auto-resolve all (last-write-wins) with one tap
 
 ## Technical Architecture
 
@@ -106,9 +114,10 @@ lib/
 
 ## Current Status
 
-### MVP Completion: 73%
+### MVP Completion: 80%
 - ✅ 24 of 33 MVP tasks completed
 - ✅ Post-MVP Phase 6: 4 of 6 tasks completed (Bookmarks, Chapter-Based Bookmarks, Multiple Playback Queues, Up Next/Recently Played)
+- ✅ Post-MVP Phase 7: 6/6 tasks COMPLETE (Supabase Sync + Conflict Resolution)
 - ✅ No build errors
 - ✅ Test coverage above 80%
 - ✅ Working on Android, iOS, and Web

@@ -8,7 +8,10 @@ import 'package:flutbook/core/error/exceptions.dart';
 import 'package:flutbook/features/player/data/datasources/playback_local_ds.dart';
 import 'package:flutbook/features/player/data/datasources/remote/supabase_playback_sync.dart';
 import 'package:flutbook/features/player/domain/entities/playback_session.dart';
+import 'package:flutbook/features/sync/data/datasources/conflict_resolver_ds.dart';
+import 'package:flutbook/features/sync/data/models/conflict_model.dart';
 import 'package:flutbook/features/sync/domain/repositories/playback_sync_repository.dart';
+import 'package:uuid/uuid.dart';
 
 /// Implementation of [PlaybackSyncRepository].
 ///
@@ -22,11 +25,15 @@ class PlaybackSyncRepositoryImpl implements PlaybackSyncRepository {
   PlaybackSyncRepositoryImpl({
     required PlaybackLocalDatasource localDatasource,
     required SupabasePlaybackDatasource remoteDatasource,
+    ConflictResolverDatasource? conflictDatasource,
   })  : _localDatasource = localDatasource,
-        _remoteDatasource = remoteDatasource;
+        _remoteDatasource = remoteDatasource,
+        _conflictDs = conflictDatasource;
 
   final PlaybackLocalDatasource _localDatasource;
   final SupabasePlaybackDatasource _remoteDatasource;
+  final ConflictResolverDatasource? _conflictDs;
+  final _uuid = const Uuid();
 
   @override
   Future<PlaybackSyncResult> syncPlaybackPositions() async {
@@ -58,7 +65,16 @@ class PlaybackSyncRepositoryImpl implements PlaybackSyncRepository {
             await _remoteDatasource.uploadPlaybackSession(localSession);
             uploadedCount++;
           } else {
-            // Session exists in both - check for conflicts
+            // Session exists in both — record conflict then auto-resolve (LWW)
+            if (localSession.lastPlayedAt != remoteSession.lastPlayedAt) {
+              await _recordConflict(
+                entityId: localSession.audiobookId,
+                localTimestamp: localSession.lastPlayedAt,
+                remoteTimestamp: remoteSession.lastPlayedAt,
+                localPositionMs: localSession.currentPosition.inMilliseconds,
+                remotePositionMs: remoteSession.currentPosition.inMilliseconds,
+              );
+            }
             if (localSession.lastPlayedAt.isAfter(remoteSession.lastPlayedAt)) {
               // Local is newer - upload to remote with conflict resolution
               await uploadWithConflictResolution(localSession);
@@ -169,6 +185,35 @@ class PlaybackSyncRepositoryImpl implements PlaybackSyncRepository {
   Future<DateTime?> getLastSyncTime() async {
     // TODO: Implement sync timestamp tracking
     return null;
+  }
+
+  Future<void> _recordConflict({
+    required String entityId,
+    required DateTime localTimestamp,
+    required DateTime remoteTimestamp,
+    required int localPositionMs,
+    required int remotePositionMs,
+  }) async {
+    if (_conflictDs == null) return;
+    final conflict = SyncConflict(
+      id: _uuid.v4(),
+      entityType: ConflictEntityType.playback,
+      entityId: entityId,
+      entityTitle: 'Playback: $entityId',
+      localData: {
+        'audiobookId': entityId,
+        'positionMs': localPositionMs,
+        'lastPlayedAt': localTimestamp.toIso8601String(),
+      },
+      remoteData: {
+        'audiobookId': entityId,
+        'positionMs': remotePositionMs,
+        'lastPlayedAt': remoteTimestamp.toIso8601String(),
+      },
+      localTimestamp: localTimestamp,
+      remoteTimestamp: remoteTimestamp,
+    );
+    await _conflictDs.saveConflict(conflict);
   }
 
   @override

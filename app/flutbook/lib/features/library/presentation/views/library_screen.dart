@@ -11,44 +11,69 @@ import 'package:flutbook/features/library/presentation/widgets/audiobook_group_c
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-// Simple state management for group expansion
+// ---------------------------------------------------------------------------
+// Group expansion state (static, survives rebuilds within a session)
+// ---------------------------------------------------------------------------
+
 class GroupExpansionManager {
   static final Map<String, bool> _expandedStates = {};
 
-  static bool isExpanded(String groupKey) {
-    return _expandedStates[groupKey] ?? false;
-  }
+  static bool isExpanded(String groupKey) => _expandedStates[groupKey] ?? false;
 
   static void toggle(String groupKey) {
     _expandedStates[groupKey] = !(_expandedStates[groupKey] ?? false);
   }
 
-  static void reset() {
-    _expandedStates.clear();
-  }
+  static void reset() => _expandedStates.clear();
 }
 
-// SliverRefreshControl is available in the material package
+// ---------------------------------------------------------------------------
+// Library screen
+// ---------------------------------------------------------------------------
 
-class LibraryScreen extends ConsumerWidget {
+class LibraryScreen extends ConsumerStatefulWidget {
   const LibraryScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Watch the library provider to get the current state
+  ConsumerState<LibraryScreen> createState() => _LibraryScreenState();
+}
+
+class _LibraryScreenState extends ConsumerState<LibraryScreen> {
+  late final TextEditingController _searchController;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final libraryState = ref.watch(libraryProvider);
     final libraryNotifier = ref.read(libraryProvider.notifier);
     final searchNotifier = ref.read(searchQueryProvider.notifier);
     final filteredAudiobooks = ref.watch(filteredAudiobooksProvider);
 
-    // Get current filter and sort settings from state
     final currentFilter = libraryState.filter ?? const AudiobookFilter();
     final currentSortBy = libraryState.sortBy ?? 'recent';
     final currentSearchQuery = ref.watch(searchQueryProvider);
-
-    // Get current filter status
     final currentStatusFilter = currentFilter.statusFilter;
     final currentViewType = libraryState.viewType;
+
+    // Keep controller text in sync when the search state is cleared externally
+    // (e.g. filter reset), but avoid fighting the user while they type.
+    if (currentSearchQuery.isEmpty && _searchController.text.isNotEmpty) {
+      // Schedule after build to avoid setState-during-build errors.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _searchController.clear();
+      });
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -70,24 +95,21 @@ class LibraryScreen extends ConsumerWidget {
             icon: Icon(
               libraryState.groupingEnabled ? Icons.folder_special : Icons.folder,
             ),
-            onPressed: () async {
-              await libraryNotifier.toggleGrouping();
-            },
+            onPressed: () => unawaited(libraryNotifier.toggleGrouping()),
             tooltip: libraryState.groupingEnabled ? 'Disable Grouping' : 'Enable Grouping',
           ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.filter_list),
             onSelected: (value) {
               if (value == 'refresh') {
-                GroupExpansionManager.reset(); // Reset expansion states on refresh
+                GroupExpansionManager.reset();
                 unawaited(libraryNotifier.refreshLibrary());
               } else if (value == 'settings') {
-                // Navigate to settings
                 unawaited(Navigator.pushNamed(context, '/settings'));
               }
             },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
+            itemBuilder: (context) => const [
+              PopupMenuItem(
                 value: 'refresh',
                 child: Row(
                   children: [
@@ -97,7 +119,7 @@ class LibraryScreen extends ConsumerWidget {
                   ],
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'settings',
                 child: Row(
                   children: [
@@ -113,10 +135,10 @@ class LibraryScreen extends ConsumerWidget {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          GroupExpansionManager.reset(); // Reset expansion states on refresh
+          GroupExpansionManager.reset();
           await libraryNotifier.refreshLibrary();
         },
-        child: _buildLibraryBody(
+        child: _buildBody(
           context,
           libraryState,
           libraryNotifier,
@@ -131,8 +153,7 @@ class LibraryScreen extends ConsumerWidget {
     );
   }
 
-  // Helper method to build the main body of the library screen
-  Widget _buildLibraryBody(
+  Widget _buildBody(
     BuildContext context,
     LibraryState libraryState,
     LibraryNotifier libraryNotifier,
@@ -143,10 +164,9 @@ class LibraryScreen extends ConsumerWidget {
     String currentViewType,
     SearchQueryNotifier searchNotifier,
   ) {
-    // Use a CustomScrollView to allow scrolling of the entire content
     return CustomScrollView(
       slivers: [
-        // Filter section as a sliver
+        // ---- Filter / sort / search card ----
         SliverToBoxAdapter(
           child: Card(
             margin: const EdgeInsets.all(16),
@@ -154,15 +174,17 @@ class LibraryScreen extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  // Search bar
+                  // Search bar — controller is owned by State, no leak.
                   TextField(
+                    controller: _searchController,
                     decoration: InputDecoration(
-                      hintText: 'Search audiobooks...',
+                      hintText: 'Search audiobooks…',
                       prefixIcon: const Icon(Icons.search),
                       suffixIcon: currentSearchQuery.isNotEmpty
                           ? IconButton(
                               icon: const Icon(Icons.clear),
                               onPressed: () {
+                                _searchController.clear();
                                 searchNotifier.updateSearchQuery('');
                               },
                             )
@@ -171,94 +193,49 @@ class LibraryScreen extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    controller: TextEditingController(text: currentSearchQuery),
                     onChanged: searchNotifier.updateSearchQuery,
                   ),
 
                   const SizedBox(height: 16),
 
-                  // Filter buttons: All/Reading/Completed/Wishlist
+                  // Status filter buttons
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _buildFilterButton(
-                        context,
-                        'All',
-                        'all',
-                        currentStatusFilter,
-                        libraryNotifier,
-                      ),
-                      _buildFilterButton(
-                        context,
-                        'Reading',
-                        'reading',
-                        currentStatusFilter,
-                        libraryNotifier,
-                      ),
-                      _buildFilterButton(
-                        context,
-                        'Completed',
-                        'completed',
-                        currentStatusFilter,
-                        libraryNotifier,
-                      ),
-                      _buildFilterButton(
-                        context,
-                        'Wishlist',
-                        'wishlist',
-                        currentStatusFilter,
-                        libraryNotifier,
-                      ),
+                      _filterBtn(context, 'All', 'all', currentStatusFilter, libraryNotifier),
+                      _filterBtn(context, 'Reading', 'reading', currentStatusFilter, libraryNotifier),
+                      _filterBtn(context, 'Completed', 'completed', currentStatusFilter, libraryNotifier),
+                      _filterBtn(context, 'Wishlist', 'wishlist', currentStatusFilter, libraryNotifier),
                     ],
                   ),
 
                   const SizedBox(height: 16),
 
-                  // Sort dropdown and view toggle row
+                  // Sort + view-type row
                   Row(
                     children: [
-                      // Sort dropdown
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          initialValue: _mapSortValueToUi(currentSortBy),
+                          initialValue: _mapSortToUi(currentSortBy),
                           decoration: InputDecoration(
                             labelText: 'Sort by',
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                           ),
                           items: const [
-                            DropdownMenuItem(
-                              value: 'name',
-                              child: Text('Name'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'date',
-                              child: Text('Date Added'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'progress',
-                              child: Text('Progress'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'length',
-                              child: Text('Duration'),
-                            ),
+                            DropdownMenuItem(value: 'name', child: Text('Name')),
+                            DropdownMenuItem(value: 'date', child: Text('Date Added')),
+                            DropdownMenuItem(value: 'progress', child: Text('Progress')),
+                            DropdownMenuItem(value: 'length', child: Text('Duration')),
                           ],
                           onChanged: (value) {
-                            if (value != null) {
-                              libraryNotifier.updateSorting(value);
-                            }
+                            if (value != null) libraryNotifier.updateSorting(value);
                           },
                         ),
                       ),
-
                       const SizedBox(width: 8),
-
-                      // Sort order toggle (ascending/descending)
                       Tooltip(
                         message: libraryState.sortAscending ? 'Ascending' : 'Descending',
                         child: OutlinedButton(
@@ -272,33 +249,22 @@ class LibraryScreen extends ConsumerWidget {
                             padding: const EdgeInsets.symmetric(horizontal: 12),
                           ),
                           child: Icon(
-                            libraryState.sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                            libraryState.sortAscending
+                                ? Icons.arrow_upward
+                                : Icons.arrow_downward,
                             size: 20,
                           ),
                         ),
                       ),
-
                       const SizedBox(width: 8),
-
-                      // View toggle: Grid/List
                       SegmentedButton<String>(
                         segments: const [
-                          ButtonSegment(
-                            value: 'list',
-                            icon: Icon(Icons.list),
-                            label: Text('List'),
-                          ),
-                          ButtonSegment(
-                            value: 'grid',
-                            icon: Icon(Icons.grid_view),
-                            label: Text('Grid'),
-                          ),
+                          ButtonSegment(value: 'list', icon: Icon(Icons.list), label: Text('List')),
+                          ButtonSegment(value: 'grid', icon: Icon(Icons.grid_view), label: Text('Grid')),
                         ],
                         selected: {currentViewType},
-                        onSelectionChanged: (Set<String> newSelection) {
-                          if (newSelection.isNotEmpty) {
-                            libraryNotifier.updateViewType(newSelection.first);
-                          }
+                        onSelectionChanged: (sel) {
+                          if (sel.isNotEmpty) libraryNotifier.updateViewType(sel.first);
                         },
                       ),
                     ],
@@ -309,9 +275,8 @@ class LibraryScreen extends ConsumerWidget {
           ),
         ),
 
-        // Conditionally show loading indicator at top when refreshing with existing data
+        // ---- Loading indicator (refresh with existing data) ----
         if (libraryState.isLoading && libraryState.audiobooks.isNotEmpty)
-          // Show loading indicator at top when refreshing with existing data
           const SliverToBoxAdapter(
             child: Padding(
               padding: EdgeInsets.only(top: 16, right: 16),
@@ -325,206 +290,205 @@ class LibraryScreen extends ConsumerWidget {
               ),
             ),
           ),
-        if (libraryState.isLoading && libraryState.audiobooks.isEmpty)
-          // Loading state
-          const SliverFillRemaining(
-            child: Center(
-              child: CircularProgressIndicator(),
-            ),
-          )
-        else if (libraryState.errorMessage != null)
-          // Error state
-          SliverFillRemaining(
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.error_outline,
-                    size: 80,
-                    color: Theme.of(context).colorScheme.error,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Error loading library',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    libraryState.errorMessage!,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () => libraryNotifier.refreshLibrary(),
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
-            ),
-          )
-        else if (filteredAudiobooks.isEmpty)
-          // Empty state
-          SliverFillRemaining(
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.library_books_outlined,
-                    size: 80,
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withAlpha(100),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    currentSearchQuery.isNotEmpty
-                        ? 'No audiobooks match your search'
-                        : 'No audiobooks in your library',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.onSurface.withAlpha(150),
-                    ),
-                  ),
-                  if (currentSearchQuery.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                        'Use the directory selector to add audiobooks',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          )
-        else if (libraryState.groupingEnabled && libraryState.audiobookGroups.isNotEmpty)
-          // Grouped audiobook display
-          SliverList(
-            delegate: SliverChildBuilderDelegate(
-              childCount: libraryState.audiobookGroups.length,
-              (context, index) {
-                return Consumer(
-                  builder: (context, ref, child) {
-                    final group = libraryState.audiobookGroups[index];
-                    final isExpanded = GroupExpansionManager.isExpanded(
-                      group.groupKey,
-                    );
 
-                    return AudiobookGroupCard(
-                      group: group,
-                      isExpanded: isExpanded,
-                      onTap: () {
-                        // Navigate to the first audiobook in the group
-                        if (group.audiobooks.isNotEmpty) {
-                          unawaited(
-                            Navigator.pushNamed(
-                              context,
-                              '/playback',
-                              arguments: group.audiobooks.first,
-                            ),
-                          );
-                        }
-                      },
-                      onExpand: () => GroupExpansionManager.toggle(group.groupKey),
-                    );
-                  },
-                );
-              },
-            ),
-          )
+        // ---- Main content area ----
+        if (libraryState.isLoading && libraryState.audiobooks.isEmpty)
+          const SliverFillRemaining(child: Center(child: CircularProgressIndicator()))
+        else if (libraryState.errorMessage != null)
+          _errorState(context, libraryState.errorMessage!, libraryNotifier)
+        else if (filteredAudiobooks.isEmpty)
+          _emptyState(context, currentSearchQuery)
+        else if (libraryState.groupingEnabled && libraryState.audiobookGroups.isNotEmpty)
+          _groupedList(context, libraryState)
         else if (currentViewType == 'list')
-          // Audiobook list content
-          SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                final audiobook = filteredAudiobooks[index];
-                return AudiobookCard(
-                  title: audiobook.title,
-                  author: audiobook.author,
-                  coverArtPath: audiobook.coverArtPath,
-                  duration: audiobook.duration,
-                  isCompleted: audiobook.completed,
-                  progress: audiobook.lastPlayedAt != null && audiobook.duration.inSeconds > 0
-                      ? (audiobook.currentPosition.inSeconds / audiobook.duration.inSeconds).clamp(
-                          0.0,
-                          1.0,
-                        )
-                      : null,
-                  onTap: () {
-                    // Navigate to playback screen
-                    unawaited(
-                      Navigator.pushNamed(
-                        context,
-                        '/playback',
-                        arguments: audiobook,
-                      ),
-                    );
-                  },
-                  audiobook: audiobook, // Pass audiobook for validation
-                );
-              },
-              childCount: filteredAudiobooks.length,
-            ),
-          )
+          _flatList(context, filteredAudiobooks)
         else
-          // Grid view using SliverGrid (default case)
-          SliverGrid(
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              childAspectRatio: 0.7,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-            ),
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                final audiobook = filteredAudiobooks[index];
-                return AudiobookCard(
-                  title: audiobook.title,
-                  author: audiobook.author,
-                  coverArtPath: audiobook.coverArtPath,
-                  duration: audiobook.duration,
-                  isCompleted: audiobook.completed,
-                  progress: audiobook.lastPlayedAt != null && audiobook.duration.inSeconds > 0
-                      ? (audiobook.currentPosition.inSeconds / audiobook.duration.inSeconds).clamp(
-                          0.0,
-                          1.0,
-                        )
-                      : null,
-                  onTap: () {
-                    // Navigate to playback screen
-                    unawaited(
-                      Navigator.pushNamed(
-                        context,
-                        '/playback',
-                        arguments: audiobook,
-                      ),
-                    );
-                  },
-                  audiobook: audiobook, // Pass audiobook for validation
-                );
-              },
-              childCount: filteredAudiobooks.length,
-            ),
-          ),
+          _gridView(context, filteredAudiobooks),
       ],
     );
   }
 
-  // Helper method to map backend sort values to UI values
-  String _mapSortValueToUi(String? sortValue) {
-    if (sortValue == null) return 'name';
+  // ---------------------------------------------------------------------------
+  // Content slivers
+  // ---------------------------------------------------------------------------
 
-    // Map backend values to UI values
+  SliverFillRemaining _errorState(
+    BuildContext context,
+    String message,
+    LibraryNotifier notifier,
+  ) {
+    return SliverFillRemaining(
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 80, color: Theme.of(context).colorScheme.error),
+            const SizedBox(height: 16),
+            Text(
+              'Error loading library',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => unawaited(notifier.refreshLibrary()),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  SliverFillRemaining _emptyState(BuildContext context, String searchQuery) {
+    return SliverFillRemaining(
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.library_books_outlined,
+              size: 80,
+              color: Theme.of(context).colorScheme.onSurface.withAlpha(100),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              searchQuery.isNotEmpty
+                  ? 'No audiobooks match your search'
+                  : 'No audiobooks in your library',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface.withAlpha(150),
+                  ),
+            ),
+            if (searchQuery.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  'Use the directory selector to add audiobooks',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  SliverList _groupedList(BuildContext context, LibraryState libraryState) {
+    return SliverList(
+      delegate: SliverChildBuilderDelegate(
+        childCount: libraryState.audiobookGroups.length,
+        (context, index) {
+          final group = libraryState.audiobookGroups[index];
+          final isExpanded = GroupExpansionManager.isExpanded(group.groupKey);
+          return AudiobookGroupCard(
+            group: group,
+            isExpanded: isExpanded,
+            onTap: () {
+              if (group.audiobooks.isNotEmpty) {
+                unawaited(
+                  Navigator.pushNamed(
+                    context,
+                    '/playback',
+                    arguments: group.audiobooks.first,
+                  ),
+                );
+              }
+            },
+            onExpand: () {
+              // setState triggers a rebuild so the expand/collapse icon updates.
+              setState(() => GroupExpansionManager.toggle(group.groupKey));
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  SliverList _flatList(BuildContext context, List<Audiobook> audiobooks) {
+    return SliverList(
+      delegate: SliverChildBuilderDelegate(
+        childCount: audiobooks.length,
+        (context, index) => _audiobookCard(context, audiobooks[index]),
+      ),
+    );
+  }
+
+  SliverGrid _gridView(BuildContext context, List<Audiobook> audiobooks) {
+    return SliverGrid(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 0.7,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+      ),
+      delegate: SliverChildBuilderDelegate(
+        childCount: audiobooks.length,
+        (context, index) => _audiobookCard(context, audiobooks[index]),
+      ),
+    );
+  }
+
+  Widget _audiobookCard(BuildContext context, Audiobook audiobook) {
+    final progress = audiobook.lastPlayedAt != null && audiobook.duration.inSeconds > 0
+        ? (audiobook.currentPosition.inSeconds / audiobook.duration.inSeconds).clamp(0.0, 1.0)
+        : null;
+    return AudiobookCard(
+      title: audiobook.title,
+      author: audiobook.author,
+      coverArtPath: audiobook.coverArtPath,
+      duration: audiobook.duration,
+      isCompleted: audiobook.completed,
+      progress: progress,
+      audiobook: audiobook,
+      onTap: () => unawaited(
+        Navigator.pushNamed(context, '/playback', arguments: audiobook),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Small helpers
+  // ---------------------------------------------------------------------------
+
+  Widget _filterBtn(
+    BuildContext context,
+    String label,
+    String value,
+    String current,
+    LibraryNotifier notifier,
+  ) {
+    final active = current == value;
+    return Expanded(
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: active
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).colorScheme.surfaceContainerHighest,
+          foregroundColor: active
+              ? Theme.of(context).colorScheme.onPrimary
+              : Theme.of(context).colorScheme.onSurfaceVariant,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+        ),
+        onPressed: () => notifier.updateStatusFilter(value),
+        child: Text(label),
+      ),
+    );
+  }
+
+  String _mapSortToUi(String? sortValue) {
     switch (sortValue) {
       case 'title':
         return 'name';
@@ -536,113 +500,59 @@ class LibraryScreen extends ConsumerWidget {
       case 'length':
         return 'length';
       default:
-        return sortValue; // Return as-is if already a UI value
+        return sortValue ?? 'name';
     }
-  }
-
-  // Helper method to build filter buttons with visual feedback
-  Widget _buildFilterButton(
-    BuildContext context,
-    String label,
-    String filterValue,
-    String currentFilter,
-    LibraryNotifier notifier,
-  ) {
-    final isActive = currentFilter == filterValue;
-
-    return Expanded(
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: isActive
-              ? Theme.of(context).colorScheme.primary
-              : Theme.of(context).colorScheme.surfaceContainerHighest,
-          foregroundColor: isActive
-              ? Theme.of(context).colorScheme.onPrimary
-              : Theme.of(context).colorScheme.onSurfaceVariant,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-          padding: const EdgeInsets.symmetric(vertical: 12),
-        ),
-        onPressed: () {
-          notifier.updateStatusFilter(filterValue);
-        },
-        child: Text(label),
-      ),
-    );
   }
 }
 
-// Search delegate for audiobook search
+// ---------------------------------------------------------------------------
+// Search delegate
+// ---------------------------------------------------------------------------
+
 class _AudiobookSearchDelegate extends SearchDelegate<Audiobook> {
   _AudiobookSearchDelegate({required this.audiobooks});
 
   final List<Audiobook> audiobooks;
 
   @override
-  List<Widget> buildActions(BuildContext context) {
-    return [
-      IconButton(
-        icon: const Icon(Icons.clear),
-        onPressed: () {
-          query = '';
-        },
-      ),
-    ];
-  }
+  List<Widget> buildActions(BuildContext context) => [
+        IconButton(
+          icon: const Icon(Icons.clear),
+          onPressed: () => query = '',
+        ),
+      ];
 
   @override
-  Widget buildLeading(BuildContext context) {
-    return IconButton(
-      icon: const Icon(Icons.arrow_back),
-      onPressed: () {
-        close(context, Audiobook.empty());
-      },
-    );
-  }
+  Widget buildLeading(BuildContext context) => IconButton(
+        icon: const Icon(Icons.arrow_back),
+        onPressed: () => close(context, Audiobook.empty()),
+      );
 
   @override
-  Widget buildResults(BuildContext context) {
-    final results = audiobooks.where((book) {
-      return book.title.toLowerCase().contains(query.toLowerCase()) ||
-          book.author.toLowerCase().contains(query.toLowerCase());
-    }).toList();
+  Widget buildResults(BuildContext context) => _resultsList(context);
+
+  @override
+  Widget buildSuggestions(BuildContext context) => _resultsList(context);
+
+  Widget _resultsList(BuildContext context) {
+    final q = query.toLowerCase();
+    final results = q.isEmpty
+        ? audiobooks
+        : audiobooks
+            .where((b) =>
+                b.title.toLowerCase().contains(q) ||
+                b.author.toLowerCase().contains(q))
+            .toList();
 
     return ListView.builder(
       itemCount: results.length,
       itemBuilder: (context, index) {
-        final audiobook = results[index];
+        final book = results[index];
         return ListTile(
-          title: Text(audiobook.title),
-          subtitle: Text(audiobook.author),
-          onTap: () {
-            close(context, audiobook);
-          },
-        );
-      },
-    );
-  }
-
-  @override
-  Widget buildSuggestions(BuildContext context) {
-    final suggestions = query.isEmpty
-        ? audiobooks
-        : audiobooks.where((book) {
-            return book.title.toLowerCase().contains(query.toLowerCase()) ||
-                book.author.toLowerCase().contains(query.toLowerCase());
-          }).toList();
-
-    return ListView.builder(
-      itemCount: suggestions.length,
-      itemBuilder: (context, index) {
-        final audiobook = suggestions[index];
-        return ListTile(
-          title: Text(audiobook.title),
-          subtitle: Text(audiobook.author),
-          onTap: () {
-            query = audiobook.title;
-            close(context, audiobook);
-          },
+          leading: const Icon(Icons.audiotrack),
+          title: Text(book.title),
+          subtitle: Text(book.author.isEmpty ? 'Unknown author' : book.author),
+          onTap: () => close(context, book),
         );
       },
     );

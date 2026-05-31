@@ -9,7 +9,10 @@ import 'package:flutbook/features/library/data/datasources/audiobook_local_ds.da
 import 'package:flutbook/features/library/data/datasources/remote/supabase_library_sync.dart';
 import 'package:flutbook/features/library/data/models/audiobook_model.dart';
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
+import 'package:flutbook/features/sync/data/datasources/conflict_resolver_ds.dart';
+import 'package:flutbook/features/sync/data/models/conflict_model.dart';
 import 'package:flutbook/features/sync/domain/repositories/library_sync_repository.dart';
+import 'package:uuid/uuid.dart';
 
 /// Implementation of [LibrarySyncRepository].
 ///
@@ -23,11 +26,15 @@ class LibrarySyncRepositoryImpl implements LibrarySyncRepository {
   LibrarySyncRepositoryImpl({
     required AudiobookLocalDatasource localDatasource,
     required SupabaseLibraryDatasource remoteDatasource,
+    ConflictResolverDatasource? conflictDatasource,
   }) : _localDatasource = localDatasource,
-       _remoteDatasource = remoteDatasource;
+       _remoteDatasource = remoteDatasource,
+       _conflictDs = conflictDatasource;
 
   final AudiobookLocalDatasource _localDatasource;
   final SupabaseLibraryDatasource _remoteDatasource;
+  final ConflictResolverDatasource? _conflictDs;
+  final _uuid = const Uuid();
 
   @override
   Future<SyncResult> syncLibrary() async {
@@ -57,9 +64,20 @@ class LibrarySyncRepositoryImpl implements LibrarySyncRepository {
             );
             uploadedCount++;
           } else {
-            // Book exists in both - check for conflicts based on createdAt timestamp
+            // Book exists in both — record conflict then auto-resolve (LWW)
             final localTime = localBook.createdAt;
             final remoteTime = remoteBook.createdAt;
+
+            if (localTime != remoteTime) {
+              await _recordConflict(
+                entityId: localBook.id,
+                entityTitle: localBook.title,
+                localData: {'createdAt': localTime.toIso8601String(), 'title': localBook.title},
+                remoteData: {'createdAt': remoteTime.toIso8601String(), 'title': remoteBook.title},
+                localTimestamp: localTime,
+                remoteTimestamp: remoteTime,
+              );
+            }
 
             if (localTime.isAfter(remoteTime)) {
               // Local is newer - upload to remote
@@ -197,5 +215,27 @@ class LibrarySyncRepositoryImpl implements LibrarySyncRepository {
   Future<int> getPendingSyncCount() async {
     // TODO: Implement sync queue management
     return 0;
+  }
+
+  Future<void> _recordConflict({
+    required String entityId,
+    required String entityTitle,
+    required Map<String, dynamic> localData,
+    required Map<String, dynamic> remoteData,
+    required DateTime localTimestamp,
+    required DateTime remoteTimestamp,
+  }) async {
+    if (_conflictDs == null) return;
+    final conflict = SyncConflict(
+      id: _uuid.v4(),
+      entityType: ConflictEntityType.library,
+      entityId: entityId,
+      entityTitle: entityTitle,
+      localData: localData,
+      remoteData: remoteData,
+      localTimestamp: localTimestamp,
+      remoteTimestamp: remoteTimestamp,
+    );
+    await _conflictDs.saveConflict(conflict);
   }
 }
