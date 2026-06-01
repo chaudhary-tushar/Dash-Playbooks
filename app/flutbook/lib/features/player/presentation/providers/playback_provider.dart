@@ -3,7 +3,7 @@ import 'dart:async';
 
 import 'package:flutbook/core/error/exceptions.dart';
 import 'package:flutbook/core/provider/providers.dart'
-    show libraryRepositoryProvider, playbackRepositoryProvider, playbackLocalDatasourceProvider;
+    show libraryRepositoryProvider, playbackLocalDatasourceProvider, playbackRepositoryProvider;
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
 import 'package:flutbook/features/library/domain/repositories/library_repository.dart';
 import 'package:flutbook/features/player/data/datasources/audio_service_handler.dart';

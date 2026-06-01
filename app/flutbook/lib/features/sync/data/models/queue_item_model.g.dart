@@ -23,30 +23,35 @@ const QueueItemModelSchema = CollectionSchema(
       type: IsarType.dateTime,
     ),
     r'data': PropertySchema(id: 1, name: r'data', type: IsarType.string),
-    r'lastError': PropertySchema(
+    r'internalId': PropertySchema(
       id: 2,
+      name: r'internalId',
+      type: IsarType.string,
+    ),
+    r'lastError': PropertySchema(
+      id: 3,
       name: r'lastError',
       type: IsarType.string,
     ),
     r'operationType': PropertySchema(
-      id: 3,
+      id: 4,
       name: r'operationType',
       type: IsarType.string,
     ),
-    r'priority': PropertySchema(id: 4, name: r'priority', type: IsarType.long),
+    r'priority': PropertySchema(id: 5, name: r'priority', type: IsarType.long),
     r'recordId': PropertySchema(
-      id: 5,
+      id: 6,
       name: r'recordId',
       type: IsarType.string,
     ),
     r'retryCount': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'retryCount',
       type: IsarType.long,
     ),
-    r'status': PropertySchema(id: 7, name: r'status', type: IsarType.string),
+    r'status': PropertySchema(id: 8, name: r'status', type: IsarType.string),
     r'tableName': PropertySchema(
-      id: 8,
+      id: 9,
       name: r'tableName',
       type: IsarType.string,
     ),
@@ -74,6 +79,7 @@ int _queueItemModelEstimateSize(
 ) {
   var bytesCount = offsets.last;
   bytesCount += 3 + object.data.length * 3;
+  bytesCount += 3 + object.internalId.length * 3;
   {
     final value = object.lastError;
     if (value != null) {
@@ -95,13 +101,14 @@ void _queueItemModelSerialize(
 ) {
   writer.writeDateTime(offsets[0], object.createdAt);
   writer.writeString(offsets[1], object.data);
-  writer.writeString(offsets[2], object.lastError);
-  writer.writeString(offsets[3], object.operationType);
-  writer.writeLong(offsets[4], object.priority);
-  writer.writeString(offsets[5], object.recordId);
-  writer.writeLong(offsets[6], object.retryCount);
-  writer.writeString(offsets[7], object.status);
-  writer.writeString(offsets[8], object.tableName);
+  writer.writeString(offsets[2], object.internalId);
+  writer.writeString(offsets[3], object.lastError);
+  writer.writeString(offsets[4], object.operationType);
+  writer.writeLong(offsets[5], object.priority);
+  writer.writeString(offsets[6], object.recordId);
+  writer.writeLong(offsets[7], object.retryCount);
+  writer.writeString(offsets[8], object.status);
+  writer.writeString(offsets[9], object.tableName);
 }
 
 QueueItemModel _queueItemModelDeserialize(
@@ -114,13 +121,14 @@ QueueItemModel _queueItemModelDeserialize(
   object.createdAt = reader.readDateTime(offsets[0]);
   object.data = reader.readString(offsets[1]);
   object.id = id;
-  object.lastError = reader.readStringOrNull(offsets[2]);
-  object.operationType = reader.readString(offsets[3]);
-  object.priority = reader.readLong(offsets[4]);
-  object.recordId = reader.readString(offsets[5]);
-  object.retryCount = reader.readLong(offsets[6]);
-  object.status = reader.readString(offsets[7]);
-  object.tableName = reader.readString(offsets[8]);
+  object.internalId = reader.readString(offsets[2]);
+  object.lastError = reader.readStringOrNull(offsets[3]);
+  object.operationType = reader.readString(offsets[4]);
+  object.priority = reader.readLong(offsets[5]);
+  object.recordId = reader.readString(offsets[6]);
+  object.retryCount = reader.readLong(offsets[7]);
+  object.status = reader.readString(offsets[8]);
+  object.tableName = reader.readString(offsets[9]);
   return object;
 }
 
@@ -136,18 +144,20 @@ P _queueItemModelDeserializeProp<P>(
     case 1:
       return (reader.readString(offset)) as P;
     case 2:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readString(offset)) as P;
     case 3:
-      return (reader.readString(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 4:
-      return (reader.readLong(offset)) as P;
+      return (reader.readString(offset)) as P;
     case 5:
-      return (reader.readString(offset)) as P;
-    case 6:
       return (reader.readLong(offset)) as P;
-    case 7:
+    case 6:
       return (reader.readString(offset)) as P;
+    case 7:
+      return (reader.readLong(offset)) as P;
     case 8:
+      return (reader.readString(offset)) as P;
+    case 9:
       return (reader.readString(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -503,6 +513,147 @@ extension QueueItemModelQueryFilter
           upper: upper,
           includeUpper: includeUpper,
         ),
+      );
+    });
+  }
+
+  QueryBuilder<QueueItemModel, QueueItemModel, QAfterFilterCondition>
+  internalIdEqualTo(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'internalId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<QueueItemModel, QueueItemModel, QAfterFilterCondition>
+  internalIdGreaterThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'internalId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<QueueItemModel, QueueItemModel, QAfterFilterCondition>
+  internalIdLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'internalId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<QueueItemModel, QueueItemModel, QAfterFilterCondition>
+  internalIdBetween(
+    String lower,
+    String upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'internalId',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<QueueItemModel, QueueItemModel, QAfterFilterCondition>
+  internalIdStartsWith(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'internalId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<QueueItemModel, QueueItemModel, QAfterFilterCondition>
+  internalIdEndsWith(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'internalId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<QueueItemModel, QueueItemModel, QAfterFilterCondition>
+  internalIdContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'internalId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<QueueItemModel, QueueItemModel, QAfterFilterCondition>
+  internalIdMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'internalId',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<QueueItemModel, QueueItemModel, QAfterFilterCondition>
+  internalIdIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'internalId', value: ''),
+      );
+    });
+  }
+
+  QueryBuilder<QueueItemModel, QueueItemModel, QAfterFilterCondition>
+  internalIdIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'internalId', value: ''),
       );
     });
   }
@@ -1374,6 +1525,20 @@ extension QueueItemModelQuerySortBy
     });
   }
 
+  QueryBuilder<QueueItemModel, QueueItemModel, QAfterSortBy>
+  sortByInternalId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'internalId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<QueueItemModel, QueueItemModel, QAfterSortBy>
+  sortByInternalIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'internalId', Sort.desc);
+    });
+  }
+
   QueryBuilder<QueueItemModel, QueueItemModel, QAfterSortBy> sortByLastError() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'lastError', Sort.asc);
@@ -1507,6 +1672,20 @@ extension QueueItemModelQuerySortThenBy
     });
   }
 
+  QueryBuilder<QueueItemModel, QueueItemModel, QAfterSortBy>
+  thenByInternalId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'internalId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<QueueItemModel, QueueItemModel, QAfterSortBy>
+  thenByInternalIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'internalId', Sort.desc);
+    });
+  }
+
   QueryBuilder<QueueItemModel, QueueItemModel, QAfterSortBy> thenByLastError() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'lastError', Sort.asc);
@@ -1618,6 +1797,14 @@ extension QueueItemModelQueryWhereDistinct
     });
   }
 
+  QueryBuilder<QueueItemModel, QueueItemModel, QDistinct> distinctByInternalId({
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'internalId', caseSensitive: caseSensitive);
+    });
+  }
+
   QueryBuilder<QueueItemModel, QueueItemModel, QDistinct> distinctByLastError({
     bool caseSensitive = true,
   }) {
@@ -1691,6 +1878,12 @@ extension QueueItemModelQueryProperty
   QueryBuilder<QueueItemModel, String, QQueryOperations> dataProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'data');
+    });
+  }
+
+  QueryBuilder<QueueItemModel, String, QQueryOperations> internalIdProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'internalId');
     });
   }
 

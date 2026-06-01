@@ -3,9 +3,11 @@
 import 'package:flutbook/features/directory_selection/data/datasources/metadat_extractor_ds.dart';
 import 'package:flutbook/features/library/data/datasources/audiobook_local_ds.dart';
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
+import 'package:flutter/foundation.dart';
+import 'package:path/path.dart' as path;
 
 class ScanLibraryUseCase {
-  /// Scans a directory and updates the local library
+  /// Scans a directory and updates the local library.
   Future<ScanResult> execute(String directoryPath) async {
     throw UnimplementedError();
   }
@@ -29,11 +31,14 @@ class ScanResult {
   bool get success => !hasErrors;
 }
 
-/// Orchestrates the scanning process: extract metadata → save to database → return result.
+/// Orchestrates scanning: groups files by directory → extract metadata → save.
 ///
-/// This use case receives clean dependencies with no circular relationships:
-/// - MetadataExtractionDatasource handles file scanning and metadata extraction
-/// - AudiobookLocalDatasource handles database storage
+/// Strategy:
+/// - Audio files found directly in the scanned root directory are treated as
+///   individual audiobooks (one per file). This handles standalone .mp3 files.
+/// - Audio files found inside subdirectories are grouped together and become
+///   a single audiobook whose title is the subdirectory name. This is the
+///   standard multi-file audiobook layout (e.g. "The Hobbit/" with 20 MP3s).
 class ScanLibraryUseCaseImpl implements ScanLibraryUseCase {
   const ScanLibraryUseCaseImpl({
     required this.extractor,
@@ -49,84 +54,116 @@ class ScanLibraryUseCaseImpl implements ScanLibraryUseCase {
     final errors = <String>[];
 
     try {
-      // Step 1: Scan directory and extract metadata from all audio files
+      // 1. Find all audio files recursively.
       final audioFiles = await extractor.scanDirectoryForAudioFiles(directoryPath);
-      final audiobooks = <Audiobook>[];
 
-      // Step 2: Extract metadata for each file, collecting errors for individual files
+      // 2. Group files by immediate parent directory.
+      final filesByDir = <String, List<String>>{};
       for (final filePath in audioFiles) {
-        try {
-          final Audiobook? audiobook = await extractor.extractMetadata(filePath);
-          if (audiobook != null) {
-            // Check if this audiobook already exists in the database based on file path
-            final exists = await localDatasource.audiobookExistsByFilePath(filePath);
-            if (!exists) {
-              audiobooks.add(audiobook);
-            } else {
-              print('Audiobook already exists in database: $filePath');
+        final dir = path.dirname(filePath);
+        filesByDir.putIfAbsent(dir, () => []).add(filePath);
+      }
+
+      final newAudiobooks = <Audiobook>[];
+
+      // 3. For each directory group, produce one Audiobook.
+      for (final entry in filesByDir.entries) {
+        final dirPath = entry.key;
+        final files = entry.value;
+
+        // Files directly in the scanned root → one Audiobook per file.
+        if (dirPath == directoryPath) {
+          for (final filePath in files) {
+            try {
+              final exists = await localDatasource.audiobookExistsByFilePath(filePath);
+              if (exists) continue;
+
+              final audiobook = await extractor.extractMetadata(filePath);
+              if (audiobook != null) newAudiobooks.add(audiobook);
+            } catch (e) {
+              errors.add('Failed to extract metadata from $filePath: $e');
             }
           }
-        } catch (e) {
-          // Log individual file errors but continue processing
-          errors.add('Failed to extract metadata from $filePath: $e');
-        }
-      }
+        } else {
+          // Files inside a subdirectory → one Audiobook for the whole directory.
+          try {
+            final dirId = extractor.generateDirectoryId(dirPath);
+            final exists = await localDatasource.audiobookExistsById(dirId);
+            if (exists) continue;
 
-      // Step 3: Get all audiobooks in the database that are in the scanned directory
-      final allAudiobooksInDb = await localDatasource.getAudiobooks();
-      final audiobooksInScannedDir = allAudiobooksInDb
-          .where((audiobook) => audiobook.filePath.startsWith(directoryPath))
-          .toList();
-
-      // Step 4: Identify audiobooks that are in the database but no longer in the directory
-      final audiobooksToRemove = <Audiobook>[];
-      for (final dbAudiobook in audiobooksInScannedDir) {
-        final stillExists = audioFiles.any((filePath) => filePath == dbAudiobook.filePath);
-        if (!stillExists) {
-          // Check if file actually exists on disk before marking as missing
-          if (!await extractor.isFileAccessible(dbAudiobook.filePath)) {
-            audiobooksToRemove.add(dbAudiobook);
+            final audiobook = await extractor.extractDirectoryMetadata(dirPath, files);
+            if (audiobook != null) newAudiobooks.add(audiobook);
+          } catch (e) {
+            errors.add('Failed to extract directory metadata from $dirPath: $e');
           }
         }
       }
 
-      // Step 5: Remove audiobooks that are no longer in the directory
-      for (final audiobook in audiobooksToRemove) {
-        await localDatasource.deleteAudiobook(audiobook.id);
-        print('Removed audiobook no longer in directory: ${audiobook.filePath}');
-      }
+      // 4. Remove database records whose files no longer exist on disk.
+      await _pruneDeletedAudiobooks(directoryPath, audioFiles);
 
-      // Step 6: Save all newly found audiobooks to database
-      if (audiobooks.isNotEmpty) {
-        await localDatasource.saveAudiobooks(audiobooks);
+      // 5. Persist new audiobooks.
+      if (newAudiobooks.isNotEmpty) {
+        await localDatasource.saveAudiobooks(newAudiobooks);
       }
 
       stopwatch.stop();
-      final totalSize = audiobooks.fold<int>(
-        0,
-        (sum, audiobook) => sum + audiobook.totalSize,
-      );
+      final totalSize = newAudiobooks.fold<int>(0, (sum, a) => sum + a.totalSize);
 
       return ScanResult(
-        scannedFiles: audiobooks.length,
+        scannedFiles: newAudiobooks.length,
         elapsedTime: stopwatch.elapsed,
         errors: errors,
         totalSize: totalSize,
         scanCompletedAt: DateTime.now(),
       );
-    } catch (e, stackTrace) {
-      errors
-        ..add('Scan failed: $e')
-        ..add(stackTrace.toString());
-
+    } catch (e, stack) {
       stopwatch.stop();
+      debugPrint('Scan failed: $e\n$stack');
       return ScanResult(
         scannedFiles: 0,
         elapsedTime: stopwatch.elapsed,
-        errors: errors,
+        errors: [...errors, 'Scan failed: $e'],
         totalSize: 0,
         scanCompletedAt: DateTime.now(),
       );
+    }
+  }
+
+  /// Deletes database records for audiobooks whose files are no longer present
+  /// inside [directoryPath].
+  Future<void> _pruneDeletedAudiobooks(
+    String directoryPath,
+    List<String> currentFiles,
+  ) async {
+    try {
+      final allInDb = await localDatasource.getAudiobooks();
+      final inScannedDir = allInDb.where(
+        (a) => a.filePath.startsWith(directoryPath),
+      );
+
+      final currentFileSet = Set<String>.from(currentFiles);
+
+      for (final audiobook in inScannedDir) {
+        // For directory audiobooks the filePath is the first chapter file.
+        // Consider it stale only when none of its chapter files remain.
+        final hasLiveFile = audiobook.chapters.isNotEmpty
+            ? audiobook.chapters.any(
+                (c) => c.filePath != null && currentFileSet.contains(c.filePath),
+              )
+            : currentFileSet.contains(audiobook.filePath);
+
+        if (!hasLiveFile) {
+          // Double-check: the file truly gone (not just outside the scan dir).
+          final accessible = await extractor.isFileAccessible(audiobook.filePath);
+          if (!accessible) {
+            await localDatasource.deleteAudiobook(audiobook.id);
+            debugPrint('Removed stale audiobook: ${audiobook.filePath}');
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Warning: pruning stale audiobooks failed: $e');
     }
   }
 }

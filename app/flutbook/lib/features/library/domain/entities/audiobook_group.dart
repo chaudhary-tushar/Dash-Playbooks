@@ -38,24 +38,26 @@ class AudiobookGroup {
     return playedBooks.first.lastPlayedAt;
   }
 
-  // Calculate overall progress for the group (average of individual progresses)
+  // Calculate overall progress for the group (0–100) weighted by duration.
   double get progress {
     if (audiobooks.isEmpty) return 0;
 
-    final progresses = audiobooks.map((book) {
-      if (book.completed) return 100.0;
-      if (book.lastPlayedAt == null) return 0.0;
+    var totalDurationMs = 0;
+    var totalListenedMs = 0;
 
-      // Simple heuristic for progress calculation
+    for (final book in audiobooks) {
       final durationMs = book.duration.inMilliseconds;
-      if (durationMs <= 0) return 0.0;
+      if (durationMs <= 0) continue;
+      totalDurationMs += durationMs;
+      if (book.completed) {
+        totalListenedMs += durationMs;
+      } else {
+        totalListenedMs += book.currentPosition.inMilliseconds.clamp(0, durationMs);
+      }
+    }
 
-      final timeSinceLastPlayed = DateTime.now().difference(book.lastPlayedAt!);
-      final hoursSinceLastPlayed = timeSinceLastPlayed.inHours;
-      return (hoursSinceLastPlayed * 10).toDouble().clamp(0.0, 99.0);
-    }).toList();
-
-    return progresses.reduce((a, b) => a + b) / progresses.length;
+    if (totalDurationMs <= 0) return 0;
+    return (totalListenedMs / totalDurationMs * 100).clamp(0.0, 100.0);
   }
 
   // Get cover art path - use the first audiobook's cover if available

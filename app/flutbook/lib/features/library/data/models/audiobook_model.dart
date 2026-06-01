@@ -91,13 +91,12 @@ class AudiobookModel {
 
 @embedded
 class ChapterModel {
-  // End time in milliseconds
-
   ChapterModel({
     this.id = '',
     this.title = '',
     this.startTimeInMs = 0,
     this.endTimeInMs = 0,
+    this.filePath,
   });
 
   // Convert from domain entity
@@ -107,12 +106,14 @@ class ChapterModel {
       title: chapter.title,
       startTimeInMs: chapter.startTime.inMilliseconds,
       endTimeInMs: chapter.endTime.inMilliseconds,
+      filePath: chapter.filePath,
     );
   }
   String id;
   String title;
   int startTimeInMs; // Start time in milliseconds from beginning of audiobook
   int endTimeInMs;
+  String? filePath; // For multi-file audiobooks: which file this chapter is in
 
   // Convert to domain entity
   domain.Chapter toDomain() {
@@ -121,6 +122,7 @@ class ChapterModel {
       title: title,
       startTime: Duration(milliseconds: startTimeInMs),
       endTime: Duration(milliseconds: endTimeInMs),
+      filePath: filePath,
     );
   }
 

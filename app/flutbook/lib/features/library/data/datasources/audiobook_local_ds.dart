@@ -109,21 +109,33 @@ class AudiobookLocalDatasource {
     }
   }
 
-  /// Checks if an audiobook already exists in the database based on file path
-  /// This is used to prevent duplicate entries when scanning directories
+  /// Checks if an audiobook already exists in the database based on file path.
   Future<bool> audiobookExistsByFilePath(String filePath) async {
     try {
-      final audiobookModel = await _isar.audiobookModels
+      final model = await _isar.audiobookModels
           .where()
           .filter()
           .filePathEqualTo(filePath)
           .findFirst();
-
-      return audiobookModel != null;
+      return model != null;
     } catch (e) {
-      debugPrint(
-        'Warning: Could not check if audiobook exists by file path: $e',
-      );
+      debugPrint('Warning: Could not check audiobook by file path: $e');
+      return false;
+    }
+  }
+
+  /// Checks if an audiobook already exists in the database by its internal ID.
+  /// Used for directory-based audiobooks whose ID is derived from the directory path.
+  Future<bool> audiobookExistsById(String internalId) async {
+    try {
+      final model = await _isar.audiobookModels
+          .where()
+          .filter()
+          .internalIdEqualTo(internalId)
+          .findFirst();
+      return model != null;
+    } catch (e) {
+      debugPrint('Warning: Could not check audiobook by id: $e');
       return false;
     }
   }

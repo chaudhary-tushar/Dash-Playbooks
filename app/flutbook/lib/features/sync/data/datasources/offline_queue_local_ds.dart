@@ -5,7 +5,6 @@
 library;
 
 import 'package:flutbook/features/sync/domain/repositories/offline_queue_repository.dart';
-import 'package:isar_community/isar.dart';
 
 // Re-export types from repository for convenience
 export 'package:flutbook/features/sync/domain/repositories/offline_queue_repository.dart'

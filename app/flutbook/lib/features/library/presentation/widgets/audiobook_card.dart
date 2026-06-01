@@ -141,28 +141,8 @@ class AudiobookCard extends ConsumerWidget {
                 width: 80,
                 height: 100,
                 child: coverArtPath != null
-                    ? Image.network(
-                        coverArtPath!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            color: isDark ? Colors.grey[800] : Colors.grey[300],
-                            child: Icon(
-                              Icons.album_outlined,
-                              color: isDark ? Colors.grey[600] : Colors.grey[400],
-                              size: 40,
-                            ),
-                          );
-                        },
-                      )
-                    : Container(
-                        color: isDark ? Colors.grey[800] : Colors.grey[300],
-                        child: Icon(
-                          Icons.album_outlined,
-                          color: isDark ? Colors.grey[600] : Colors.grey[400],
-                          size: 40,
-                        ),
-                      ),
+                    ? _buildCoverImage(coverArtPath!, isDark)
+                    : _placeholderCover(isDark),
               ),
 
               // Main content
@@ -305,6 +285,35 @@ class AudiobookCard extends ConsumerWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// Renders cover art, choosing Image.file for local paths and Image.network
+  /// for http/https URLs, so local extracted artwork displays correctly.
+  Widget _buildCoverImage(String artPath, bool isDark) {
+    final isRemote = artPath.startsWith('http://') || artPath.startsWith('https://');
+    if (isRemote) {
+      return Image.network(
+        artPath,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stack) => _placeholderCover(isDark),
+      );
+    }
+    return Image.file(
+      File(artPath),
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stack) => _placeholderCover(isDark),
+    );
+  }
+
+  Widget _placeholderCover(bool isDark) {
+    return Container(
+      color: isDark ? Colors.grey[800] : Colors.grey[300],
+      child: Icon(
+        Icons.album_outlined,
+        color: isDark ? Colors.grey[600] : Colors.grey[400],
+        size: 40,
       ),
     );
   }

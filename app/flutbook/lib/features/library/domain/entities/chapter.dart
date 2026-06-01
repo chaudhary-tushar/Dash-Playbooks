@@ -7,6 +7,7 @@ class Chapter {
     required this.title,
     required this.startTime,
     required this.endTime,
+    this.filePath,
   });
 
   factory Chapter.fromMap(Map<String, dynamic> map) {
@@ -15,6 +16,7 @@ class Chapter {
       title: map['title'] as String? ?? '',
       startTime: Duration(milliseconds: map['startTime'] as int? ?? 0),
       endTime: Duration(milliseconds: map['endTime'] as int? ?? 0),
+      filePath: map['filePath'] as String?,
     );
   }
 
@@ -24,18 +26,23 @@ class Chapter {
   final String title;
   final Duration startTime;
   final Duration endTime;
+  // For multi-file audiobooks: which audio file this chapter resides in.
+  // Null for single-file or embedded-chapter audiobooks.
+  final String? filePath;
 
   Chapter copyWith({
     String? id,
     String? title,
     Duration? startTime,
     Duration? endTime,
+    String? filePath,
   }) {
     return Chapter(
       id: id ?? this.id,
       title: title ?? this.title,
       startTime: startTime ?? this.startTime,
       endTime: endTime ?? this.endTime,
+      filePath: filePath ?? this.filePath,
     );
   }
 
@@ -45,6 +52,7 @@ class Chapter {
       'title': title,
       'startTime': startTime.inMilliseconds,
       'endTime': endTime.inMilliseconds,
+      'filePath': filePath,
     };
   }
 
@@ -52,7 +60,7 @@ class Chapter {
 
   @override
   String toString() {
-    return 'Chapter(id: $id, title: $title, startTime: $startTime, endTime: $endTime)';
+    return 'Chapter(id: $id, title: $title, startTime: $startTime, endTime: $endTime, filePath: $filePath)';
   }
 
   @override

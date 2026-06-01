@@ -171,25 +171,6 @@ This document outlines the implementation plan for fixing 5 critical UI/UX issue
 
 ---
 
-## Testing Strategy
-
-### Unit Tests
-- Test position save/restore in playback repository
-- Test progress calculation in library repository
-- Test sorting logic with duration option
-- Test cover art extraction (mock file system)
-
-### Widget Tests
-- Test library screen sorting UI
-- Test audiobook card with cover art
-- Test library screen loading state
-
-### Integration Tests
-- Test full playback resume flow
-- Test reading list with progress
-- Test background scanning flow
-
----
 
 ## Files to Modify Summary
 
