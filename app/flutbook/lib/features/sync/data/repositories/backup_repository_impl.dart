@@ -20,23 +20,24 @@ class BackupRepositoryImpl implements BackupRepository {
   /// Create a new BackupRepositoryImpl.
   ///
   /// [backupDatasource] - Remote backup datasource
-  /// [audiobooks] - List of audiobooks to backup
-  /// [playbackSessions] - Playback sessions to backup
-  /// [readingLists] - Reading lists to backup
+  /// [audiobooksLoader] - Loads the audiobooks to back up (invoked at backup time
+  ///   so the snapshot is always fresh instead of a stale empty constructor list)
+  /// [playbackSessionsLoader] - Loads playback sessions to back up
+  /// [readingListsLoader] - Loads reading lists to back up
   BackupRepositoryImpl({
     required SupabaseBackupDatasource backupDatasource,
-    required List<Audiobook> audiobooks,
-    required List<PlaybackSession> playbackSessions,
-    required List<ReadingList> readingLists,
+    Future<List<Audiobook>> Function()? audiobooksLoader,
+    Future<List<PlaybackSession>> Function()? playbackSessionsLoader,
+    Future<List<ReadingList>> Function()? readingListsLoader,
   })  : _backupDatasource = backupDatasource,
-        _audiobooks = audiobooks,
-        _playbackSessions = playbackSessions,
-        _readingLists = readingLists;
+        _audiobooksLoader = audiobooksLoader ?? () async => const [],
+        _playbackSessionsLoader = playbackSessionsLoader ?? () async => const [],
+        _readingListsLoader = readingListsLoader ?? () async => const [];
 
   final SupabaseBackupDatasource _backupDatasource;
-  final List<Audiobook> _audiobooks;
-  final List<PlaybackSession> _playbackSessions;
-  final List<ReadingList> _readingLists;
+  final Future<List<Audiobook>> Function() _audiobooksLoader;
+  final Future<List<PlaybackSession>> Function() _playbackSessionsLoader;
+  final Future<List<ReadingList>> Function() _readingListsLoader;
 
   DateTime? _lastBackupTime;
 
@@ -46,20 +47,26 @@ class BackupRepositoryImpl implements BackupRepository {
       final backupId = const Uuid().v4();
       final timestamp = DateTime.now();
 
+      // Load a fresh snapshot of user data at backup time so the backup is
+      // never empty and never stale.
+      final audiobooks = await _audiobooksLoader();
+      final playbackSessions = await _playbackSessionsLoader();
+      final readingLists = await _readingListsLoader();
+
       // Aggregate all user data
       final backupData = {
         'version': '1.0',
         'timestamp': timestamp.toIso8601String(),
-        'audiobooks': _audiobooks.map(_audiobookToJson).toList(),
-        'playback_sessions': _playbackSessions
+        'audiobooks': audiobooks.map(_audiobookToJson).toList(),
+        'playback_sessions': playbackSessions
             .map(_sessionToJson)
             .toList(),
-        'reading_lists': _readingLists.map(_listToJson).toList(),
+        'reading_lists': readingLists.map(_listToJson).toList(),
       };
 
-      final itemCount = _audiobooks.length +
-          _playbackSessions.length +
-          _readingLists.length;
+      final itemCount = audiobooks.length +
+          playbackSessions.length +
+          readingLists.length;
 
       final backupInfo = BackupInfo(
         id: backupId,

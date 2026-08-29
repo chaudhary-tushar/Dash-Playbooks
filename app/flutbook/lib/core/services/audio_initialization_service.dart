@@ -8,9 +8,34 @@ import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 /// Service responsible for initializing audio-related services early in the app lifecycle.
 /// This ensures that audio playback, notifications, and background processing are ready
 /// when the user starts interacting with the audiobook player.
+/// Fired when playback should pause (interruption began / noisiness).
+typedef PlaybackControlCallback = void Function();
+
 class AudioInitializationService {
   static bool _isInitialized = false;
   static Completer<void>? _initializationCompleter;
+
+  // Registered by the player layer (AudioServiceHandler) so that real audio
+  // interruptions actually pause/resume the active player rather than being
+  // print-only. Callbacks are invoked at interruption time, so they may be
+  // registered lazily after initialization without missing anything later.
+  static PlaybackControlCallback? _onInterruptionBegin;
+  static PlaybackControlCallback? _onInterruptionEnd;
+  static PlaybackControlCallback? _onBecomingNoisy;
+
+  /// Registers callbacks used to react to OS audio interruptions.
+  /// [onInterruptionBegin] should pause playback while the interruption lasts;
+  /// [onInterruptionEnd] may resume it; [onBecomingNoisy] should pause when
+  /// the output route is lost (e.g. headphones unplugged).
+  static void setAudioInterruptionHandlers({
+    PlaybackControlCallback? onInterruptionBegin,
+    PlaybackControlCallback? onInterruptionEnd,
+    PlaybackControlCallback? onBecomingNoisy,
+  }) {
+    _onInterruptionBegin = onInterruptionBegin;
+    _onInterruptionEnd = onInterruptionEnd;
+    _onBecomingNoisy = onBecomingNoisy;
+  }
 
   /// Initializes media_kit backend for desktop platforms.
   /// This must be called before any AudioPlayer is created.
@@ -32,13 +57,20 @@ class AudioInitializationService {
 
   /// Initializes all audio-related services.
   /// This method should be called early in the app lifecycle, ideally in bootstrap.
+  ///
+  /// State machine:
+  /// - If already initialized, returns immediately.
+  /// - If an initialization is currently in flight, concurrent callers share
+  ///   the same in-flight future (deduped via [_initializationCompleter]).
+  /// - On failure the completer and flags are reset so a later call can retry;
+  ///   the error is rethrown to the caller.
   static Future<void> initialize() async {
     if (_isInitialized) {
       return;
     }
 
     if (_initializationCompleter != null) {
-      // If initialization is already in progress, wait for it to complete
+      // Initialization is already in progress - wait for it to complete.
       return _initializationCompleter!.future;
     }
 
@@ -61,16 +93,21 @@ class AudioInitializationService {
 
       _isInitialized = true;
       _initializationCompleter!.complete();
+      // Clear the completer so a later call starts fresh (idempotent success).
+      _initializationCompleter = null;
     } catch (e, stackTrace) {
       print('Error initializing audio services: $e');
       print('Stack trace: $stackTrace');
 
-      // Even if there's an error, mark as initialized to prevent repeated attempts
-      _isInitialized = true;
+      // Do NOT mark as initialized on failure: keep _isInitialized false so a
+      // subsequent call can retry instead of being permanently poisoned.
+      _isInitialized = false;
       _initializationCompleter!.completeError(e, stackTrace);
+      _initializationCompleter = null;
+      rethrow;
     }
 
-    return _initializationCompleter!.future;
+    return;
   }
 
   /// Initializes audio session management for proper audio focus handling.
@@ -97,22 +134,23 @@ class AudioInitializationService {
       // Activate the audio session to enable playback
       await session.setActive(true);
 
-      // Handle interruptions (like phone calls)
+      // Handle interruptions (like phone calls). Delegates to the registered
+      // handler (AudioServiceHandler) which pauses/resumes the actual player.
       session.interruptionEventStream.listen((event) {
         switch (event.begin) {
           case true:
-            // Interruption began, pause audio if playing
             print('Audio interruption began');
+            _onInterruptionBegin?.call();
           case false:
-            // Interruption ended, resume audio if it was playing before
             print('Audio interruption ended');
+            _onInterruptionEnd?.call();
         }
       });
 
       // Handle audio becoming noisy (like unplugging headphones)
       session.becomingNoisyEventStream.listen((_) {
         print('Audio output became noisy (e.g., headphones unplugged)');
-        // In a real app, you might want to pause playback
+        _onBecomingNoisy?.call();
       });
 
       print('Audio session initialized successfully');

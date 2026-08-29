@@ -117,7 +117,11 @@ class SupabasePlaybackDatasource {
           .select()
           .eq('audiobook_id', audiobookId)
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
+
+      if (result == null) {
+        return null;
+      }
 
       return PlaybackSession(
         audiobookId: result['audiobook_id'] as String? ?? '',

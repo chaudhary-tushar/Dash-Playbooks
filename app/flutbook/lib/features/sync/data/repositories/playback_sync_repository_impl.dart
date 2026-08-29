@@ -65,21 +65,46 @@ class PlaybackSyncRepositoryImpl implements PlaybackSyncRepository {
             await _remoteDatasource.uploadPlaybackSession(localSession);
             uploadedCount++;
           } else {
-            // Session exists in both — record conflict then auto-resolve (LWW)
+            // Session exists in both — check for conflicts.
             if (localSession.lastPlayedAt != remoteSession.lastPlayedAt) {
-              await _recordConflict(
-                entityId: localSession.audiobookId,
-                localTimestamp: localSession.lastPlayedAt,
-                remoteTimestamp: remoteSession.lastPlayedAt,
-                localPositionMs: localSession.currentPosition.inMilliseconds,
-                remotePositionMs: remoteSession.currentPosition.inMilliseconds,
+              // Consult any user resolution recorded for this session in an
+              // earlier sync before falling back to last-write-wins (m2).
+              final prior = await _priorResolutionFor(
+                ConflictEntityType.playback,
+                localSession.audiobookId,
               );
-            }
-            if (localSession.lastPlayedAt.isAfter(remoteSession.lastPlayedAt)) {
-              // Local is newer - upload to remote with conflict resolution
-              await uploadWithConflictResolution(localSession);
-              uploadedCount++;
-              conflictsResolved++;
+
+              if (prior == null) {
+                await _recordConflict(
+                  entityId: localSession.audiobookId,
+                  localTimestamp: localSession.lastPlayedAt,
+                  remoteTimestamp: remoteSession.lastPlayedAt,
+                  localPositionMs:
+                      localSession.currentPosition.inMilliseconds,
+                  remotePositionMs:
+                      remoteSession.currentPosition.inMilliseconds,
+                );
+              } else {
+                // Honour the previously chosen side.
+                conflictsResolved++;
+              }
+
+              final localWins = switch (prior?.resolutionStrategy) {
+                ConflictResolutionStrategy.localWins => true,
+                ConflictResolutionStrategy.remoteWins => false,
+                ConflictResolutionStrategy.manual ||
+                ConflictResolutionStrategy.lastWriteWins ||
+                null => localSession.lastPlayedAt
+                    .isAfter(remoteSession.lastPlayedAt),
+              };
+
+              if (localWins) {
+                await uploadWithConflictResolution(localSession);
+                uploadedCount++;
+                if (prior == null) {
+                  conflictsResolved++;
+                }
+              }
             }
           }
         } catch (e) {
@@ -97,9 +122,21 @@ class PlaybackSyncRepositoryImpl implements PlaybackSyncRepository {
             await _localDatasource.savePlaybackSession(remoteSession);
             downloadedCount++;
           } else {
-            // Session exists in both - check for conflicts
+            // Session exists in both - check for conflicts.
             if (remoteSession.lastPlayedAt.isAfter(localSession.lastPlayedAt)) {
-              // Remote is newer - download to local
+              // Remote is newer - but don't overwrite local if the user
+              // previously chose to keep the local version (m2).
+              final prior = await _priorResolutionFor(
+                ConflictEntityType.playback,
+                remoteSession.audiobookId,
+              );
+              if (prior?.resolutionStrategy ==
+                  ConflictResolutionStrategy.localWins) {
+                conflictsResolved++;
+                continue;
+              }
+
+              // Remote wins - download to local
               await _localDatasource.savePlaybackSession(remoteSession);
               downloadedCount++;
               conflictsResolved++;
@@ -185,6 +222,24 @@ class PlaybackSyncRepositoryImpl implements PlaybackSyncRepository {
   Future<DateTime?> getLastSyncTime() async {
     // TODO: Implement sync timestamp tracking
     return null;
+  }
+
+  /// Returns a previously recorded user resolution for an entity, or null if
+  /// none exists. Guards against a null conflict datasource.
+  Future<SyncConflict?> _priorResolutionFor(
+    ConflictEntityType entityType,
+    String entityId,
+  ) async {
+    final ds = _conflictDs;
+    if (ds == null) return null;
+    try {
+      return await ds.getResolvedConflict(
+        entityType: entityType,
+        entityId: entityId,
+      );
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> _recordConflict({
