@@ -113,7 +113,8 @@ class App extends ConsumerWidget {
     return MaterialApp(
       title: 'Flutbook',
       theme: AppTheme.lightTheme,
-      // darkTheme: AppTheme.darkTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ThemeMode.system,
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,

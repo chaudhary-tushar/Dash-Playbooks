@@ -1,6 +1,7 @@
 // lib/presentation/screens/library_screen.dart
 import 'dart:async';
 
+import 'package:flutbook/core/extensions/responsive_extension.dart';
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
 import 'package:flutbook/features/library/presentation/providers/library_notifier.dart';
 import 'package:flutbook/features/library/presentation/providers/library_provider.dart';
@@ -164,7 +165,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     String currentViewType,
     SearchQueryNotifier searchNotifier,
   ) {
-    return CustomScrollView(
+    // On desktop / large windows, constrain the scrollable content to a
+    // readable width instead of stretching edge-to-edge.
+    final scrollView = CustomScrollView(
       slivers: [
         // ---- Filter / sort / search card ----
         SliverToBoxAdapter(
@@ -199,8 +202,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   const SizedBox(height: 16),
 
                   // Status filter buttons
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  Wrap(
+                    alignment: WrapAlignment.spaceEvenly,
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
                       _filterBtn(context, 'All', 'all', currentStatusFilter, libraryNotifier),
                       _filterBtn(context, 'Reading', 'reading', currentStatusFilter, libraryNotifier),
@@ -212,32 +217,46 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   const SizedBox(height: 16),
 
                   // Sort + view-type row
-                  Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          initialValue: _mapSortToUi(currentSortBy),
-                          decoration: InputDecoration(
-                            labelText: 'Sort by',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final stacked = constraints.maxWidth < 480;
+                      final sortDropdown = DropdownButtonFormField<String>(
+                        initialValue: _mapSortToUi(currentSortBy),
+                        decoration: InputDecoration(
+                          labelText: 'Sort by',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                          items: const [
-                            DropdownMenuItem(value: 'name', child: Text('Name')),
-                            DropdownMenuItem(value: 'date', child: Text('Date Added')),
-                            DropdownMenuItem(value: 'progress', child: Text('Progress')),
-                            DropdownMenuItem(value: 'length', child: Text('Duration')),
-                          ],
-                          onChanged: (value) {
-                            if (value != null) libraryNotifier.updateSorting(value);
-                          },
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Tooltip(
-                        message: libraryState.sortAscending ? 'Ascending' : 'Descending',
+                        items: const [
+                          DropdownMenuItem(value: 'name', child: Text('Name')),
+                          DropdownMenuItem(
+                            value: 'date',
+                            child: Text('Date Added'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'progress',
+                            child: Text('Progress'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'length',
+                            child: Text('Duration'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          if (value != null) {
+                            libraryNotifier.updateSorting(value);
+                          }
+                        },
+                      );
+
+                      final directionToggle = Tooltip(
+                        message: libraryState.sortAscending
+                            ? 'Ascending'
+                            : 'Descending',
                         child: OutlinedButton(
                           onPressed: () {
                             libraryNotifier.updateSorting(
@@ -246,7 +265,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                             );
                           },
                           style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                            ),
                           ),
                           child: Icon(
                             libraryState.sortAscending
@@ -255,19 +276,56 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                             size: 20,
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      SegmentedButton<String>(
+                      );
+
+                      final viewToggle = SegmentedButton<String>(
                         segments: const [
-                          ButtonSegment(value: 'list', icon: Icon(Icons.list), label: Text('List')),
-                          ButtonSegment(value: 'grid', icon: Icon(Icons.grid_view), label: Text('Grid')),
+                          ButtonSegment(
+                            value: 'list',
+                            icon: Icon(Icons.list),
+                            label: Text('List'),
+                          ),
+                          ButtonSegment(
+                            value: 'grid',
+                            icon: Icon(Icons.grid_view),
+                            label: Text('Grid'),
+                          ),
                         ],
                         selected: {currentViewType},
                         onSelectionChanged: (sel) {
-                          if (sel.isNotEmpty) libraryNotifier.updateViewType(sel.first);
+                          if (sel.isNotEmpty) {
+                            libraryNotifier.updateViewType(sel.first);
+                          }
                         },
-                      ),
-                    ],
+                      );
+
+                      if (stacked) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(child: sortDropdown),
+                                const SizedBox(width: 8),
+                                directionToggle,
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Center(child: viewToggle),
+                          ],
+                        );
+                      }
+
+                      return Row(
+                        children: [
+                          Expanded(child: sortDropdown),
+                          const SizedBox(width: 8),
+                          directionToggle,
+                          const SizedBox(width: 8),
+                          viewToggle,
+                        ],
+                      );
+                    },
                   ),
                 ],
               ),
@@ -306,6 +364,19 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           _gridView(context, filteredAudiobooks),
       ],
     );
+
+    if (context.isDesktop) {
+      return Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: ResponsiveLayout.contentMaxWidth,
+          ),
+          child: scrollView,
+        ),
+      );
+    }
+
+    return scrollView;
   }
 
   // ---------------------------------------------------------------------------
@@ -426,10 +497,13 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   }
 
   SliverGrid _gridView(BuildContext context, List<Audiobook> audiobooks) {
+    final columns = context.responsiveGridColumns();
     return SliverGrid(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 0.7,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: columns,
+        // Cards are fixed ~100px horizontal rows; a fixed mainAxisExtent keeps
+        // tiles compact (no dead vertical space) as columns grow on desktop.
+        mainAxisExtent: 122,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
       ),
@@ -470,21 +544,20 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     LibraryNotifier notifier,
   ) {
     final active = current == value;
-    return Expanded(
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: active
-              ? Theme.of(context).colorScheme.primary
-              : Theme.of(context).colorScheme.surfaceContainerHighest,
-          foregroundColor: active
-              ? Theme.of(context).colorScheme.onPrimary
-              : Theme.of(context).colorScheme.onSurfaceVariant,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          padding: const EdgeInsets.symmetric(vertical: 12),
-        ),
-        onPressed: () => notifier.updateStatusFilter(value),
-        child: Text(label),
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: active
+            ? Theme.of(context).colorScheme.primary
+            : Theme.of(context).colorScheme.surfaceContainerHighest,
+        foregroundColor: active
+            ? Theme.of(context).colorScheme.onPrimary
+            : Theme.of(context).colorScheme.onSurfaceVariant,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        minimumSize: const Size(0, 44),
       ),
+      onPressed: () => notifier.updateStatusFilter(value),
+      child: Text(label),
     );
   }
 
