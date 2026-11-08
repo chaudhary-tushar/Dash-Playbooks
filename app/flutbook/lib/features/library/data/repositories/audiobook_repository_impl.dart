@@ -80,7 +80,7 @@ class AudiobookRepositoryImpl implements AudiobookRepository {
       if (_remoteDatasource != null) {
         try {
           await _remoteDatasource.uploadAudiobookMetadata(
-            audiobook as AudiobookModel,
+            AudiobookModel.fromDomain(audiobook),
           );
         } catch (e) {
           print('Warning: Could not sync audiobook update to remote: $e');

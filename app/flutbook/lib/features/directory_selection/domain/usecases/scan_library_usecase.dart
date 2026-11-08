@@ -1,6 +1,6 @@
 // lib/domain/usecases/scan_library_usecase.dart
 
-import 'package:flutbook/features/directory_selection/data/datasources/metadat_extractor_ds.dart';
+import 'package:flutbook/features/directory_selection/data/datasources/metadata_extractor_ds.dart';
 import 'package:flutbook/features/library/data/datasources/audiobook_local_ds.dart';
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
 import 'package:flutter/foundation.dart';

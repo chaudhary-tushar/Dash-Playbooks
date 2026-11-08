@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutbook/core/extensions/responsive_extension.dart';
 import 'package:flutbook/core/provider/providers.dart';
 import 'package:flutbook/features/directory_selection/data/datasources/system_directory_picker_ds.dart';
 import 'package:flutter/material.dart';
@@ -195,9 +196,16 @@ class _DirectorySelectionScreenState extends ConsumerState<DirectorySelectionScr
         title: const Text('Select Audiobook Directory'),
         centerTitle: true,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: context.isDesktop
+                ? ResponsiveLayout.contentMaxWidth * 0.5
+                : double.infinity,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -296,6 +304,8 @@ class _DirectorySelectionScreenState extends ConsumerState<DirectorySelectionScr
               ),
             ],
           ],
+          ),
+        ),
         ),
       ),
     );

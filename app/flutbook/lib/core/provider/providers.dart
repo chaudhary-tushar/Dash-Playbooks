@@ -26,7 +26,7 @@ import 'package:flutbook/features/auth/domain/usecases/google_signin_usecase.dar
 import 'package:flutbook/features/auth/domain/usecases/login_usecase.dart';
 import 'package:flutbook/features/auth/domain/usecases/logout_usecase.dart';
 import 'package:flutbook/features/auth/domain/usecases/signup_usecase.dart';
-import 'package:flutbook/features/directory_selection/data/datasources/metadat_extractor_ds.dart';
+import 'package:flutbook/features/directory_selection/data/datasources/metadata_extractor_ds.dart';
 import 'package:flutbook/features/directory_selection/domain/usecases/scan_library_usecase.dart';
 import 'package:flutbook/features/library/data/datasources/audiobook_local_ds.dart';
 import 'package:flutbook/features/library/data/datasources/remote/supabase_library_sync.dart';
@@ -57,6 +57,7 @@ import 'package:flutbook/features/sync/data/repositories/library_sync_repository
 import 'package:flutbook/features/sync/data/repositories/offline_queue_repository_impl.dart';
 import 'package:flutbook/features/sync/data/repositories/playback_sync_repository_impl.dart';
 import 'package:flutbook/features/sync/data/repositories/reading_list_sync_repository_impl.dart';
+import 'package:flutbook/features/sync/domain/entities/reading_list.dart';
 import 'package:flutbook/features/sync/domain/usecases/sync_library_usecase.dart';
 import 'package:flutbook/features/sync/domain/usecases/sync_playback_position_usecase.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -318,6 +319,11 @@ final playbackRepositoryProvider = FutureProvider<PlaybackRepositoryImpl>((
         remoteDatasource: remoteDatasource,
       );
     } catch (e) {
+      // Only transient readiness failures are worth retrying. Non-transient
+      // errors (auth, data corruption, config) should surface immediately.
+      if (e is! UninitializedDatasourceException) {
+        rethrow;
+      }
       retryCount++;
       if (retryCount >= maxRetries) {
         throw UninitializedDatasourceException(
@@ -388,6 +394,10 @@ final bookmarkRepositoryProvider = FutureProvider<BookmarkRepositoryImpl>((
         localDatasource: localDatasource,
       );
     } catch (e) {
+      // Only transient readiness failures are worth retrying.
+      if (e is! UninitializedDatasourceException) {
+        rethrow;
+      }
       retryCount++;
       if (retryCount >= maxRetries) {
         throw UninitializedDatasourceException(
@@ -458,6 +468,10 @@ final queueRepositoryProvider = FutureProvider<QueueRepositoryImpl>((
         localDatasource: localDatasource,
       );
     } catch (e) {
+      // Only transient readiness failures are worth retrying.
+      if (e is! UninitializedDatasourceException) {
+        rethrow;
+      }
       retryCount++;
       if (retryCount >= maxRetries) {
         throw UninitializedDatasourceException(
@@ -557,7 +571,8 @@ final userProfileServiceProvider = FutureProvider<UserProfileService>((
 /// Provides the Preferences datasource.
 /// This handles user preferences and settings storage.
 final preferencesDatasourceProvider = Provider<PreferencesDatasource>((ref) {
-  return PreferencesDatasource();
+  final jsonStorage = ref.watch(jsonStorageProvider);
+  return PreferencesDatasource(jsonStorage);
 });
 
 /// Provides the Library Remote datasource.
@@ -632,6 +647,10 @@ final userRepositoryProvider = FutureProvider<UserRepository>((ref) async {
         userProfileService: userProfileService,
       );
     } catch (e) {
+      // Only transient readiness failures are worth retrying.
+      if (e is! UninitializedDatasourceException) {
+        rethrow;
+      }
       retryCount++;
       if (retryCount >= maxRetries) {
         throw UninitializedDatasourceException(
@@ -778,6 +797,10 @@ final libraryRepositoryProvider = FutureProvider<LibraryRepository>((
         remoteDatasource: remoteDatasource,
       );
     } catch (e) {
+      // Only transient readiness failures are worth retrying.
+      if (e is! UninitializedDatasourceException) {
+        rethrow;
+      }
       retryCount++;
       if (retryCount >= maxRetries) {
         throw UninitializedDatasourceException(
@@ -986,6 +1009,10 @@ final audioEffectsRepositoryProvider = FutureProvider<AudioEffectsRepositoryImpl
         localDatasource: localDatasource,
       );
     } catch (e) {
+      // Only transient readiness failures are worth retrying.
+      if (e is! UninitializedDatasourceException) {
+        rethrow;
+      }
       retryCount++;
       if (retryCount >= maxRetries) {
         throw UninitializedDatasourceException(
@@ -1186,12 +1213,24 @@ final supabaseBackupDatasourceProvider = Provider<SupabaseBackupDatasource>((
 /// Provides the BackupRepositoryImpl for backup operations.
 final backupRepositoryProvider = FutureProvider<BackupRepositoryImpl>((ref) async {
   final backupDatasource = ref.watch(supabaseBackupDatasourceProvider);
-  // Note: In a real implementation, these would be fetched from the database
+
+  // Load a fresh snapshot of user data at backup time instead of an empty
+  // static list. This keeps the created backup meaningful for the user.
+  final audiobookLocalDs = await ref.watch(audiobookLocalDatasourceProvider.future);
+  final playbackLocalDs = await ref.watch(playbackLocalDatasourceProvider.future);
+  final readingListRepo = await ref.watch(readingListSyncRepositoryProvider.future);
+
   return BackupRepositoryImpl(
     backupDatasource: backupDatasource,
-    audiobooks: [],
-    playbackSessions: [],
-    readingLists: [],
+    audiobooksLoader: () => audiobookLocalDs.getAudiobooks(),
+    playbackSessionsLoader: () => playbackLocalDs.getPlaybackSessions(),
+    readingListsLoader: () async {
+      try {
+        return await readingListRepo.getAllReadingLists();
+      } catch (_) {
+        return const <ReadingList>[];
+      }
+    },
   );
 });
 
@@ -1212,7 +1251,7 @@ final offlineQueueLocalDatasourceProvider = FutureProvider<OfflineQueueLocalData
       );
     }
 
-    return OfflineQueueLocalDatasource();
+    return OfflineQueueLocalDatasource(databaseService.isar);
   },
 );
 

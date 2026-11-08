@@ -1,4 +1,6 @@
 // lib/features/player/data/datasources/audio_effects_ds.dart
+import 'dart:convert';
+
 import 'package:flutbook/core/error/exceptions.dart';
 import 'package:flutbook/features/player/data/models/audio_effect_model.dart';
 import 'package:isar_community/isar.dart';
@@ -18,13 +20,29 @@ class AudioEffectsDatasource {
   /// Checks if the datasource is initialized and ready for use
   bool get isInitialized => _isar.isOpen;
 
-  /// Creates a new audio effect preset
+  /// Creates a new audio effect preset.
+  ///
+  /// Upserts by [AudioEffectModel.domainId]: if an effect with the same domain
+  /// ID already exists it is updated instead of inserting a duplicate. This
+  /// keeps presets unique by logical identity even though the DB schema does
+  /// not declare a unique index on domainId.
   Future<AudioEffectModel> createAudioEffect(AudioEffectModel effect) async {
     validateInitialization();
 
     return _isar.writeTxn(() async {
-      // Set the ID to auto-increment (0 means let Isar assign it)
-      effect.id = Isar.autoIncrement;
+      final existing = await _isar.audioEffectModels
+          .filter()
+          .domainIdEqualTo(effect.domainId)
+          .findFirst();
+
+      if (existing != null) {
+        effect.id = existing.id;
+      } else if (effect.id == Isar.autoIncrement || effect.id == null) {
+        // New effect - let Isar assign a fresh auto-increment Id so a
+        // previously-assigned Id is never clobbered on upsert.
+        effect.id = Isar.autoIncrement;
+      }
+
       await _isar.audioEffectModels.put(effect);
       return effect;
     });
@@ -142,9 +160,7 @@ class AudioEffectsDatasource {
     await _isar.writeTxn(() async {
       final effect = await _isar.audioEffectModels.get(effectId);
       if (effect != null) {
-        // Convert map to JSON string
-        final entries = eqBands.entries.map((e) => '"${e.key}":${e.value}').join(',');
-        effect.eqBandsJson = '{$entries}';
+        effect.eqBandsJson = jsonEncode(eqBands);
         effect.updatedAt = DateTime.now();
         await _isar.audioEffectModels.put(effect);
       }

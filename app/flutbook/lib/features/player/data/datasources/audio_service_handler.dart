@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:audio_service/audio_service.dart';
+import 'package:flutbook/core/services/audio_initialization_service.dart';
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
 import 'package:flutbook/features/player/data/datasources/playback_local_ds.dart';
 import 'package:flutbook/features/player/domain/entities/playback_session.dart';
@@ -42,6 +43,7 @@ class AudioServiceHandler extends BaseAudioHandler {
     _setupPlayer();
     _setupAudioFocus();
     _notifyAudioHandlerAboutPlaybackState();
+    _registerAudioInterruptionHandlers();
   }
 
   static const _skipInterval = Duration(seconds: 30);
@@ -63,6 +65,10 @@ class AudioServiceHandler extends BaseAudioHandler {
 
   // Audio focus management
   bool _hasAudioFocus = false;
+
+  // True when playback was interrupted mid-stream and should be resumed on
+  // interruption end (e.g. a transient phone call interruption).
+  bool _interruptedWhilePlaying = false;
 
   // Initialize the appropriate audio player based on platform
   void _initializePlayer() {
@@ -346,6 +352,34 @@ class AudioServiceHandler extends BaseAudioHandler {
           lastPlayedAt: DateTime.now(),
         ),
       );
+    }
+  }
+
+  /// Bridges OS audio interruptions (set up in AudioInitializationService) to
+  /// the real player so they actually pause/resume playback.
+  void _registerAudioInterruptionHandlers() {
+    AudioInitializationService.setAudioInterruptionHandlers(
+      onInterruptionBegin: _handleInterruptionBegin,
+      onInterruptionEnd: _handleInterruptionEnd,
+      onBecomingNoisy: () => unawaited(pause()),
+    );
+  }
+
+  void _handleInterruptionBegin() {
+    if (_player.playing) {
+      _interruptedWhilePlaying = true;
+      unawaited(pause());
+    } else {
+      _interruptedWhilePlaying = false;
+    }
+  }
+
+  void _handleInterruptionEnd() {
+    if (_interruptedWhilePlaying && !_player.playing) {
+      _interruptedWhilePlaying = false;
+      if (_currentAudiobook != null) {
+        unawaited(_player.play());
+      }
     }
   }
 

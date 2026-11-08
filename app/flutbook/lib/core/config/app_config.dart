@@ -26,12 +26,15 @@ enum AppEnvironment {
   };
 }
 
-/// Supabase connection configuration
+/// Supabase connection configuration.
+///
+/// Only the public anon key is loaded in the client. The Supabase service
+/// role key is privileged (it bypasses Row Level Security) and MUST never be
+/// shipped, required, or referenced inside a client application.
 class SupabaseConfig {
   const SupabaseConfig({
     required this.url,
     required this.anonKey,
-    required this.serviceRoleKey,
   });
 
   /// Create config from environment variables
@@ -40,7 +43,6 @@ class SupabaseConfig {
         dotenv.env['SUPABASE_URL'] ??
         (kDebugMode ? 'http://localhost:54321' : '');
     final anonKey = dotenv.env['SUPABASE_ANON_KEY'] ?? '';
-    final serviceRoleKey = dotenv.env['SUPABASE_SERVICE_ROLE_KEY'] ?? '';
 
     if (url.isEmpty) {
       throw ConfigException('SUPABASE_URL is required');
@@ -48,19 +50,14 @@ class SupabaseConfig {
     if (anonKey.isEmpty) {
       throw ConfigException('SUPABASE_ANON_KEY is required');
     }
-    if (serviceRoleKey.isEmpty) {
-      throw ConfigException('SUPABASE_SERVICE_ROLE_KEY is required');
-    }
 
     return SupabaseConfig(
       url: url,
       anonKey: anonKey,
-      serviceRoleKey: serviceRoleKey,
     );
   }
   final String url;
   final String anonKey;
-  final String serviceRoleKey;
 }
 
 /// API configuration settings

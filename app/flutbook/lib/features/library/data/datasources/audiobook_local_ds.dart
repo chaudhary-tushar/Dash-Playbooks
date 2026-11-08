@@ -4,7 +4,7 @@ import 'dart:io';
 
 import 'package:flutbook/core/error/exceptions.dart';
 import 'package:flutbook/core/services/json_storage_service.dart';
-import 'package:flutbook/features/directory_selection/data/datasources/metadat_extractor_ds.dart';
+import 'package:flutbook/features/directory_selection/data/datasources/metadata_extractor_ds.dart';
 import 'package:flutbook/features/library/data/models/audiobook_model.dart';
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
 import 'package:flutter/foundation.dart'; // Import for debugPrint

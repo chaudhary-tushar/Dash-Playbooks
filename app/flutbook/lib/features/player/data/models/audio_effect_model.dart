@@ -1,4 +1,6 @@
 // lib/features/player/data/models/audio_effect_model.dart
+import 'dart:convert';
+
 import 'package:flutbook/features/player/domain/entities/audio_effect.dart' as domain;
 import 'package:isar_community/isar.dart';
 
@@ -61,26 +63,22 @@ class AudioEffectModel {
 
   // Helper to convert Map to JSON string
   String _mapToJson(Map<String, double> map) {
-    final entries = map.entries.map((e) => '"${e.key}":${e.value}').join(',');
-    return '{$entries}';
+    return jsonEncode(map);
   }
 
   // Helper to convert JSON string to Map
   Map<String, double> _jsonToMap(String json) {
-    final map = <String, double>{};
-    // Simple JSON parsing for our specific format
-    final cleaned = json.replaceAll('{', '').replaceAll('}', '');
-    if (cleaned.isEmpty) return map;
-
-    final pairs = cleaned.split(',');
-    for (final pair in pairs) {
-      final parts = pair.split(':');
-      if (parts.length == 2) {
-        final key = parts[0].replaceAll('"', '').trim();
-        final value = double.tryParse(parts[1].trim()) ?? 0.0;
-        map[key] = value;
+    try {
+      final decoded = jsonDecode(json);
+      if (decoded is Map) {
+        return decoded.map(
+          (key, value) =>
+              MapEntry(key.toString(), (value as num?)?.toDouble() ?? 0.0),
+        );
       }
+    } catch (_) {
+      // Fall through with an empty map on malformed input.
     }
-    return map;
+    return <String, double>{};
   }
 }

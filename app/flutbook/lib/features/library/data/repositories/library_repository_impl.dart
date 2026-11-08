@@ -3,6 +3,7 @@
 import 'package:flutbook/core/error/exceptions.dart';
 import 'package:flutbook/features/library/data/datasources/audiobook_local_ds.dart';
 import 'package:flutbook/features/library/data/datasources/remote/supabase_library_sync.dart';
+import 'package:flutbook/features/library/data/models/audiobook_model.dart';
 import 'package:flutbook/features/library/domain/entities/audiobook.dart';
 import 'package:flutbook/features/library/domain/entities/library.dart';
 import 'package:flutbook/features/library/domain/repositories/library_repository.dart';
@@ -118,10 +119,16 @@ class LibraryRepositoryImpl implements LibraryRepository {
       // and metadata about the library itself. We'll save all audiobooks.
       await _localDatasource.saveAudiobooks(library.audiobooks);
 
-      // If authenticated, sync changes to remote
+      // If authenticated, sync changes to remote by pushing each audiobook's
+      // metadata. This replaces the previous no-op syncAll() placeholder and
+      // makes library updates actually reach the remote store.
       if (_remoteDatasource != null) {
         try {
-          await _remoteDatasource.syncAll();
+          for (final book in library.audiobooks) {
+            await _remoteDatasource!.uploadAudiobookMetadata(
+              AudiobookModel.fromDomain(book),
+            );
+          }
         } catch (e) {
           print('Warning: Could not sync library updates to remote: $e');
           // Continue anyway, local storage is primary

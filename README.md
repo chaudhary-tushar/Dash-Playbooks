@@ -1,6 +1,6 @@
 # Flutter Audiobook Player
 
-A cross-platform, offline-first audiobook player built with Flutter, targeting Android, Linux, and Web platforms. The application follows Material 3 design principles with a focus on privacy and local-first functionality.
+A cross-platform, offline-first audiobook player built with Flutter, targeting Android and Linux (desktop). The application follows Material 3 design principles with a focus on privacy and local-first functionality.
 
 ## Features
 
@@ -12,15 +12,15 @@ A cross-platform, offline-first audiobook player built with Flutter, targeting A
 - **Playback Controls**: Play/pause, skip forward/backward, speed control (0.5x-3.0x), sleep timer
 - **Chapter Navigation**: Supports chapter-aware formats like m4b
 - **Background Playback**: Continues playing when app is in background
-- **Authentication**: Optional Google/Firebase authentication for cloud sync
-- **Synchronization**: Sync progress across devices when authenticated
+- **Authentication**: Optional Supabase authentication (email/password, Google OAuth, anonymous) for cloud sync
+- **Synchronization**: Sync progress and library across devices when authenticated
 
 ## Tech Stack
 
 - **Framework**: Flutter 3.x with Dart 3.x
 - **State Management**: Riverpod
-- **Audio Playback**: just_audio + audio_service
-- **Database**: Isar (local) + Firebase Firestore (sync)
+- **Audio Playback**: just_audio (via just_audio_media_kit) + audio_service
+- **Database**: Isar (local, offline-first) + Supabase (Postgres backend + Auth + Storage for sync)
 - **UI**: Material 3 design system
 - **Architecture**: Clean Architecture with layered design (domain, data, presentation, platform)
 
@@ -29,7 +29,7 @@ A cross-platform, offline-first audiobook player built with Flutter, targeting A
 The app follows a layered architecture:
 
 - **domain/**: Business logic (entities, use cases, repositories)
-- **data/**: Data implementation (Isar database, Firebase, file operations)
+- **data/**: Data implementation (Isar database, Supabase, file operations)
 - **presentation/**: UI and state management
 - **platform/**: Platform-specific integrations
 
@@ -45,7 +45,7 @@ The app follows a layered architecture:
 
 1. Clone the repository
 2. Run `flutter pub get`
-3. Configure Firebase in `lib/config/firebase_options.dart` (for sync features)
+3. Provide Supabase configuration via `SUPABASE_URL` and `SUPABASE_ANON_KEY` (see `lib/core/config/app_config.dart`)
 4. Run `flutter run` to start the app
 
 ### Development
@@ -54,7 +54,6 @@ The app supports hot reload for rapid development:
 
 - For Android: `flutter run -d android`
 - For Linux: `flutter run -d linux`
-- For Web: `flutter run -d chrome`
 
 ## Testing
 
@@ -72,13 +71,11 @@ flutter test --coverage
 
 - APK: `flutter build apk`
 - Linux: `flutter build linux`
-- Web: `flutter build web`
 
 ## Platform Support
 
 - **Android**: Full support with background playback and notifications
 - **Linux**: Desktop experience with MPRIS integration
-- **Web**: Browser-based playback with MediaSession API
 - Additional platforms (Windows, iOS) to be added later
 
 ## Contributing

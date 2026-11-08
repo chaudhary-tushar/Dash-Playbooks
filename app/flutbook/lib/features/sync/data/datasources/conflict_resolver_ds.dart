@@ -40,6 +40,29 @@ class ConflictResolverDatasource {
     return all.where((c) => c.isPending).toList();
   }
 
+  /// Return the most recent *resolved* conflict for a given entity, or null if
+  /// the user has not made a resolution decision for it yet.
+  ///
+  /// This lets sync honour a previously chosen resolution (local/remote/merge)
+  /// for the same entity instead of blindly re-applying last-write-wins. Only
+  /// conflicts with an explicit strategy are returned; plain auto-resolved
+  /// records are ignored so they don't pin a stale decision.
+  Future<SyncConflict?> getResolvedConflict({
+    required ConflictEntityType entityType,
+    required String entityId,
+  }) async {
+    final all = await getAllConflicts();
+    for (final conflict in all) {
+      if (conflict.entityType == entityType &&
+          conflict.entityId == entityId &&
+          conflict.isResolved &&
+          conflict.resolutionStrategy != ConflictResolutionStrategy.lastWriteWins) {
+        return conflict;
+      }
+    }
+    return null;
+  }
+
   /// Delete a conflict record by ID.
   Future<void> deleteConflict(String id) async {
     _conflicts.remove(id);

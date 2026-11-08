@@ -36,6 +36,8 @@ class LibrarySyncRepositoryImpl implements LibrarySyncRepository {
   final ConflictResolverDatasource? _conflictDs;
   final _uuid = const Uuid();
 
+  static const _lastSyncTimeKey = 'library_sync_last_sync_time';
+
   @override
   Future<SyncResult> syncLibrary() async {
     try {
@@ -60,32 +62,64 @@ class LibrarySyncRepositoryImpl implements LibrarySyncRepository {
           if (remoteBook == null) {
             // New local book - upload to remote
             await _remoteDatasource.uploadAudiobookMetadata(
-              localBook as AudiobookModel,
+              AudiobookModel.fromDomain(localBook),
             );
             uploadedCount++;
           } else {
-            // Book exists in both — record conflict then auto-resolve (LWW)
+            // Book exists in both — check for conflicts based on createdAt
             final localTime = localBook.createdAt;
             final remoteTime = remoteBook.createdAt;
 
             if (localTime != remoteTime) {
-              await _recordConflict(
-                entityId: localBook.id,
-                entityTitle: localBook.title,
-                localData: {'createdAt': localTime.toIso8601String(), 'title': localBook.title},
-                remoteData: {'createdAt': remoteTime.toIso8601String(), 'title': remoteBook.title},
-                localTimestamp: localTime,
-                remoteTimestamp: remoteTime,
+              // Consult any user resolution recorded for this entity in a
+              // previous sync before falling back to last-write-wins (m2).
+              // Otherwise we would silently overwrite the user's earlier
+              // local/remote choice every time the book was re-synced.
+              final prior = await _priorResolutionFor(
+                ConflictEntityType.library,
+                localBook.id,
               );
-            }
 
-            if (localTime.isAfter(remoteTime)) {
-              // Local is newer - upload to remote
-              await _remoteDatasource.uploadAudiobookMetadata(
-                AudiobookModel.fromDomain(localBook),
-              );
-              uploadedCount++;
-              conflictsResolved++;
+              if (prior == null) {
+                await _recordConflict(
+                  entityId: localBook.id,
+                  entityTitle: localBook.title,
+                  localData: {
+                    'createdAt': localTime.toIso8601String(),
+                    'title': localBook.title,
+                  },
+                  remoteData: {
+                    'createdAt': remoteTime.toIso8601String(),
+                    'title': remoteBook.title,
+                  },
+                  localTimestamp: localTime,
+                  remoteTimestamp: remoteTime,
+                );
+              } else {
+                // Honour the previously chosen side.
+                conflictsResolved++;
+              }
+
+              // Decide which side wins: a user resolution takes priority,
+              // otherwise fall back to last-write-wins.
+              final localWins = switch (prior?.resolutionStrategy) {
+                ConflictResolutionStrategy.localWins => true,
+                ConflictResolutionStrategy.remoteWins => false,
+                ConflictResolutionStrategy.manual || 
+                ConflictResolutionStrategy.lastWriteWins || null =>
+                  localTime.isAfter(remoteTime),
+              };
+
+              if (localWins) {
+                // Local is newer (or user chose local) - upload to remote
+                await _remoteDatasource.uploadAudiobookMetadata(
+                  AudiobookModel.fromDomain(localBook),
+                );
+                uploadedCount++;
+                if (prior == null) {
+                  conflictsResolved++;
+                }
+              }
             }
           }
         } catch (e) {
@@ -108,8 +142,34 @@ class LibrarySyncRepositoryImpl implements LibrarySyncRepository {
             final remoteTime = remoteBook.createdAt;
 
             if (remoteTime.isAfter(localTime)) {
-              // Remote is newer - download to local
-              await _localDatasource.saveAudiobooks([remoteBook]);
+              // Remote is newer - check the user didn't already choose to keep
+              // the local version for this entity (m2). If they did, leave the
+              // local copy untouched rather than overwriting their choice.
+              final prior = await _priorResolutionFor(
+                ConflictEntityType.library,
+                localBook.id,
+              );
+              if (prior?.resolutionStrategy ==
+                  ConflictResolutionStrategy.localWins) {
+                conflictsResolved++;
+                continue;
+              }
+
+              // Remote wins - download to local. Preserve the locally cached
+              // chapters and preferred speed: the remote sync payload does not
+              // carry chapters, so a blind overwrite would drop them.
+              final merged = localBook.copyWith(
+                title: remoteBook.title,
+                author: remoteBook.author,
+                album: remoteBook.album,
+                coverArtPath: remoteBook.coverArtPath,
+                duration: remoteBook.duration,
+                completed: remoteBook.completed,
+                totalSize: remoteBook.totalSize,
+                lastPlayedAt: remoteBook.lastPlayedAt,
+                createdAt: remoteBook.createdAt,
+              );
+              await _localDatasource.saveAudiobooks([merged]);
               downloadedCount++;
               conflictsResolved++;
             }
@@ -118,6 +178,11 @@ class LibrarySyncRepositoryImpl implements LibrarySyncRepository {
           errors.add('Failed to download ${remoteBook.title}: $e');
         }
       }
+
+      // Step 4: Track when the library last synced so the UI can reflect it
+      // and so pending-change counts have a meaningful baseline.
+      final now = DateTime.now();
+      await _persistLastSyncTime(now);
 
       // Determine sync status
       SyncStatus status;
@@ -147,7 +212,7 @@ class LibrarySyncRepositoryImpl implements LibrarySyncRepository {
   Future<void> uploadAudiobook(Audiobook audiobook) async {
     try {
       await _remoteDatasource.uploadAudiobookMetadata(
-        audiobook as AudiobookModel,
+        AudiobookModel.fromDomain(audiobook),
       );
     } catch (e) {
       throw DatabaseException('Failed to upload audiobook: $e');
@@ -202,19 +267,85 @@ class LibrarySyncRepositoryImpl implements LibrarySyncRepository {
 
   @override
   Future<DateTime?> getLastSyncTime() async {
-    // TODO: Implement sync timestamp tracking
-    return null;
+    try {
+      final settings = await _localDatasource.getSettings();
+      final stored = settings[_lastSyncTimeKey];
+      if (stored is String) {
+        return DateTime.tryParse(stored);
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Persists the last successful library sync time using the existing
+  /// JSON settings storage (no new dependency or schema required).
+  Future<void> _persistLastSyncTime(DateTime time) async {
+    try {
+      final settings = await _localDatasource.getSettings();
+      settings[_lastSyncTimeKey] = time.toIso8601String();
+      await _localDatasource.saveSettings(settings);
+    } catch (e) {
+      // Non-fatal: failing to persist the timestamp should never block sync.
+    }
   }
 
   @override
   Future<void> clearSyncQueue() async {
-    // TODO: Implement sync queue management
+    // The library sync is a stateless full reconciliation driven by created_at
+    // timestamps rather than an outbox queue, so there is no queue to drain.
+    // Clearing is a no-op by design.
   }
 
   @override
   Future<int> getPendingSyncCount() async {
-    // TODO: Implement sync queue management
-    return 0;
+    // Approximate the number of local changes not yet pushed to remote since
+    // the last successful sync. Local-only books (no remote counterpart) are
+    // considered pending.
+    try {
+      final localAudiobooks = await _localDatasource.getAudiobooks();
+      final remoteMetadata = await getRemoteMetadataSafe();
+      final remotePaths = remoteMetadata.map((m) => m.filePath).toSet();
+
+      var pending = 0;
+      for (final book in localAudiobooks) {
+        if (!remotePaths.contains(book.filePath)) {
+          pending++;
+        }
+      }
+      return pending;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  /// Fetches remote audiobook metadata, yielding an empty list on failure so
+  /// callers (e.g. pending-count UI) degrade gracefully instead of throwing.
+  Future<List<AudiobookModel>> getRemoteMetadataSafe() async {
+    try {
+      return await _remoteDatasource.getAudiobookMetadata();
+    } catch (e) {
+      return const <AudiobookModel>[];
+    }
+  }
+
+  /// Returns a previously recorded user resolution for an entity, or null if
+  /// none exists. Guards against a null conflict datasource.
+  Future<SyncConflict?> _priorResolutionFor(
+    ConflictEntityType entityType,
+    String entityId,
+  ) async {
+    final ds = _conflictDs;
+    if (ds == null) return null;
+    try {
+      return await ds.getResolvedConflict(
+        entityType: entityType,
+        entityId: entityId,
+      );
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> _recordConflict({

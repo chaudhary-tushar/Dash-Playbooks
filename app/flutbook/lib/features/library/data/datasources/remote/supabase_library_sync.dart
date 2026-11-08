@@ -8,6 +8,7 @@ import 'package:flutbook/core/config/app_config.dart';
 import 'package:flutbook/core/error/exceptions.dart';
 import 'package:flutbook/features/library/data/models/audiobook_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 
 /// Supabase remote datasource for library operations.
 ///
@@ -25,6 +26,7 @@ class SupabaseLibraryDatasource {
        _configProvider = configProvider;
   final SupabaseClient _supabase;
   final ConfigProvider _configProvider;
+  final _uuid = const Uuid();
 
   /// Get the current configuration
   AppConfig get _config => _configProvider.config;
@@ -52,23 +54,44 @@ class SupabaseLibraryDatasource {
         'updated_at': DateTime.now(),
       };
 
-      // Try to update existing record first
+      // Match on (user_id, file_path) — the stable identity used throughout
+      // sync — rather than the client internalId. A locally-scanned book's
+      // internalId is a file path, which would never match the remote UUID
+      // primary key, causing a spurious insert or a PK violation (m6).
       final updateResult = await _supabase
           .from('audiobooks')
           .update(data)
-          .eq(
-            'id',
-            audiobook.internalId ?? '',
-          );
+          .eq('user_id', user.id)
+          .eq('file_path', audiobook.filePath);
 
       if (updateResult.length == 0) {
-        // If no records were updated, insert a new record
-        data['id'] = audiobook.internalId ?? '';
+        // No existing row for this file - insert a new one. Use a valid UUID
+        // id: reuse a stored internalId only when it is itself a UUID
+        // (e.g. a book originally downloaded from remote), otherwise generate
+        // a fresh one instead of violating the UUID primary key with a path.
+        data['id'] = _remoteIdFor(audiobook.internalId);
         await _supabase.from('audiobooks').insert(data);
       }
     } catch (e) {
       throw DatabaseException('Failed to upload audiobook metadata: $e');
     }
+  }
+
+  /// Returns a valid UUID to use as the remote record id.
+  ///
+  /// Reuses [internalId] only if it is itself a valid UUID (the case for a
+  /// book that was downloaded from remote); otherwise generates a fresh one.
+  /// This prevents a file-path string from being used as the UUID primary key.
+  static final _uuidPattern = RegExp(
+    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+  );
+
+  String _remoteIdFor(String? internalId) {
+    final id = internalId;
+    if (id != null && _uuidPattern.hasMatch(id)) {
+      return id;
+    }
+    return _uuid.v4();
   }
 
   /// Gets audiobook metadata from Supabase
@@ -129,17 +152,6 @@ class SupabaseLibraryDatasource {
     }
   }
 
-  /// Syncs all audiobooks with Supabase
-  Future<void> syncAll() async {
-    try {
-      // This would be implemented based on the sync strategy
-      // For now, it's a placeholder for future implementation
-      print('Syncing all audiobooks with Supabase...');
-    } catch (e) {
-      throw DatabaseException('Failed to sync audiobooks: $e');
-    }
-  }
-
   /// Gets audiobook by ID
   Future<AudiobookModel?> getAudiobookById(String audiobookId) async {
     try {
@@ -153,7 +165,11 @@ class SupabaseLibraryDatasource {
           .select()
           .eq('id', audiobookId)
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
+
+      if (result == null) {
+        return null;
+      }
 
       return AudiobookModel(
         internalId: result['id'] as String? ?? '',
